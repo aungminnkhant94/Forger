@@ -16,9 +16,9 @@ from forger.scrapers.article_scraper import (
     ArticleScraperTimeoutError,
 )
 from forger.analysis import (
-    DeepSeekError,
-    DeepSeekConfigError,
-    DeepSeekAPIError,
+    AnalysisError,
+    AnalysisConfigError,
+    AnalysisAPIError,
 )
 
 
@@ -50,8 +50,8 @@ class TestDeepSeekExceptions:
     
     def test_custom_exceptions_exist(self):
         """Verify custom exception classes are defined."""
-        assert issubclass(DeepSeekConfigError, DeepSeekError)
-        assert issubclass(DeepSeekAPIError, DeepSeekError)
+        assert issubclass(AnalysisConfigError, AnalysisError)
+        assert issubclass(AnalysisAPIError, AnalysisError)
 
 
 class TestScrapeArticleErrorHandling:
@@ -118,15 +118,15 @@ class TestRetryDecorators:
 class TestDeepSeekFallback:
     """Test DeepSeek fallback analysis."""
     
-    @patch('forger.analysis.analyze_with_deepseek')
+    @patch('forger.analysis.analyze_with_llm')
     def test_fallback_returns_valid_structure(self, mock_analyze):
         """Test fallback returns proper structure when DeepSeek fails."""
-        from forger.analysis import deepseek_analyze_bookmark
+        from forger.analysis import analyze_bookmark
         
         # Mock API failure
         mock_analyze.return_value = None
         
-        result = deepseek_analyze_bookmark(
+        result = analyze_bookmark(
             text="Test content",
             title="Test Title",
             url="https://example.com"

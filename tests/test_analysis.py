@@ -12,12 +12,12 @@ from openai import (
 )
 
 from forger.analysis import (
-    DeepSeekAPIError,
-    DeepSeekConfigError,
-    DeepSeekError,
+    AnalysisAPIError,
+    AnalysisConfigError,
+    AnalysisError,
     _call_analysis_api,
-    analyze_with_deepseek,
-    deepseek_analyze_bookmark,
+    analyze_with_llm,
+    analyze_bookmark,
     get_analysis_client,
 )
 
@@ -111,7 +111,7 @@ class TestCallDeepSeekAPI:
 
 
 class TestAnalyzeWithDeepSeek:
-    """Tests for the analyze_with_deepseek function."""
+    """Tests for the analyze_with_llm function."""
 
     @patch.dict("os.environ", {"DEEPSEEK_API_KEY": "test-key"})
     @patch("forger.analysis._call_analysis_api")
@@ -139,7 +139,7 @@ class TestAnalyzeWithDeepSeek:
         }
         mock_call.return_value = json.dumps(mock_response)
 
-        result = analyze_with_deepseek("test content", "Test Title", "https://example.com")
+        result = analyze_with_llm("test content", "Test Title", "https://example.com")
 
         assert result is not None
         assert result["title"] == "Test Title"
@@ -166,7 +166,7 @@ class TestAnalyzeWithDeepSeek:
         }
         mock_call.return_value = json.dumps(mock_response)
 
-        result = analyze_with_deepseek("test content")
+        result = analyze_with_llm("test content")
 
         assert "scoring_inputs" in result
         assert result["scoring_inputs"]["relevance"] == 8.0
@@ -182,14 +182,14 @@ class TestAnalyzeWithDeepSeek:
         }
         mock_call.return_value = json.dumps(mock_response)
 
-        result = analyze_with_deepseek("test content")
+        result = analyze_with_llm("test content")
 
         assert result["recommendation_bucket"] == "test_this_week"
 
     @patch.dict("os.environ", {}, clear=True)
     def test_returns_none_without_api_key(self):
         """Returns None when API key not available."""
-        result = analyze_with_deepseek("test content")
+        result = analyze_with_llm("test content")
         assert result is None
 
     @patch.dict("os.environ", {"DEEPSEEK_API_KEY": "test-key"})
@@ -202,7 +202,7 @@ class TestAnalyzeWithDeepSeek:
         mock_client.chat.completions.create.return_value = mock_response
         mock_openai.return_value = mock_client
 
-        result = analyze_with_deepseek("test content")
+        result = analyze_with_llm("test content")
         assert result is None
 
     @patch.dict("os.environ", {"DEEPSEEK_API_KEY": "test-key"})
@@ -215,7 +215,7 @@ class TestAnalyzeWithDeepSeek:
         )
         mock_openai.return_value = mock_client
 
-        result = analyze_with_deepseek("test content")
+        result = analyze_with_llm("test content")
         assert result is None
 
     @patch.dict("os.environ", {"DEEPSEEK_API_KEY": "test-key"})
@@ -226,7 +226,7 @@ class TestAnalyzeWithDeepSeek:
         mock_call.side_effect = Exception("API error")
         mock_openai.return_value = MagicMock()
 
-        result = analyze_with_deepseek("test content")
+        result = analyze_with_llm("test content")
         assert result is None
 
     @patch.dict("os.environ", {"DEEPSEEK_API_KEY": "test-key"})
@@ -240,7 +240,7 @@ class TestAnalyzeWithDeepSeek:
         mock_openai.return_value = mock_client
 
         long_text = "x" * 10000
-        analyze_with_deepseek(long_text)
+        analyze_with_llm(long_text)
 
         call_args = mock_client.chat.completions.create.call_args
         prompt = call_args.kwargs["messages"][1]["content"]
@@ -253,35 +253,35 @@ class TestDeepseekAnalyzeBookmark:
     """Tests for the high-level analyze function with fallback."""
 
     @patch.dict("os.environ", {"DEEPSEEK_API_KEY": "test-key"})
-    @patch("forger.analysis.analyze_with_deepseek")
+    @patch("forger.analysis.analyze_with_llm")
     def test_returns_deepseek_result_on_success(self, mock_analyze):
         """Returns DeepSeek result when available."""
         expected = {"title": "Test", "summary": "From API"}
         mock_analyze.return_value = expected
 
-        result = deepseek_analyze_bookmark("test content")
+        result = analyze_bookmark("test content")
 
         assert result == expected
 
     @patch.dict("os.environ", {"DEEPSEEK_API_KEY": "test-key"})
-    @patch("forger.analysis.analyze_with_deepseek")
+    @patch("forger.analysis.analyze_with_llm")
     def test_fallback_on_none_result(self, mock_analyze):
         """Returns fallback when API returns None."""
         mock_analyze.return_value = None
 
-        result = deepseek_analyze_bookmark("test content", "Test Title", "https://example.com")
+        result = analyze_bookmark("test content", "Test Title", "https://example.com")
 
         assert result["title"] == "Test Title"
         assert result["analysis_source"] == "deepseek_fallback"
         assert result["recommendation_bucket"] == "archive"
 
     @patch.dict("os.environ", {"DEEPSEEK_API_KEY": "test-key"})
-    @patch("forger.analysis.analyze_with_deepseek")
+    @patch("forger.analysis.analyze_with_llm")
     def test_fallback_on_exception(self, mock_analyze):
         """Returns fallback when API raises exception."""
         mock_analyze.side_effect = Exception("API failed")
 
-        result = deepseek_analyze_bookmark("test content", "Original Title")
+        result = analyze_bookmark("test content", "Original Title")
 
         assert result["title"] == "Original Title"
         assert result["analysis_source"] == "deepseek_fallback"
@@ -290,18 +290,18 @@ class TestDeepseekAnalyzeBookmark:
     def test_fallback_without_api_key(self):
         """Returns fallback when no API key configured."""
         with patch.dict("os.environ", {}, clear=True):
-            result = deepseek_analyze_bookmark("test content")
+            result = analyze_bookmark("test content")
 
         assert result["analysis_source"] == "deepseek_fallback"
         assert result["priority_score"] == 3.0
 
     @patch.dict("os.environ", {"DEEPSEEK_API_KEY": "test-key"})
-    @patch("forger.analysis.analyze_with_deepseek")
+    @patch("forger.analysis.analyze_with_llm")
     def test_fallback_has_all_required_fields(self, mock_analyze):
         """Fallback result has all required fields."""
         mock_analyze.return_value = None
 
-        result = deepseek_analyze_bookmark("test content")
+        result = analyze_bookmark("test content")
 
         required_fields = [
             "title", "summary", "recommendation_reason", "key_insights",
@@ -318,21 +318,21 @@ class TestExceptionClasses:
     """Tests for custom exception classes."""
 
     def test_deepseek_error_is_exception(self):
-        """DeepSeekError is an Exception."""
-        assert issubclass(DeepSeekError, Exception)
+        """AnalysisError is an Exception."""
+        assert issubclass(AnalysisError, Exception)
 
     def test_config_error_is_deepseek_error(self):
-        """DeepSeekConfigError is a DeepSeekError."""
-        assert issubclass(DeepSeekConfigError, DeepSeekError)
+        """AnalysisConfigError is a AnalysisError."""
+        assert issubclass(AnalysisConfigError, AnalysisError)
 
     def test_api_error_is_deepseek_error(self):
-        """DeepSeekAPIError is a DeepSeekError."""
-        assert issubclass(DeepSeekAPIError, DeepSeekError)
+        """AnalysisAPIError is a AnalysisError."""
+        assert issubclass(AnalysisAPIError, AnalysisError)
 
     def test_can_raise_and_catch(self):
         """Can raise and catch custom exceptions."""
-        with pytest.raises(DeepSeekError):
-            raise DeepSeekConfigError("test error")
+        with pytest.raises(AnalysisError):
+            raise AnalysisConfigError("test error")
 
-        with pytest.raises(DeepSeekConfigError):
-            raise DeepSeekConfigError("test error")
+        with pytest.raises(AnalysisConfigError):
+            raise AnalysisConfigError("test error")
