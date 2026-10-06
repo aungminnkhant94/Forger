@@ -407,9 +407,13 @@ def run_health_check() -> int:
         print_error(f"Git check failed: {e}")
         issues.append("Git repository issue")
     
-    # Check 3: Data files
+    # Check 3: Data files (self-heal: create empties on first run)
     print(color("\n3. Data Files", Colors.BOLD))
-    for filename in ["bookmarks_raw.json", "analysis_results.json", "seen_bookmarks.json"]:
+    for filename, empty in [
+        ("bookmarks_raw.json", "[]"),
+        ("analysis_results.json", "[]"),
+        ("seen_bookmarks.json", "[]"),
+    ]:
         filepath = DATA_DIR / filename
         if filepath.exists():
             size_mb = filepath.stat().st_size / (1024 * 1024)
@@ -418,21 +422,26 @@ def run_health_check() -> int:
             else:
                 print_success(f"{filename}: {size_mb:.1f}MB")
         else:
-            print_error(f"{filename}: MISSING")
-            issues.append(f"Missing file: {filename}")
-    
+            DATA_DIR.mkdir(parents=True, exist_ok=True)
+            filepath.write_text(empty + "\n", encoding="utf-8")
+            print_success(f"{filename}: initialized (empty)")
+
     # Check 4: Environment
     print(color("\n4. Environment", Colors.BOLD))
-    required_vars = ["DEEPSEEK_API_KEY"]
     optional_vars = ["TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID"]
-    
-    for var in required_vars:
-        if os.getenv(var):
-            print_success(f"{var}: set")
-        else:
-            print_error(f"{var}: NOT SET")
-            issues.append(f"Missing required env var: {var}")
-    
+
+    provider = os.getenv("ANALYSIS_PROVIDER", "deepseek").lower()
+    provider_key = {
+        "deepseek": "DEEPSEEK_API_KEY",
+        "kimi": "KIMI_API_KEY",
+        "custom": "LLM_API_KEY",
+    }.get(provider)
+    if provider_key and os.getenv(provider_key):
+        print_success(f"{provider_key}: set (provider: {provider})")
+    elif provider_key:
+        # Agent mode needs no key — informational, not a failure.
+        print_info(f"{provider_key}: not set — agent mode (`forge add --agent`) works without a key; set it for API scoring")
+
     for var in optional_vars:
         if os.getenv(var):
             print_success(f"{var}: set (optional)")
