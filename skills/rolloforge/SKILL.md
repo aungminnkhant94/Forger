@@ -25,6 +25,10 @@ installed it). All commands below assume you `cd` there first.
    pip install -r requirements.txt
    ```
    No git? Download the repo zip and extract.
+   **Safety**: if the target directory already exists and is not a RolloForge
+   checkout (no `forge.py` inside), do NOT touch or clone into it — pick a
+   different directory (e.g. `~/RolloForge-oss`) and remember it. Never run
+   forge commands inside a directory that belongs to another project.
 3. **Create the profile** — interview the user briefly (2-4 questions), then
    write their answers into `~/RolloForge/profile.md` following
    `profile.example.md`: who they are, what they're building now, always-relevant
