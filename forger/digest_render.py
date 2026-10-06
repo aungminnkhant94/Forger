@@ -82,7 +82,7 @@ def print_console_summary(digest: WeeklyDigest) -> None:
     week_end_str = digest.week_end.strftime("%b %d")
 
     print("\n" + "=" * 60)
-    print("📚 ROLLOFORGE WEEKLY DIGEST")
+    print("📚 FORGER WEEKLY DIGEST")
     print(f"   {week_start_str} - {week_end_str}")
     print("=" * 60)
 
