@@ -1,0 +1,115 @@
+{# Weekly Digest Template - Markdown Version #}
+# 📚 Weekly Digest - {{ week_range }}
+
+*Generated on {{ generated_at }}*
+
+---
+
+## 💡 Key Insights
+
+{% for insight in insights %}
+- {{ insight }}
+{% endfor %}
+
+---
+
+## 📊 Summary
+
+| Metric | Value |
+|--------|-------|
+| New Bookmarks | **{{ stats.total_new }}** |
+| Test This Week | **{{ stats.test_this_week }}** ⚡ |
+| Build Later | **{{ stats.build_later }}** 📚 |
+| Archive | **{{ stats.archive }}** |
+| Avg Worth Score | **{{ "%.1f"|format(stats.avg_worth_score) }}** / 10 |
+| Avg Priority Score | **{{ "%.1f"|format(stats.avg_priority_score) }}** / 10 |
+
+{% if stats.top_sources %}
+### Top Sources
+{% for source, count in stats.top_sources %}
+- {{ source }}: {{ count }} bookmarks
+{% endfor %}
+{% endif %}
+
+---
+
+{% if test_this_week %}
+## ⚡ Test This Week ({{ test_this_week|length }} items)
+
+{% for item in test_this_week %}
+### {{ loop.index }}. {{ item.bookmark.title or item.bookmark.text[:60] + "..." }}
+
+**Source:** {{ item.bookmark.source }}{% if item.bookmark.author %} • @{{ item.bookmark.author }}{% endif %}
+
+**URL:** {{ item.bookmark.url }}
+
+**Summary:** {{ item.analysis.summary }}
+
+**Scores:** Worth {{ "%.1f"|format(item.analysis.worth_score) }} | Priority {{ "%.1f"|format(item.analysis.priority_score) }} | Effort {{ "%.1f"|format(item.analysis.effort_score) }}
+
+{% if item.action_items %}
+**Action Items:**
+{% for action in item.action_items %}
+- [ ] {{ action }}
+{% endfor %}
+{% endif %}
+
+---
+{% endfor %}
+{% endif %}
+
+{% if build_later %}
+## 📚 Build Later ({{ build_later|length }} items)
+
+High-priority items from your backlog:
+
+{% for item in build_later[:10] %}
+{{ loop.index }}. **{{ item.bookmark.title or item.bookmark.text[:60] + "..." }}**
+   - Worth: {{ "%.1f"|format(item.analysis.worth_score) }} | Source: {{ item.bookmark.source }}
+   - {{ item.analysis.summary[:100] }}{% if item.analysis.summary|length > 100 %}...{% endif %}
+{% endfor %}
+
+{% if build_later|length > 10 %}
+*... and {{ build_later|length - 10 }} more items*
+{% endif %}
+
+---
+{% endif %}
+
+{% if trends.topic_distribution %}
+## 📈 Trends & Patterns
+
+### Quality Comparison
+- **This week:** {{ "%.1f"|format(trends.avg_current_week_score) }} / 10
+- **Historical avg:** {{ "%.1f"|format(trends.avg_historical_score) }} / 10
+- **Trend:** {% if trends.quality_trend == 'up' %}📈 Up{% elif trends.quality_trend == 'down' %}📉 Down{% else %}➡️ Stable{% endif %}
+  {% if trends.quality_delta > 0 %}(+{{ "%.2f"|format(trends.quality_delta) }}){% elif trends.quality_delta < 0 %}({{ "%.2f"|format(trends.quality_delta) }}){% endif %}
+
+### Topic Distribution
+{% for topic, data in trends.topic_distribution.items() %}
+- **{{ topic }}:** {{ data.count }} bookmarks ({{ data.percentage }}%)
+{% endfor %}
+
+---
+{% endif %}
+
+## 🎯 Action Summary
+
+Based on this week's bookmarks, here are your priority actions:
+
+{% if test_this_week %}
+### Immediate (This Week)
+{% for item in test_this_week[:3] %}
+{{ loop.index }}. [{{ item.bookmark.title or item.bookmark.text[:50] + "..." }}]({{ item.bookmark.url }})
+{% endfor %}
+{% endif %}
+
+{% if build_later %}
+### Backlog Review
+- You have {{ build_later|length }} items in "build later"
+- Consider scheduling time to review these
+{% endif %}
+
+---
+
+*RolloForge Weekly Digest • {{ week_range }}*

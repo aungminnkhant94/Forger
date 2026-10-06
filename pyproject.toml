@@ -1,0 +1,26 @@
+[project]
+name = "rolloforge"
+version = "1.0.0"
+description = "Paste a URL — your AI agent turns it into a scored, searchable personal knowledge base. Headless bookmark engine for any agent."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Aung Minn Khant" }]
+keywords = ["bookmarks", "ai-agents", "llm", "personal-knowledge-base", "skills"]
+dependencies = [
+    "python-dotenv>=1.0",
+    "requests>=2.31",
+    "beautifulsoup4>=4.12",
+    "lxml>=5.0",
+    "tenacity>=8.2",
+    "openai>=1.40",
+    "Jinja2>=3.1",
+    "playwright>=1.40",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8.0", "pytest-asyncio>=0.26", "pytest-cov>=6.0"]
+
+[project.urls]
+Homepage = "https://github.com/aungminnkhant94/RolloForge"
+Issues = "https://github.com/aungminnkhant94/RolloForge/issues"

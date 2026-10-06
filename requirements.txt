@@ -1,0 +1,17 @@
+# RolloForge Core Dependencies
+# Security note: All versions pinned to prevent supply chain attacks
+# Run `pip-audit --requirement requirements.txt` to check for vulnerabilities
+
+Jinja2==3.1.6                    # CVE-2024-22195 fixed in 3.1.3+
+python-dotenv==1.1.0
+requests==2.33.0                 # CVE-2024-47081, CVE-2026-25645 fixed in 2.33.0
+beautifulsoup4==4.13.3
+lxml==5.3.1
+tenacity==9.0.0
+playwright==1.51.0
+openai==1.69.0
+
+# Test dependencies
+pytest==8.3.5
+pytest-asyncio==0.26.0
+pytest-cov==6.0.0

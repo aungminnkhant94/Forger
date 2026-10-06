@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RolloForge Bookmark Report</title>
+  <style>
+    :root {
+      --bg: #f5efe4;
+      --panel: #fffaf2;
+      --panel-strong: #f1e4d0;
+      --ink: #20201c;
+      --muted: #68624e;
+      --accent: #a44b1a;
+      --accent-soft: #d77b46;
+      --line: rgba(32, 32, 28, 0.1);
+      --good: #275d38;
+      --warn: #8c641f;
+      --low: #6e6e62;
+      --bad: #7f2f2f;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top right, rgba(215, 123, 70, 0.18), transparent 24%),
+        linear-gradient(180deg, #f8f3ea 0%, var(--bg) 100%);
+    }
+
+    .page {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 32px 20px 64px;
+    }
+
+    .hero {
+      padding: 28px;
+      border: 1px solid var(--line);
+      background: linear-gradient(135deg, rgba(255, 250, 242, 0.96), rgba(241, 228, 208, 0.92));
+      border-radius: 24px;
+      box-shadow: 0 24px 80px rgba(80, 58, 32, 0.12);
+    }
+
+    .hero h1 {
+      margin: 0 0 10px;
+      font-size: clamp(2rem, 4vw, 3.4rem);
+      line-height: 0.95;
+      letter-spacing: -0.04em;
+    }
+
+    .hero p {
+      margin: 0;
+      max-width: 760px;
+      color: var(--muted);
+      font-size: 1rem;
+    }
+
+    .meta {
+      margin-top: 16px;
+      font-size: 0.92rem;
+      color: var(--muted);
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 14px;
+      margin: 24px 0 30px;
+    }
+
+    .stat {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 16px;
+      box-shadow: 0 10px 30px rgba(80, 58, 32, 0.06);
+    }
+
+    .stat .label {
+      font-size: 0.88rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .stat .value {
+      margin-top: 8px;
+      font-size: 1.9rem;
+      font-weight: 700;
+    }
+
+    .bookmarks {
+      display: grid;
+      gap: 16px;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background: rgba(255, 250, 242, 0.94);
+      overflow: hidden;
+      box-shadow: 0 16px 40px rgba(80, 58, 32, 0.08);
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      padding: 20px 22px 12px;
+      background: linear-gradient(180deg, rgba(241, 228, 208, 0.72), rgba(255, 250, 242, 0));
+    }
+
+    .card-header h2 {
+      margin: 0 0 8px;
+      font-size: 1.2rem;
+      line-height: 1.25;
+    }
+
+    .card-header a {
+      color: var(--ink);
+      text-decoration: none;
+    }
+
+    .card-header a:hover { color: var(--accent); }
+
+    .bucket {
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      white-space: nowrap;
+      border: 1px solid currentColor;
+    }
+
+    .bucket.test_this_week { color: var(--good); background: rgba(39, 93, 56, 0.08); }
+    .bucket.build_later { color: var(--warn); background: rgba(140, 100, 31, 0.1); }
+    .bucket.archive { color: var(--low); background: rgba(110, 110, 98, 0.1); }
+    .bucket.ignore { color: var(--bad); background: rgba(127, 47, 47, 0.08); }
+
+    .byline {
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .card-body { padding: 0 22px 22px; }
+
+    .summary {
+      margin: 0 0 16px;
+      line-height: 1.55;
+    }
+
+    .reason {
+      margin: 0 0 18px;
+      padding-left: 16px;
+      border-left: 3px solid var(--accent-soft);
+      color: var(--muted);
+    }
+
+    .scores {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .score {
+      padding: 12px 14px;
+      border-radius: 14px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+    }
+
+    .score strong {
+      display: block;
+      font-size: 1.1rem;
+      margin-bottom: 4px;
+    }
+
+    .insights,
+    .tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .insight,
+    .tag {
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: var(--panel-strong);
+      font-size: 0.88rem;
+    }
+
+    footer {
+      margin-top: 26px;
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+
+    @media (max-width: 720px) {
+      .card-header { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <h1>RolloForge Bookmark Intelligence</h1>
+      <p>Standalone report covering every stored bookmark, ranked with Python scoring and recommendation mapping. DeepSeek results are used when available; fallback heuristics keep the pipeline running when the model is unavailable.</p>
+      <div class="meta">Generated at {{ generated_at }}</div>
+    </section>
+
+    <section class="stats">
+      <article class="stat"><div class="label">Total</div><div class="value">{{ stats.total }}</div></article>
+      <article class="stat"><div class="label">Test This Week</div><div class="value">{{ stats.test_this_week }}</div></article>
+      <article class="stat"><div class="label">Build Later</div><div class="value">{{ stats.build_later }}</div></article>
+      <article class="stat"><div class="label">Archive</div><div class="value">{{ stats.archive }}</div></article>
+      <article class="stat"><div class="label">Ignore</div><div class="value">{{ stats.ignore }}</div></article>
+    </section>
+
+    <section class="bookmarks">
+      {% for row in rows %}
+      <article class="card">
+        <div class="card-header">
+          <div>
+            <h2><a href="{{ row.url }}">{{ row.title }}</a></h2>
+            <div class="byline">Author: {{ row.author }} | Bookmarked: {{ row.bookmarked_at or "unknown" }} | Source: {{ row.analysis_source }}</div>
+          </div>
+          <div class="bucket {{ row.recommendation_bucket }}">{{ row.recommendation_bucket.replace("_", " ") }}</div>
+        </div>
+        <div class="card-body">
+          <p class="summary">{{ row.summary }}</p>
+          <p class="reason">{{ row.recommendation_reason }}</p>
+
+          <div class="scores">
+            <div class="score"><strong>{{ "%.2f"|format(row.priority_score) }}</strong>Priority score</div>
+            <div class="score"><strong>{{ "%.2f"|format(row.worth_score) }}</strong>Worth score</div>
+            <div class="score"><strong>{{ "%.2f"|format(row.effort_score) }}</strong>Effort score</div>
+          </div>
+
+          {% if row.key_insights %}
+          <div class="insights">
+            {% for insight in row.key_insights %}
+            <span class="insight">{{ insight }}</span>
+            {% endfor %}
+          </div>
+          {% endif %}
+
+          {% if row.tags %}
+          <div class="tags" style="margin-top: 12px;">
+            {% for tag in row.tags %}
+            <span class="tag">#{{ tag }}</span>
+            {% endfor %}
+          </div>
+          {% endif %}
+        </div>
+      </article>
+      {% endfor %}
+    </section>
+
+    <footer>Showing last {{ showing_last_n }} of {{ total_bookmarks }} total bookmarks. RolloForge v1 uses JSON storage only.</footer>
+  </main>
+</body>
+</html>
