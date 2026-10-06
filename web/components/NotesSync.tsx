@@ -7,7 +7,7 @@ export function NotesSync() {
   const { isEditMode } = useAuth();
 
   const handleExport = () => {
-    const saved = localStorage.getItem('rolloforge_bookmarks');
+    const saved = localStorage.getItem('forger_bookmarks');
     if (!saved) {
       alert('No notes to export');
       return;
@@ -17,7 +17,7 @@ export function NotesSync() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `rolloforge-notes-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `forger-notes-${new Date().toISOString().split('T')[0]}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -36,7 +36,7 @@ export function NotesSync() {
       reader.onload = (event) => {
         try {
           const data = JSON.parse(event.target?.result as string);
-          localStorage.setItem('rolloforge_bookmarks', JSON.stringify(data));
+          localStorage.setItem('forger_bookmarks', JSON.stringify(data));
           alert('Notes imported! Refresh to see changes.');
           window.location.reload();
         } catch (err) {

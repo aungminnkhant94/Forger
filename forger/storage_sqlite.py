@@ -1,5 +1,5 @@
 """
-SQLite-backed storage layer for RolloForge.
+SQLite-backed storage layer for Forger.
 
 Mirrors the JSON-file-based storage.py API using SQLite as the backend.
 This is a drop-in alternative — all public functions have the same
@@ -7,10 +7,10 @@ signatures and return types as storage.py, with the addition of an
 optional `db_path` parameter for testing.
 
 Usage:
-    from rolloforge.storage_sqlite import load_bookmarks, save_bookmarks
+    from forger.storage_sqlite import load_bookmarks, save_bookmarks
 
     # First, initialize the database schema
-    from rolloforge.db import init_db
+    from forger.db import init_db
     init_db()
 
     # Then use the same API you're used to
@@ -32,9 +32,9 @@ import json
 from pathlib import Path
 from typing import Any, Iterable
 
-from rolloforge.db import _json_deserialize, _json_serialize, get_db, get_db_path, init_db
-from rolloforge.models import AnalysisResult, Bookmark, ScoringInputs
-from rolloforge.utils import utc_now_iso
+from forger.db import _json_deserialize, _json_serialize, get_db, get_db_path, init_db
+from forger.models import AnalysisResult, Bookmark, ScoringInputs
+from forger.utils import utc_now_iso
 
 
 # ── helpers ────────────────────────────────────────────────────────────────

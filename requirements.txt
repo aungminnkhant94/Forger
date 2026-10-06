@@ -1,4 +1,4 @@
-# RolloForge Core Dependencies
+# Forger Core Dependencies
 # Security note: All versions pinned to prevent supply chain attacks
 # Run `pip-audit --requirement requirements.txt` to check for vulnerabilities
 

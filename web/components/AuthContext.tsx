@@ -40,7 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      setIsEditMode(document.cookie.includes('rolloforge_edit=1'));
+      setIsEditMode(document.cookie.includes('forger_edit=1'));
     }
 
     void initEditMode();

@@ -47,7 +47,7 @@ class Settings:
 
 def get_settings() -> Settings:
     return Settings(
-        project_name="RolloForge",
+        project_name="Forger",
         pipeline_stage=os.getenv("PIPELINE_STAGE", "idea_validation"),
         x_bookmarks_source_file=os.getenv("X_BOOKMARKS_SOURCE_FILE") or None,
         x_api_base_url=os.getenv("X_API_BASE_URL", "https://api.x.com/2").rstrip("/"),

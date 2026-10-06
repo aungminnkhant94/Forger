@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 r"""
-Telegram Digest Sender for RolloForge
+Telegram Digest Sender for Forger
 
 Sends weekly bookmark digests via Telegram. Can be scheduled via cron.
 
@@ -28,7 +28,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from rolloforge.digest import generate_weekly_digest, WeeklyDigest
+from forger.digest import generate_weekly_digest, WeeklyDigest
 
 
 class TelegramFormatter:
@@ -61,7 +61,7 @@ class TelegramFormatter:
         week_start = digest.week_start.strftime("%b %d")
         week_end = digest.week_end.strftime("%b %d")
         week_range = cls.escape_markdown(f"{week_start} - {week_end}")
-        lines.append("📚 *RolloForge Weekly Digest*")
+        lines.append("📚 *Forger Weekly Digest*")
         lines.append(f"📅 {week_range}")
         lines.append("")
         
@@ -125,7 +125,7 @@ class TelegramFormatter:
         week_range = cls.escape_markdown(f"{week_start} - {week_end}")
         
         lines = [
-            "📚 *RolloForge Weekly Digest*",
+            "📚 *Forger Weekly Digest*",
             f"📅 {week_range}",
             f"⏰ Generated: {digest.generated_at.strftime('%H:%M')}",
             "",
@@ -217,7 +217,7 @@ class TelegramFormatter:
         
         week_range = cls.escape_markdown(f"{week_start}-{week_end}")
         lines = [
-            f"📚 *RolloForge Digest* | {week_range}",
+            f"📚 *Forger Digest* | {week_range}",
             "",
             f"📊 New: {stats.total_new} | ⚡ {stats.test_this_week} | 📚 {stats.build_later} | 📁 {stats.archive}",
         ]
@@ -272,7 +272,7 @@ def print_to_console(text: str, label: str = "Message") -> None:
 
 async def main_async() -> int:
     parser = argparse.ArgumentParser(
-        description="Send RolloForge weekly digest via Telegram"
+        description="Send Forger weekly digest via Telegram"
     )
     parser.add_argument(
         "--days",

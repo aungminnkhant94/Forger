@@ -10,7 +10,7 @@ export function Header() {
     <header className="header">
       <div className="header-left">
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <h1>RolloForge</h1>
+          <h1>Forger</h1>
           {isEditMode && (
             <span style={{
               background: 'var(--good)',

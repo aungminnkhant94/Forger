@@ -1,16 +1,16 @@
 ---
-name: rolloforge
-description: Turn URLs the user pastes into a scored, searchable personal knowledge base. Use when the user shares or asks to save a link, wants to find something they saved, asks about their bookmarks/forge, or wants the RolloForge engine installed or fixed. Headless pipeline — scrape, score against the user's profile, bucket, store, dashboard.
+name: forger
+description: Turn URLs the user pastes into a scored, searchable personal knowledge base. Use when the user shares or asks to save a link, wants to find something they saved, asks about their bookmarks/forge, or wants the Forger engine installed or fixed. Headless pipeline — scrape, score against the user's profile, bucket, store, dashboard.
 ---
 
-# RolloForge
+# Forger
 
-RolloForge is a personal bookmark engine: URL → scrape → score against the
+Forger is a personal bookmark engine: URL → scrape → score against the
 user's `profile.md` → bucket (`test_this_week` / `build_later` / `archive` /
 `ignore`) → local storage → optional web dashboard. You are the analyst: in
 agent mode YOU score the content — no API key needed.
 
-Default install location: `~/RolloForge` (any dir works; remember where you
+Default install location: `~/Forger` (any dir works; remember where you
 installed it). All commands below assume you `cd` there first.
 
 ## First-time setup (once per user)
@@ -19,18 +19,18 @@ installed it). All commands below assume you `cd` there first.
    Node 18+ (dashboard), Playwright chromium (X/Twitter links).
 2. **Get the engine**:
    ```
-   git clone https://github.com/aungminnkhant94/RolloForge-oss.git ~/RolloForge
-   cd ~/RolloForge
+   git clone https://github.com/aungminnkhant94/Forger-oss.git ~/Forger
+   cd ~/Forger
    python3 -m venv .venv && . .venv/bin/activate   # Windows: .venv\Scripts\activate
    pip install -r requirements.txt
    ```
    No git? Download the repo zip and extract.
-   **Safety**: if the target directory already exists and is not a RolloForge
+   **Safety**: if the target directory already exists and is not a Forger
    checkout (no `forge.py` inside), do NOT touch or clone into it — pick a
-   different directory (e.g. `~/RolloForge-oss`) and remember it. Never run
+   different directory (e.g. `~/Forger-oss`) and remember it. Never run
    forge commands inside a directory that belongs to another project.
 3. **Create the profile** — interview the user briefly (2-4 questions), then
-   write their answers into `~/RolloForge/profile.md` following
+   write their answers into `~/Forger/profile.md` following
    `profile.example.md`: who they are, what they're building now, always-relevant
    topics, actively-ignore topics. The profile drives ALL scoring — richer
    profile, better scores. Show them the file when done.

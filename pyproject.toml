@@ -1,5 +1,5 @@
 [project]
-name = "rolloforge"
+name = "forger"
 version = "1.0.0"
 description = "Paste a URL — your AI agent turns it into a scored, searchable personal knowledge base. Headless bookmark engine for any agent."
 readme = "README.md"
@@ -22,5 +22,5 @@ dependencies = [
 test = ["pytest>=8.0", "pytest-asyncio>=0.26", "pytest-cov>=6.0"]
 
 [project.urls]
-Homepage = "https://github.com/aungminnkhant94/RolloForge-oss"
-Issues = "https://github.com/aungminnkhant94/RolloForge-oss/issues"
+Homepage = "https://github.com/aungminnkhant94/Forger-oss"
+Issues = "https://github.com/aungminnkhant94/Forger-oss/issues"

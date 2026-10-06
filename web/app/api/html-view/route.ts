@@ -40,7 +40,7 @@ ${insights?.length ? `Key Insights:\n${insights.map((i: string) => `- ${i}`).joi
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
         'HTTP-Referer': 'https://example.com',
-        'X-Title': 'RolloForge HTML View',
+        'X-Title': 'Forger HTML View',
       },
       body: JSON.stringify({
         model: 'google/gemini-2.0-flash-001',

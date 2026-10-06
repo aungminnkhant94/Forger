@@ -4,18 +4,18 @@ import pytest
 from unittest.mock import Mock, patch
 
 # Test imports
-from rolloforge.scrapers.x_scraper import (
+from forger.scrapers.x_scraper import (
     XScraper,
     XScraperError,
     XScraperTimeoutError,
     XScraperPlaywrightError,
 )
-from rolloforge.scrapers.article_scraper import (
+from forger.scrapers.article_scraper import (
     scrape_article,
     ArticleScraperError,
     ArticleScraperTimeoutError,
 )
-from rolloforge.deepseek_analysis import (
+from forger.deepseek_analysis import (
     DeepSeekError,
     DeepSeekConfigError,
     DeepSeekAPIError,
@@ -57,7 +57,7 @@ class TestDeepSeekExceptions:
 class TestScrapeArticleErrorHandling:
     """Test article scraper error handling."""
     
-    @patch('rolloforge.scrapers.article_scraper.requests.get')
+    @patch('forger.scrapers.article_scraper.requests.get')
     def test_timeout_error_handling(self, mock_get):
         """Test timeout errors are handled gracefully."""
         from requests.exceptions import Timeout
@@ -68,7 +68,7 @@ class TestScrapeArticleErrorHandling:
         assert result['success'] is False
         assert 'timeout' in result['error'].lower()
     
-    @patch('rolloforge.scrapers.article_scraper.requests.get')
+    @patch('forger.scrapers.article_scraper.requests.get')
     def test_connection_error_handling(self, mock_get):
         """Test connection errors are handled gracefully."""
         from requests.exceptions import ConnectionError
@@ -79,7 +79,7 @@ class TestScrapeArticleErrorHandling:
         assert result['success'] is False
         assert 'connection' in result['error'].lower()
     
-    @patch('rolloforge.scrapers.article_scraper.requests.get')
+    @patch('forger.scrapers.article_scraper.requests.get')
     def test_http_error_handling(self, mock_get):
         """Test HTTP errors are handled gracefully."""
         from requests.exceptions import HTTPError
@@ -98,7 +98,7 @@ class TestRetryDecorators:
     
     def test_x_scraper_has_retry(self):
         """Test XScraper.fetch_tweet has a multi-method fallback chain."""
-        from rolloforge.scrapers.x_scraper import XScraper
+        from forger.scrapers.x_scraper import XScraper
         scraper = XScraper()
         assert hasattr(scraper, 'fetch_tweet')
         # Resilience comes from the fallback chain, not a single retry:
@@ -106,22 +106,22 @@ class TestRetryDecorators:
     
     def test_deepseek_has_retry(self):
         """Test DeepSeek API has retry decorator."""
-        from rolloforge.deepseek_analysis import _call_analysis_api
+        from forger.deepseek_analysis import _call_analysis_api
         assert hasattr(_call_analysis_api, '__wrapped__')
     
     def test_article_scraper_has_retry(self):
         """Test article scraper has retry decorator."""
-        from rolloforge.scrapers.article_scraper import _fetch_url
+        from forger.scrapers.article_scraper import _fetch_url
         assert hasattr(_fetch_url, '__wrapped__')
 
 
 class TestDeepSeekFallback:
     """Test DeepSeek fallback analysis."""
     
-    @patch('rolloforge.deepseek_analysis.analyze_with_deepseek')
+    @patch('forger.deepseek_analysis.analyze_with_deepseek')
     def test_fallback_returns_valid_structure(self, mock_analyze):
         """Test fallback returns proper structure when DeepSeek fails."""
-        from rolloforge.deepseek_analysis import deepseek_analyze_bookmark
+        from forger.deepseek_analysis import deepseek_analyze_bookmark
         
         # Mock API failure
         mock_analyze.return_value = None

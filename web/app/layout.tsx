@@ -5,7 +5,7 @@ import { Header } from '@/components/Header';
 import { AuthProvider } from '@/components/AuthContext';
 
 export const metadata: Metadata = {
-  title: 'RolloForge Dashboard',
+  title: 'Forger Dashboard',
   description: 'Bookmark intelligence for AI agents',
 };
 

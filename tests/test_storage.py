@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from rolloforge.models import AnalysisResult, Bookmark, ScoringInputs
-from rolloforge.storage import (
+from forger.models import AnalysisResult, Bookmark, ScoringInputs
+from forger.storage import (
     load_analysis_results,
     load_bookmarks,
     load_json,

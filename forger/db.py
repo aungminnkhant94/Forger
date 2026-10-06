@@ -1,5 +1,5 @@
 """
-SQLite database layer for RolloForge.
+SQLite database layer for Forger.
 
 Uses stdlib sqlite3 with WAL mode for concurrent read performance.
 All schema management is idempotent. The database file is created
@@ -23,7 +23,7 @@ from config.settings import DATA_DIR
 
 logger = logging.getLogger(__name__)
 
-DB_PATH = DATA_DIR / "rolloforge.db"
+DB_PATH = DATA_DIR / "forger.db"
 
 SCHEMA_VERSION = 1
 
@@ -148,7 +148,7 @@ def init_db() -> None:
 
 
 def drop_all_tables() -> None:
-    """Drop all RolloForge tables. Use with caution — for testing/reset."""
+    """Drop all Forger tables. Use with caution — for testing/reset."""
     with get_db() as db:
         db.execute("DROP TABLE IF EXISTS bookmarks")
         db.execute("DROP TABLE IF EXISTS analysis_results")
@@ -156,7 +156,7 @@ def drop_all_tables() -> None:
         db.execute("DROP TABLE IF EXISTS stats_summary")
         db.execute("DROP TABLE IF EXISTS schema_version")
         db.commit()
-        logger.warning("All RolloForge tables dropped from %s", DB_PATH)
+        logger.warning("All Forger tables dropped from %s", DB_PATH)
 
 
 _SCHEMA_SQL = """

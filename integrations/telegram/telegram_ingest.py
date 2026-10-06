@@ -6,8 +6,8 @@ from dataclasses import dataclass
 from typing import Optional
 
 from config.settings import Settings
-from rolloforge.models import AnalysisResult, Bookmark, ScoringInputs
-from rolloforge.storage import (
+from forger.models import AnalysisResult, Bookmark, ScoringInputs
+from forger.storage import (
     load_analysis_results,
     load_bookmarks,
     load_known_bookmark_ids,
@@ -18,8 +18,8 @@ from rolloforge.storage import (
     save_seen_bookmark_ids,
     upsert_analysis_results,
 )
-from rolloforge.utils import compact_text, stable_bookmark_id, utc_now_iso
-from rolloforge.tagging import clean_tags
+from forger.utils import compact_text, stable_bookmark_id, utc_now_iso
+from forger.tagging import clean_tags
 
 
 # URL detection patterns
@@ -99,7 +99,7 @@ def parse_frictionless_url(message: str) -> ParsedTelegramBookmark:
         source = infer_source_from_url(url)
         if source == "x":
             try:
-                from rolloforge.scrapers import fetch_x_content_sync
+                from forger.scrapers import fetch_x_content_sync
                 LOGGER.info(f"Attempting to scrape X content: {url}")
                 scraped = fetch_x_content_sync(url)
                 

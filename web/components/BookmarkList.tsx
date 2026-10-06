@@ -25,7 +25,7 @@ export function BookmarkList({ bookmarks }: BookmarkListProps) {
   
   // Load from localStorage on mount
   useEffect(() => {
-    const saved = localStorage.getItem('rolloforge_bookmarks');
+    const saved = localStorage.getItem('forger_bookmarks');
     if (saved) {
       try {
         const parsed = JSON.parse(saved) as Record<string, SavedBookmarkData>;
@@ -64,7 +64,7 @@ export function BookmarkList({ bookmarks }: BookmarkListProps) {
         };
       }
     });
-    localStorage.setItem('rolloforge_bookmarks', JSON.stringify(toSave));
+    localStorage.setItem('forger_bookmarks', JSON.stringify(toSave));
   }, [localBookmarks]);
   
   const handleUpdate = (id: string, updates: Partial<BookmarkWithAnalysis>) => {

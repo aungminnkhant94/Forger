@@ -1,14 +1,14 @@
-# RolloForge
+# Forger
 
 **Paste a URL. Your AI agent turns it into a scored, searchable knowledge base.**
 
-RolloForge is a headless bookmark engine for AI agents. Install the skill into any SKILL.md-compatible agent — Claude Code, Codex, Kimi Code CLI, ZCode, Cursor, OpenCode, Hermes, and 30+ more — and every link you paste in a normal chat gets scraped, judged against **your** profile, bucketed, and stored with a dashboard to browse it all.
+Forger is a headless bookmark engine for AI agents. Install the skill into any SKILL.md-compatible agent — Claude Code, Codex, Kimi Code CLI, ZCode, Cursor, OpenCode, Hermes, and 30+ more — and every link you paste in a normal chat gets scraped, judged against **your** profile, bucketed, and stored with a dashboard to browse it all.
 
 ```
 URL  →  scrape  →  score against profile.md  →  bucket  →  store  →  dashboard
 ```
 
-No bot to host. No account. The agent you already use is the front door; RolloForge is the engine behind it.
+No bot to host. No account. The agent you already use is the front door; Forger is the engine behind it.
 
 ## What it does
 
@@ -23,22 +23,22 @@ The differentiator is **bring-your-own-profile**: scoring is personal, not gener
 ## Install as a skill (any agent)
 
 ```bash
-npx skills add aungminnkhant94/RolloForge-oss
+npx skills add aungminnkhant94/Forger-oss
 ```
 
-Pick your agent(s) in the interactive prompt (Claude Code, Codex, Cursor, OpenCode, Kimi Code CLI, ...). Hermes users: `hermes skills install aungminnkhant94/RolloForge-oss/rolloforge`.
+Pick your agent(s) in the interactive prompt (Claude Code, Codex, Cursor, OpenCode, Kimi Code CLI, ...). Hermes users: `hermes skills install aungminnkhant94/Forger-oss/forger`.
 
 Then just tell your agent in a normal chat:
 
-> install rolloforge and set it up
+> install forger and set it up
 
 The agent reads the skill, installs the engine, interviews you briefly to write your `profile.md`, and you paste your first URL. That first bookmark landing on your dashboard — scored, bucketed, tagged — is the whole setup verification.
 
 ## Manual install (no agent)
 
 ```bash
-git clone https://github.com/aungminnkhant94/RolloForge-oss.git
-cd RolloForge
+git clone https://github.com/aungminnkhant94/Forger-oss.git
+cd Forger
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 playwright install chromium          # optional — X links and JS-heavy pages
@@ -55,8 +55,8 @@ python forge stats
 | `DEEPSEEK_API_KEY` | DeepSeek key (default provider) |
 | `ANALYSIS_PROVIDER=kimi` + `KIMI_API_KEY` | Use Kimi |
 | `ANALYSIS_PROVIDER=custom` + `LLM_BASE_URL` + `LLM_API_KEY` + `LLM_MODEL` | Any OpenAI-compatible API (GLM, OpenAI, Ollama, ...) |
-| `ROLLOFORGE_PROFILE` | Path to your profile (default `./profile.md`) |
-| `ROLLOFORGE_EXTRA_CONTEXT_DIR` | Optional folder of `.md` notes searched for extra context |
+| `FORGER_PROFILE` | Path to your profile (default `./profile.md`) |
+| `FORGER_EXTRA_CONTEXT_DIR` | Optional folder of `.md` notes searched for extra context |
 | `X_COOKIES_PATH` | Optional X cookies JSON for tweet scraping |
 
 ## The CLI
@@ -73,7 +73,7 @@ forge sync               copy data/ into web/ for the dashboard
 forge health             checks
 ```
 
-**Agent mode** is the zero-key path: `forge add --agent` stores the scraped content under `data/pending/`, the agent reads it, writes its own analysis JSON (same three questions), and `forge resolve` ingests it. This is how the skill runs RolloForge with no LLM API key at all — the agent you already pay for does the scoring.
+**Agent mode** is the zero-key path: `forge add --agent` stores the scraped content under `data/pending/`, the agent reads it, writes its own analysis JSON (same three questions), and `forge resolve` ingests it. This is how the skill runs Forger with no LLM API key at all — the agent you already pay for does the scoring.
 
 ## Dashboard
 
@@ -85,7 +85,7 @@ Deploy anywhere (Vercel: root directory `web`). See `web/README.md`.
 
 ## Integrations
 
-- `skills/rolloforge/` — the agent skill (the main interface)
+- `skills/forger/` — the agent skill (the main interface)
 - `integrations/telegram/` — optional always-on Telegram bot lane, for setups without an agent harness
 
 ## License

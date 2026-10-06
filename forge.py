@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Forge CLI - Unified command-line interface for RolloForge
+Forge CLI - Unified command-line interface for Forger
 
 Usage:
     forge [COMMAND] [OPTIONS]
@@ -40,8 +40,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from rolloforge.storage import load_bookmarks, load_analysis_results
-from rolloforge.digest import generate_weekly_digest
+from forger.storage import load_bookmarks, load_analysis_results
+from forger.digest import generate_weekly_digest
 from config.settings import DATA_DIR, REPORTS_DIR, BASE_DIR
 
 # ANSI colors
@@ -97,7 +97,7 @@ def print_info(message: str) -> None:
 # ============================================================================
 def cmd_add(args: argparse.Namespace) -> int:
     """Add a bookmark from URL."""
-    from rolloforge.bookmark_workflow import process_bookmark_url
+    from forger.bookmark_workflow import process_bookmark_url
 
     url = args.url
     print_header("Adding Bookmark")
@@ -146,7 +146,7 @@ def cmd_stats(args: argparse.Namespace) -> int:
     bookmarks = load_bookmarks()
     analyses = load_analysis_results()
     
-    print_header("RolloForge Statistics")
+    print_header("Forger Statistics")
     
     # Basic counts
     print(color("\n📊 Bookmark Counts", Colors.BOLD))
@@ -215,7 +215,7 @@ def cmd_stats(args: argparse.Namespace) -> int:
 # ============================================================================
 def cmd_digest(args: argparse.Namespace) -> int:
     """Generate weekly digest."""
-    from rolloforge.digest_render import (
+    from forger.digest_render import (
         render_html_digest,
         render_markdown_digest,
         save_digest,
@@ -295,7 +295,7 @@ def cmd_digest(args: argparse.Namespace) -> int:
 # ============================================================================
 def cmd_resolve(args: argparse.Namespace) -> int:
     """Ingest an agent-written analysis for a pending bookmark (agent mode)."""
-    from rolloforge.bookmark_workflow import resolve_pending_analysis
+    from forger.bookmark_workflow import resolve_pending_analysis
 
     print_header("Resolving Pending Analysis")
 
@@ -350,7 +350,7 @@ def cmd_health(args: argparse.Namespace) -> int:
 
 def run_health_check() -> int:
     """Execute health check and return exit code."""
-    print_header("RolloForge Health Check")
+    print_header("Forger Health Check")
     
     bookmarks = load_bookmarks()
     analyses = load_analysis_results()
@@ -619,7 +619,7 @@ def cmd_export(args: argparse.Namespace) -> int:
         
         output = output.getvalue()
     elif args.format == "markdown":
-        lines = ["# RolloForge Bookmarks Export\n"]
+        lines = ["# Forger Bookmarks Export\n"]
         lines.append(f"*Generated: {datetime.now().isoformat()}*\n")
         
         for item in export_data:
@@ -661,7 +661,7 @@ def cmd_sync(args: argparse.Namespace) -> int:
     print_header("Syncing to Web Dashboard")
 
     try:
-        from rolloforge.dashboard_sync import sync_dashboard_data
+        from forger.dashboard_sync import sync_dashboard_data
 
         if sync_dashboard_data():
             print_success("bookmarks_raw.json + analysis_results.json -> web/lib + web/public")
@@ -694,7 +694,7 @@ def cmd_sync(args: argparse.Namespace) -> int:
 # ============================================================================
 def cmd_config(args: argparse.Namespace) -> int:
     """Show/edit configuration."""
-    print_header("RolloForge Configuration")
+    print_header("Forger Configuration")
     
     env_file = BASE_DIR / ".env"
     
@@ -746,7 +746,7 @@ def create_parser() -> argparse.ArgumentParser:
     """Create the argument parser."""
     parser = argparse.ArgumentParser(
         prog="forge",
-        description="Forge CLI - Unified interface for RolloForge",
+        description="Forge CLI - Unified interface for Forger",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:

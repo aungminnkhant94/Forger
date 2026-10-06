@@ -1,5 +1,5 @@
 """
-Simple in-memory cache with TTL for RolloForge.
+Simple in-memory cache with TTL for Forger.
 
 Provides file-based caching to reduce repeated disk I/O operations.
 Cache invalidates automatically on writes and expires after TTL.
@@ -247,7 +247,7 @@ class FileCache:
             }
 
 
-# Global cache instance for rolloforge
+# Global cache instance for forger
 _file_cache: FileCache | None = None
 
 

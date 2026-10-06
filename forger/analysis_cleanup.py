@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 
-from rolloforge.models import AnalysisResult, Bookmark
+from forger.models import AnalysisResult, Bookmark
 
 GENERIC_REASON_PATTERNS = [
     r"perfect for your stage[^.]*",

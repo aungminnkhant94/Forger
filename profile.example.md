@@ -1,6 +1,6 @@
 # My Profile
 
-<!-- This file drives ALL relevance scoring in RolloForge. The analysis LLM
+<!-- This file drives ALL relevance scoring in Forger. The analysis LLM
      reads it for every single bookmark and judges each link against what is
      written here. The richer and more specific it is, the better your scores.
      Delete this comment block and make it yours. -->

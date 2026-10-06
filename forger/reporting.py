@@ -5,8 +5,8 @@ from pathlib import Path
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from config.settings import LATEST_REPORT_PATH, REPORT_HISTORY_DIR, REPORT_TEMPLATE_PATH
-from rolloforge.models import AnalysisResult, Bookmark
-from rolloforge.utils import ensure_parent, utc_now_iso
+from forger.models import AnalysisResult, Bookmark
+from forger.utils import ensure_parent, utc_now_iso
 
 
 def _build_rows(bookmarks: list[Bookmark], analysis_map: dict[str, AnalysisResult]) -> list[dict]:

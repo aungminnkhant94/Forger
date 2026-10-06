@@ -1,4 +1,4 @@
-"""RolloForge package."""
+"""Forger package."""
 
 __all__ = [
     "analysis",

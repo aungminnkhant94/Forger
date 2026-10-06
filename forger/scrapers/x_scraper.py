@@ -23,7 +23,7 @@ from tenacity import (
     wait_exponential,
 )
 
-from rolloforge.scrapers.x_auth import load_cookies
+from forger.scrapers.x_auth import load_cookies
 
 LOGGER = logging.getLogger(__name__)
 

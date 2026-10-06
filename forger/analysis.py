@@ -11,9 +11,9 @@ from __future__ import annotations
 import logging
 
 from config.settings import Settings
-from rolloforge.models import AnalysisResult, Bookmark, ScoringInputs
-from rolloforge.deepseek_analysis import deepseek_analyze_bookmark
-from rolloforge.utils import utc_now_iso
+from forger.models import AnalysisResult, Bookmark, ScoringInputs
+from forger.deepseek_analysis import deepseek_analyze_bookmark
+from forger.utils import utc_now_iso
 
 LOGGER = logging.getLogger(__name__)
 

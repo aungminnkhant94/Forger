@@ -1,7 +1,7 @@
-"""Git automation for RolloForge.
+"""Git automation for Forger.
 
 Auto-commit and push bookmark changes to GitHub. Off by default — pushing to
-a user's repository is an opt-in side effect (set ROLLOFORGE_AUTO_GIT=1).
+a user's repository is an opt-in side effect (set FORGER_AUTO_GIT=1).
 """
 import os
 import subprocess
@@ -17,7 +17,7 @@ def git_auto_push(bookmark_title: str) -> bool:
     """
     Auto-commit and push bookmark changes to GitHub.
 
-    Requires ROLLOFORGE_AUTO_GIT=1 and a git repo with a configured remote.
+    Requires FORGER_AUTO_GIT=1 and a git repo with a configured remote.
 
     Args:
         bookmark_title: Title of the bookmark for commit message
@@ -25,8 +25,8 @@ def git_auto_push(bookmark_title: str) -> bool:
     Returns:
         True if successful (or nothing to do), False otherwise
     """
-    if os.getenv("ROLLOFORGE_AUTO_GIT") != "1":
-        LOGGER.info("Auto-git disabled (set ROLLOFORGE_AUTO_GIT=1 to enable)")
+    if os.getenv("FORGER_AUTO_GIT") != "1":
+        LOGGER.info("Auto-git disabled (set FORGER_AUTO_GIT=1 to enable)")
         return False
     try:
         # Check if there are changes to commit

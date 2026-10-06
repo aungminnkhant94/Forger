@@ -6,7 +6,7 @@ from pathlib import Path
 from jinja2 import Environment, FileSystemLoader
 
 from config.settings import REPORTS_DIR, TEMPLATES_DIR
-from rolloforge.digest import WeeklyDigest
+from forger.digest import WeeklyDigest
 
 
 def render_html_digest(digest: WeeklyDigest) -> str:

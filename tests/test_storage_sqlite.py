@@ -13,9 +13,9 @@ from unittest.mock import patch
 
 import pytest
 
-from rolloforge.models import AnalysisResult, Bookmark, ScoringInputs
-from rolloforge import storage_sqlite as s
-from rolloforge.db import drop_all_tables, get_db_path, init_db
+from forger.models import AnalysisResult, Bookmark, ScoringInputs
+from forger import storage_sqlite as s
+from forger.db import drop_all_tables, get_db_path, init_db
 
 
 # ── helpers ────────────────────────────────────────────────────────────────
@@ -60,11 +60,11 @@ def _make_analysis(bookmark_id: str = "bm1", **overrides) -> AnalysisResult:
 @pytest.fixture(autouse=True)
 def isolated_db(tmp_path, monkeypatch):
     """Redirect the database to a temp file and clean up after each test."""
-    db_file = tmp_path / "test_rolloforge.db"
+    db_file = tmp_path / "test_forger.db"
 
     # Patch the DB_PATH constant in storage_sqlite's scope
-    monkeypatch.setattr("rolloforge.db.DB_PATH", db_file)
-    monkeypatch.setattr("rolloforge.storage_sqlite.get_db_path", lambda: db_file)
+    monkeypatch.setattr("forger.db.DB_PATH", db_file)
+    monkeypatch.setattr("forger.storage_sqlite.get_db_path", lambda: db_file)
 
     init_db()
     yield db_file

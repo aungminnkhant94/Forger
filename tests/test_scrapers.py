@@ -7,7 +7,7 @@ import pytest
 import requests
 from requests.exceptions import ConnectionError, HTTPError, Timeout
 
-from rolloforge.scrapers.article_scraper import (
+from forger.scrapers.article_scraper import (
     ArticleScraperError,
     ArticleScraperHTTPError,
     ArticleScraperTimeoutError,
@@ -15,7 +15,7 @@ from rolloforge.scrapers.article_scraper import (
     scrape_article,
     scrape_article_with_fallback,
 )
-from rolloforge.scrapers.x_scraper import (
+from forger.scrapers.x_scraper import (
     XScraper,
     XScraperError,
     XScraperPlaywrightError,
@@ -104,7 +104,7 @@ class TestFetchXContent:
     """Tests for convenience functions."""
 
     @pytest.mark.asyncio
-    @patch("rolloforge.scrapers.x_scraper.XScraper.fetch_tweet")
+    @patch("forger.scrapers.x_scraper.XScraper.fetch_tweet")
     async def test_fetch_x_content(self, mock_fetch):
         """Convenience function calls scraper."""
         mock_fetch.return_value = {"success": True, "text": "Tweet"}
@@ -114,8 +114,8 @@ class TestFetchXContent:
         assert result["success"] is True
         mock_fetch.assert_called_once_with("https://x.com/user/status/123")
 
-    @patch("rolloforge.scrapers.x_scraper.asyncio.run")
-    @patch("rolloforge.scrapers.x_scraper.fetch_x_content")
+    @patch("forger.scrapers.x_scraper.asyncio.run")
+    @patch("forger.scrapers.x_scraper.fetch_x_content")
     def test_fetch_x_content_sync(self, mock_fetch, mock_run):
         """Sync wrapper calls async version."""
         mock_run.return_value = {"success": True, "text": "Tweet"}
@@ -124,8 +124,8 @@ class TestFetchXContent:
 
         assert result["success"] is True
 
-    @patch("rolloforge.scrapers.x_scraper.asyncio.run")
-    @patch("rolloforge.scrapers.x_scraper.fetch_x_content")
+    @patch("forger.scrapers.x_scraper.asyncio.run")
+    @patch("forger.scrapers.x_scraper.fetch_x_content")
     def test_fetch_x_content_sync_keyboard_interrupt(self, mock_fetch, mock_run):
         """Sync wrapper handles keyboard interrupt."""
         mock_run.side_effect = KeyboardInterrupt()
@@ -155,8 +155,8 @@ class TestXScraperExceptions:
 class TestArticleScraperSuccess:
     """Tests for successful article scraping."""
 
-    @patch("rolloforge.scrapers.article_scraper.requests.get")
-    @patch("rolloforge.scrapers.article_scraper.BeautifulSoup")
+    @patch("forger.scrapers.article_scraper.requests.get")
+    @patch("forger.scrapers.article_scraper.BeautifulSoup")
     def test_successful_scrape(self, mock_bs, mock_get):
         """Successfully scrape article."""
         # Setup mock response
@@ -186,7 +186,7 @@ class TestArticleScraperSuccess:
 
         mock_get.assert_called_once()
 
-    @patch("rolloforge.scrapers.article_scraper._fetch_url")
+    @patch("forger.scrapers.article_scraper._fetch_url")
     def test_scrape_with_mocked_fetch(self, mock_fetch):
         """Test with mocked URL fetch."""
         mock_response = MagicMock()
@@ -211,7 +211,7 @@ class TestArticleScraperSuccess:
 class TestArticleScraperErrors:
     """Tests for article scraper error handling."""
 
-    @patch("rolloforge.scrapers.article_scraper.requests.get")
+    @patch("forger.scrapers.article_scraper.requests.get")
     def test_timeout_error(self, mock_get):
         """Handles timeout error."""
         mock_get.side_effect = Timeout("Request timed out")
@@ -221,7 +221,7 @@ class TestArticleScraperErrors:
         assert result["success"] is False
         assert "timeout" in result["error"].lower()
 
-    @patch("rolloforge.scrapers.article_scraper.requests.get")
+    @patch("forger.scrapers.article_scraper.requests.get")
     def test_connection_error(self, mock_get):
         """Handles connection error."""
         mock_get.side_effect = ConnectionError("Connection failed")
@@ -231,7 +231,7 @@ class TestArticleScraperErrors:
         assert result["success"] is False
         assert "connection" in result["error"].lower()
 
-    @patch("rolloforge.scrapers.article_scraper.requests.get")
+    @patch("forger.scrapers.article_scraper.requests.get")
     def test_http_error(self, mock_get):
         """Handles HTTP error."""
         mock_response = MagicMock()
@@ -243,7 +243,7 @@ class TestArticleScraperErrors:
         assert result["success"] is False
         assert "http" in result["error"].lower()
 
-    @patch("rolloforge.scrapers.article_scraper.requests.get")
+    @patch("forger.scrapers.article_scraper.requests.get")
     def test_request_exception(self, mock_get):
         """Handles generic request exception."""
         mock_get.side_effect = requests.exceptions.RequestException("Request failed")
@@ -257,7 +257,7 @@ class TestArticleScraperErrors:
 class TestArticleScraperRetry:
     """Tests for retry logic."""
 
-    @patch("rolloforge.scrapers.article_scraper.requests.get")
+    @patch("forger.scrapers.article_scraper.requests.get")
     def test_retries_on_connection_error(self, mock_get):
         """Retries on connection error."""
         mock_get.side_effect = ConnectionError("Connection failed")
@@ -266,7 +266,7 @@ class TestArticleScraperRetry:
 
         assert mock_get.call_count == 3
 
-    @patch("rolloforge.scrapers.article_scraper.requests.get")
+    @patch("forger.scrapers.article_scraper.requests.get")
     def test_retries_on_timeout(self, mock_get):
         """Retries on timeout."""
         mock_get.side_effect = Timeout("Request timed out")
@@ -275,7 +275,7 @@ class TestArticleScraperRetry:
 
         assert mock_get.call_count == 3
 
-    @patch("rolloforge.scrapers.article_scraper.requests.get")
+    @patch("forger.scrapers.article_scraper.requests.get")
     def test_no_retry_on_http_error(self, mock_get):
         """No retry on HTTP error."""
         mock_response = MagicMock()
@@ -290,7 +290,7 @@ class TestArticleScraperRetry:
 class TestArticleScraperFallback:
     """Tests for fallback scraping."""
 
-    @patch("rolloforge.scrapers.article_scraper.requests.get")
+    @patch("forger.scrapers.article_scraper.requests.get")
     def test_fallback_on_full_scrape_failure(self, mock_get):
         """Fallback when full scrape fails."""
         mock_response = MagicMock()
@@ -308,7 +308,7 @@ class TestArticleScraperFallback:
 
         assert result["success"] is True
 
-    @patch("rolloforge.scrapers.article_scraper.requests.get")
+    @patch("forger.scrapers.article_scraper.requests.get")
     def test_fallback_returns_partial_content(self, mock_get):
         """Fallback returns at least partial content."""
         mock_response = MagicMock()
@@ -340,7 +340,7 @@ class TestArticleScraperExceptions:
 class TestArticleScraperContent:
     """Tests for content extraction."""
 
-    @patch("rolloforge.scrapers.article_scraper.requests.get")
+    @patch("forger.scrapers.article_scraper.requests.get")
     def test_extracts_title(self, mock_get):
         """Extracts title from page."""
         mock_response = MagicMock()
@@ -353,7 +353,7 @@ class TestArticleScraperContent:
         # Title may or may not be extracted depending on content validation
         assert result.get("title") == "Page Title" or not result["success"]
 
-    @patch("rolloforge.scrapers.article_scraper.requests.get")
+    @patch("forger.scrapers.article_scraper.requests.get")
     def test_limits_text_length(self, mock_get):
         """Text is limited to MAX_TEXT_LENGTH."""
         mock_response = MagicMock()
@@ -367,7 +367,7 @@ class TestArticleScraperContent:
         if result["success"] and result.get("text"):
             assert len(result["text"]) <= MAX_TEXT_LENGTH
 
-    @patch("rolloforge.scrapers.article_scraper.requests.get")
+    @patch("forger.scrapers.article_scraper.requests.get")
     def test_removes_script_and_style(self, mock_get):
         """Removes script and style elements."""
         mock_response = MagicMock()

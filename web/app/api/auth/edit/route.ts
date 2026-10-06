@@ -5,8 +5,8 @@ export const runtime = 'nodejs';
 
 const EDIT_MODE_KEY = (process.env.EDIT_MODE_KEY || process.env.NEXT_PUBLIC_EDIT_KEY || '').trim();
 const BACKEND_DELETE_TOKEN = (process.env.BACKEND_DELETE_TOKEN || process.env.DELETE_API_TOKEN || process.env.NEXT_PUBLIC_EDIT_KEY || '').trim();
-const EDIT_COOKIE = 'rolloforge_edit';
-const AUTH_COOKIE = 'rolloforge_edit_auth';
+const EDIT_COOKIE = 'forger_edit';
+const AUTH_COOKIE = 'forger_edit_auth';
 
 function authCookieValue(): string {
   return createHash('sha256').update(`${EDIT_MODE_KEY}:${BACKEND_DELETE_TOKEN}`).digest('hex');

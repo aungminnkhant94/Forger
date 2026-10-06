@@ -6,12 +6,12 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from config.settings import ANALYSIS_RESULTS_PATH, BOOKMARKS_RAW_PATH, SEEN_BOOKMARKS_PATH, DATA_DIR
-from rolloforge.cache import cached_load, invalidate_path, get_cache
-from rolloforge.models import AnalysisResult, Bookmark
-from rolloforge.utils import ensure_parent, utc_now_iso
+from forger.cache import cached_load, invalidate_path, get_cache
+from forger.models import AnalysisResult, Bookmark
+from forger.utils import ensure_parent, utc_now_iso
 
 
-_STORAGE_BACKEND_ENV = "ROLLOFORGE_STORAGE_BACKEND"
+_STORAGE_BACKEND_ENV = "FORGER_STORAGE_BACKEND"
 _STATS_PATH = DATA_DIR / "stats_summary.json"
 
 
@@ -25,7 +25,7 @@ def using_sqlite_backend() -> bool:
 
 
 def _sqlite_storage():
-    from rolloforge import storage_sqlite
+    from forger import storage_sqlite
 
     return storage_sqlite
 

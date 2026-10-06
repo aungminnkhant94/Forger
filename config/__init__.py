@@ -1,1 +1,1 @@
-"""Configuration package for RolloForge."""
+"""Configuration package for Forger."""

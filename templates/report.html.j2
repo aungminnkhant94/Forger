@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>RolloForge Bookmark Report</title>
+  <title>Forger Bookmark Report</title>
   <style>
     :root {
       --bg: #f5efe4;
@@ -211,7 +211,7 @@
 <body>
   <main class="page">
     <section class="hero">
-      <h1>RolloForge Bookmark Intelligence</h1>
+      <h1>Forger Bookmark Intelligence</h1>
       <p>Standalone report covering every stored bookmark, ranked with Python scoring and recommendation mapping. DeepSeek results are used when available; fallback heuristics keep the pipeline running when the model is unavailable.</p>
       <div class="meta">Generated at {{ generated_at }}</div>
     </section>
@@ -264,7 +264,7 @@
       {% endfor %}
     </section>
 
-    <footer>Showing last {{ showing_last_n }} of {{ total_bookmarks }} total bookmarks. RolloForge v1 uses JSON storage only.</footer>
+    <footer>Showing last {{ showing_last_n }} of {{ total_bookmarks }} total bookmarks. Forger v1 uses JSON storage only.</footer>
   </main>
 </body>
 </html>

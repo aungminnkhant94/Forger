@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from rolloforge.models import AnalysisResult, Bookmark
+from forger.models import AnalysisResult, Bookmark
 
 HIGH_SIGNAL_TAGS = {
     'agents', 'multi-agent', 'automation', 'ai-tools', 'llm',

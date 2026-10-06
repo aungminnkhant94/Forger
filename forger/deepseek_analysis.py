@@ -1,4 +1,4 @@
-"""DeepSeek LLM integration for RolloForge bookmark analysis.
+"""DeepSeek LLM integration for Forger bookmark analysis.
 
 Replaces heuristic scoring with real LLM analysis.
 """
@@ -64,12 +64,12 @@ ANALYSIS_MAX_TOKENS = 8000
 # --- User context source ----------------------------------------------------
 # Personalization comes from ONE plain-text file the user owns: profile.md.
 # Copy profile.example.md, describe yourself and your work, done. Override the
-# location with ROLLOFORGE_PROFILE. Optionally point
-# ROLLOFORGE_EXTRA_CONTEXT_DIR at a folder of .md notes; paragraphs matching
+# location with FORGER_PROFILE. Optionally point
+# FORGER_EXTRA_CONTEXT_DIR at a folder of .md notes; paragraphs matching
 # each bookmark are injected as extra context.
 BASE_DIR = Path(__file__).resolve().parents[1]
-PROFILE_PATH = Path(os.getenv("ROLLOFORGE_PROFILE", str(BASE_DIR / "profile.md")))
-_extra_ctx = os.getenv("ROLLOFORGE_EXTRA_CONTEXT_DIR")
+PROFILE_PATH = Path(os.getenv("FORGER_PROFILE", str(BASE_DIR / "profile.md")))
+_extra_ctx = os.getenv("FORGER_EXTRA_CONTEXT_DIR")
 EXTRA_CONTEXT_DIR = Path(_extra_ctx) if _extra_ctx else None
 
 
@@ -125,7 +125,7 @@ def _load_user_context() -> str:
 
 
 def _load_wiki_context(bookmark_text: str, title: str = "", url: str = "") -> str:
-    """Search ROLLOFORGE_EXTRA_CONTEXT_DIR (.md notes) for relevant context.
+    """Search FORGER_EXTRA_CONTEXT_DIR (.md notes) for relevant context.
 
     Returns "" when no extra context dir is configured.
     """

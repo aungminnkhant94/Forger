@@ -6,22 +6,22 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional, Tuple
 
-from rolloforge.deepseek_analysis import deepseek_analyze_bookmark
-from rolloforge.similarity import check_duplicate_topic
-from rolloforge.git_auto import git_auto_push
-from rolloforge.models import Bookmark, AnalysisResult, ScoringInputs
-from rolloforge.tagging import clean_tags
-from rolloforge.bucketing import refine_bucket
-from rolloforge.analysis_cleanup import clean_analysis_text
-from rolloforge.scrapers import fetch_x_content_sync
-from rolloforge.storage import (
+from forger.deepseek_analysis import deepseek_analyze_bookmark
+from forger.similarity import check_duplicate_topic
+from forger.git_auto import git_auto_push
+from forger.models import Bookmark, AnalysisResult, ScoringInputs
+from forger.tagging import clean_tags
+from forger.bucketing import refine_bucket
+from forger.analysis_cleanup import clean_analysis_text
+from forger.scrapers import fetch_x_content_sync
+from forger.storage import (
     load_bookmarks,
     load_analysis_results,
     merge_bookmarks,
     save_bookmarks,
     upsert_analysis_results,
 )
-from rolloforge.utils import stable_bookmark_id
+from forger.utils import stable_bookmark_id
 
 LOGGER = logging.getLogger(__name__)
 
@@ -86,7 +86,7 @@ def scrape_and_create_bookmark(url: str) -> Optional[Bookmark]:
         source = "article"
         scraped = None
         try:
-            from rolloforge.scrapers.article_scraper import scrape_article
+            from forger.scrapers.article_scraper import scrape_article
 
             scraped = scrape_article(url)
         except Exception as e:
@@ -190,7 +190,7 @@ def resolve_pending_analysis(bookmark_id: str, analysis_dict: dict) -> Tuple[boo
     title, recommendation_reason, relates_to, key_insights, tags, novelty,
     excitement.
     """
-    from rolloforge.deepseek_analysis import derive_legacy_scores
+    from forger.deepseek_analysis import derive_legacy_scores
 
     bookmark = next((b for b in load_bookmarks() if b.id == bookmark_id), None)
     if not bookmark:
@@ -222,7 +222,7 @@ def resolve_pending_analysis(bookmark_id: str, analysis_dict: dict) -> Tuple[boo
 
 
 def _sync_dashboard() -> None:
-    from rolloforge.dashboard_sync import sync_dashboard_data
+    from forger.dashboard_sync import sync_dashboard_data
 
     if not sync_dashboard_data():
         raise RuntimeError("Dashboard sync failed")
@@ -322,7 +322,7 @@ def process_bookmark_url(url: str, analyze: bool = True) -> Tuple[bool, str, Opt
         LOGGER.warning(f"Failed to sync dashboard: {e}")
         return False, f"Saved but dashboard sync failed: {e}", bookmark, analysis
 
-    # Git auto-push (opt-in: ROLLOFORGE_AUTO_GIT=1)
+    # Git auto-push (opt-in: FORGER_AUTO_GIT=1)
     push_success = git_auto_push(bookmark.title)
     why = analysis.recommendation_reason or ""
     if len(why) > 120:

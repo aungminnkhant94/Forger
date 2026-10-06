@@ -1,4 +1,4 @@
-# RolloForge Setup Details
+# Forger Setup Details
 
 ## Prerequisites
 
@@ -14,8 +14,8 @@ Everything else (`data/`, `reports/`) is auto-created on first run.
 ## Engine install
 
 ```bash
-git clone https://github.com/aungminnkhant94/RolloForge-oss.git ~/RolloForge
-cd ~/RolloForge
+git clone https://github.com/aungminnkhant94/Forger-oss.git ~/Forger
+cd ~/Forger
 python3 -m venv .venv && . .venv/bin/activate    # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 cp .env.example .env          # only needed for API-mode scoring
@@ -80,8 +80,8 @@ Deploy: any static host; on Vercel set Root Directory to `web`.
 
 ## Optional extras
 
-- Auto git push of new bookmarks: set `ROLLOFORGE_AUTO_GIT=1` (repo needs a
+- Auto git push of new bookmarks: set `FORGER_AUTO_GIT=1` (repo needs a
   remote). Off by default.
-- Extra context: `ROLLOFORGE_EXTRA_CONTEXT_DIR=/path/to/notes` — paragraphs
+- Extra context: `FORGER_EXTRA_CONTEXT_DIR=/path/to/notes` — paragraphs
   matching each bookmark get injected as additional context (API mode).
 - Always-on Telegram bot instead of an agent: see `integrations/telegram/`.

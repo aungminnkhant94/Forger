@@ -1,6 +1,6 @@
-# RolloForge Web Dashboard
+# Forger Web Dashboard
 
-A responsive web dashboard for viewing and filtering your RolloForge bookmarks.
+A responsive web dashboard for viewing and filtering your Forger bookmarks.
 
 ## Features
 
