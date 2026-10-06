@@ -19,7 +19,7 @@ installed it). All commands below assume you `cd` there first.
    Node 18+ (dashboard), Playwright chromium (X/Twitter links).
 2. **Get the engine**:
    ```
-   git clone https://github.com/aungminnkhant94/RolloForge.git ~/RolloForge
+   git clone https://github.com/aungminnkhant94/RolloForge-oss.git ~/RolloForge
    cd ~/RolloForge
    python3 -m venv .venv && . .venv/bin/activate   # Windows: .venv\Scripts\activate
    pip install -r requirements.txt

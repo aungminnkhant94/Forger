@@ -23,10 +23,10 @@ The differentiator is **bring-your-own-profile**: scoring is personal, not gener
 ## Install as a skill (any agent)
 
 ```bash
-npx skills add aungminnkhant94/RolloForge
+npx skills add aungminnkhant94/RolloForge-oss
 ```
 
-Pick your agent(s) in the interactive prompt (Claude Code, Codex, Cursor, OpenCode, Kimi Code CLI, ...). Hermes users: `hermes skills install aungminnkhant94/RolloForge/rolloforge`.
+Pick your agent(s) in the interactive prompt (Claude Code, Codex, Cursor, OpenCode, Kimi Code CLI, ...). Hermes users: `hermes skills install aungminnkhant94/RolloForge-oss/rolloforge`.
 
 Then just tell your agent in a normal chat:
 
@@ -37,7 +37,7 @@ The agent reads the skill, installs the engine, interviews you briefly to write 
 ## Manual install (no agent)
 
 ```bash
-git clone https://github.com/aungminnkhant94/RolloForge.git
+git clone https://github.com/aungminnkhant94/RolloForge-oss.git
 cd RolloForge
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt

@@ -23,4 +23,4 @@ test = ["pytest>=8.0", "pytest-asyncio>=0.26", "pytest-cov>=6.0"]
 
 [project.urls]
 Homepage = "https://github.com/aungminnkhant94/RolloForge"
-Issues = "https://github.com/aungminnkhant94/RolloForge/issues"
+Issues = "https://github.com/aungminnkhant94/RolloForge-oss/issues"
