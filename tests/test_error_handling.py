@@ -136,7 +136,7 @@ class TestDeepSeekFallback:
         assert 'title' in result
         assert 'summary' in result
         assert 'recommendation_bucket' in result
-        assert result.get('analysis_source') == 'deepseek_fallback'
+        assert result.get('analysis_source') == 'llm_fallback'
 
 
 if __name__ == '__main__':
