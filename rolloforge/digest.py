@@ -15,7 +15,24 @@ from typing import Any
 from collections import Counter
 from zoneinfo import ZoneInfo
 
-LOCAL_TZ = ZoneInfo("Asia/Shanghai")
+# Local timezone for digest windows. Configure with ROLLOFORGE_TZ (any IANA
+# name, e.g. "Asia/Macau"). Defaults to the system timezone; falls back to UTC
+# when neither is resolvable (Windows without the tzdata package).
+import os as _os
+
+
+def _resolve_local_tz() -> ZoneInfo:
+    for candidate in (_os.getenv("ROLLOFORGE_TZ"), datetime.now().astimezone().tzname()):
+        if not candidate:
+            continue
+        try:
+            return ZoneInfo(candidate)
+        except Exception:
+            continue
+    return ZoneInfo("UTC")
+
+
+LOCAL_TZ = _resolve_local_tz()
 
 from rolloforge.models import Bookmark, AnalysisResult
 from rolloforge.storage import load_bookmarks, load_analysis_results
