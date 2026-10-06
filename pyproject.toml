@@ -22,5 +22,5 @@ dependencies = [
 test = ["pytest>=8.0", "pytest-asyncio>=0.26", "pytest-cov>=6.0"]
 
 [project.urls]
-Homepage = "https://github.com/aungminnkhant94/RolloForge"
+Homepage = "https://github.com/aungminnkhant94/RolloForge-oss"
 Issues = "https://github.com/aungminnkhant94/RolloForge-oss/issues"
