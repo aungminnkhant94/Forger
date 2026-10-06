@@ -29,13 +29,13 @@ python3 ../forge sync
 npm run build
 ```
 
-Static files output to `web/dist/`
+Output is a Next.js build in `web/.next/` — serve with `npm run start` or deploy (see below).
 
 ## Data Source
 
-The dashboard reads from parent directory JSON files:
-- `../data/bookmarks_raw.json`
-- `../data/analysis_results.json`
+The dashboard reads JSON files written by `forge sync`:
+- `web/lib/data.json` + `web/lib/analysis.json` (build-time)
+- `web/public/data.json` + `web/public/analysis.json` (runtime fetch)
 
 Run `python3 ../forge sync` from the repo root to copy them before building.
 
@@ -51,4 +51,3 @@ Run `python3 ../forge sync` from the repo root to copy them before building.
 
 URL: your deployment URL (assigned by Vercel)
 
-Last updated: 2026-03-22
