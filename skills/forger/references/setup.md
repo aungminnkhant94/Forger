@@ -15,9 +15,9 @@ Everything else (`data/`, `reports/`) is auto-created on first run.
 
 ```bash
 git clone https://github.com/aungminnkhant94/Forger.git ~/Forger
+cd ~/Forger
 python3 -m venv .venv && . .venv/bin/activate
-# Windows:  py -3 -m venv .venv  then  .venvScriptsctivate
-python3 -m venv .venv && . .venv/bin/activate    # Windows: .venv\Scripts\activate
+# Windows:  py -3 -m venv .venv   then   .venv\Scripts\activate
 pip install -r requirements.txt
 cp .env.example .env          # only needed for API-mode scoring
 cp profile.example.md profile.md   # then interview the user and rewrite it
