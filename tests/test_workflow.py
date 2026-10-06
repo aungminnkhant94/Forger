@@ -23,6 +23,8 @@ def _patch_workflow(monkeypatch):
     monkeypatch.setattr(bw, "save_bookmarks", lambda bookmarks: None)
     monkeypatch.setattr(bw, "upsert_analysis_results", lambda existing, incoming: None)
     monkeypatch.setattr(bw, "_sync_dashboard", lambda: None)
+    # invariant check reads real storage; meaningless under mocks
+    monkeypatch.setattr(bw, "_verify_ingestion_invariants", lambda *a: ([], []))
 
 
 def test_workflow_public_surface():
