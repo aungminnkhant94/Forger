@@ -15,7 +15,7 @@ from forger.scrapers.article_scraper import (
     ArticleScraperError,
     ArticleScraperTimeoutError,
 )
-from forger.deepseek_analysis import (
+from forger.analysis import (
     DeepSeekError,
     DeepSeekConfigError,
     DeepSeekAPIError,
@@ -106,7 +106,7 @@ class TestRetryDecorators:
     
     def test_deepseek_has_retry(self):
         """Test DeepSeek API has retry decorator."""
-        from forger.deepseek_analysis import _call_analysis_api
+        from forger.analysis import _call_analysis_api
         assert hasattr(_call_analysis_api, '__wrapped__')
     
     def test_article_scraper_has_retry(self):
@@ -118,10 +118,10 @@ class TestRetryDecorators:
 class TestDeepSeekFallback:
     """Test DeepSeek fallback analysis."""
     
-    @patch('forger.deepseek_analysis.analyze_with_deepseek')
+    @patch('forger.analysis.analyze_with_deepseek')
     def test_fallback_returns_valid_structure(self, mock_analyze):
         """Test fallback returns proper structure when DeepSeek fails."""
-        from forger.deepseek_analysis import deepseek_analyze_bookmark
+        from forger.analysis import deepseek_analyze_bookmark
         
         # Mock API failure
         mock_analyze.return_value = None

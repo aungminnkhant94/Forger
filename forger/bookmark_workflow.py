@@ -6,7 +6,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional, Tuple
 
-from forger.deepseek_analysis import deepseek_analyze_bookmark
+from forger.analysis import deepseek_analyze_bookmark
 from forger.similarity import check_duplicate_topic
 from forger.git_auto import git_auto_push
 from forger.models import Bookmark, AnalysisResult, ScoringInputs
@@ -190,7 +190,7 @@ def resolve_pending_analysis(bookmark_id: str, analysis_dict: dict) -> Tuple[boo
     title, recommendation_reason, relates_to, key_insights, tags, novelty,
     excitement.
     """
-    from forger.deepseek_analysis import derive_legacy_scores
+    from forger.analysis import derive_legacy_scores
 
     bookmark = next((b for b in load_bookmarks() if b.id == bookmark_id), None)
     if not bookmark:

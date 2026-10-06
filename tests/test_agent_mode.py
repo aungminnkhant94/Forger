@@ -1,7 +1,7 @@
 """Tests for agent-mode score derivation."""
 import pytest
 
-from forger.deepseek_analysis import derive_legacy_scores
+from forger.analysis import derive_legacy_scores
 
 
 class TestDeriveLegacyScores:
