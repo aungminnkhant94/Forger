@@ -368,25 +368,29 @@ def derive_legacy_scores(analysis: dict) -> dict:
     return analysis
 
 
-def analyze_with_deepseek(text: str, title: str = "", url: str = "") -> Optional[dict]:
+def analyze_with_deepseek(text: str, title: str = "", url: str = "", user_note: str | None = None) -> Optional[dict]:
     """
-    Analyze bookmark content using DeepSeek LLM.
-    
+    Analyze bookmark content using the configured LLM.
+
+    Args:
+        user_note: the user's own words accompanying the link, if any. Weighed
+            as the strongest signal of why they saved it.
+
     Returns analysis dict or None if failed.
     """
     client = get_analysis_client()
     if not client:
         LOGGER.error("Failed to initialize analysis client")
         return None
-    
+
     # Truncate text if too long (Kimi has context limits)
     max_chars = 8000
     if len(text) > max_chars:
         text = text[:max_chars] + "... [truncated]"
-    
+
     user_context = _load_user_context()
     wiki_context = _load_wiki_context(text, title, url)
-    
+
     # Build extra-context section if available
     extra_section = ""
     if wiki_context:
@@ -396,12 +400,20 @@ EXTRA CONTEXT (matching notes from the user's knowledge base):
 {wiki_context}
 """
 
+    note_section = ""
+    if user_note and user_note.strip():
+        note_section = f"""
+USER NOTE (the user's own words when saving this link — the single strongest
+signal of why they care; judge the bookmark through it):
+{user_note.strip()}
+"""
+
     prompt = f"""You are the user's personal bookmark analyst. Do not do generic internet summarization.
 
 Your job is to read the bookmark fully, read the user's profile below, and judge whether this is useful for THIS USER specifically.
 
 USER PROFILE:
-{user_context}{extra_section}
+{user_context}{extra_section}{note_section}
 
 BOOKMARK TO ANALYZE:
 URL: {url}
@@ -500,15 +512,15 @@ Scoring notes:
         return None
 
 
-def deepseek_analyze_bookmark(text: str, title: str = "", url: str = "") -> dict:
+def deepseek_analyze_bookmark(text: str, title: str = "", url: str = "", user_note: str | None = None) -> dict:
     """
-    Analyze bookmark with DeepSeek, fallback to heuristic if fails.
-    
+    Analyze bookmark with the configured LLM, fall back to heuristic on failure.
+
     Returns analysis dict.
     """
-    # Try DeepSeek first
+    # Try LLM first
     try:
-        result = analyze_with_deepseek(text, title, url)
+        result = analyze_with_deepseek(text, title, url, user_note=user_note)
         if result:
             return result
     except Exception as e:

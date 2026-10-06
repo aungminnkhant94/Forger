@@ -253,7 +253,7 @@ def _verify_ingestion_invariants(before_bookmarks: list[Bookmark], before_analys
     return after_bookmarks, after_analyses
 
 
-def process_bookmark_url(url: str, analyze: bool = True) -> Tuple[bool, str, Optional[Bookmark], Optional[AnalysisResult]]:
+def process_bookmark_url(url: str, analyze: bool = True, note: str | None = None) -> Tuple[bool, str, Optional[Bookmark], Optional[AnalysisResult]]:
     """
     Complete workflow: scrape, analyze, save, push.
 
@@ -262,6 +262,9 @@ def process_bookmark_url(url: str, analyze: bool = True) -> Tuple[bool, str, Opt
         analyze: run LLM analysis now. When False (agent mode), a pending
             placeholder analysis is stored; the calling agent writes its own
             analysis later and resolves it via resolve_pending_analysis().
+        note: the user's own words accompanying the URL (a URL+text message).
+            Stored on the bookmark and passed to the analysis as the
+            strongest signal of why they saved it.
 
     Returns:
         (success, message, bookmark, analysis)
@@ -276,6 +279,10 @@ def process_bookmark_url(url: str, analyze: bool = True) -> Tuple[bool, str, Opt
     if not bookmark:
         return False, "Failed to scrape URL", None, None
 
+    if note and note.strip():
+        bookmark.note = note.strip()
+        bookmark.raw_payload["capture_mode"] = "url_with_note"
+
     similar_existing, similar_message = find_similar_duplicate(bookmark)
     if similar_existing:
         return False, f"DUPLICATE_TOPIC: {similar_message}", similar_existing, None
@@ -286,7 +293,8 @@ def process_bookmark_url(url: str, analyze: bool = True) -> Tuple[bool, str, Opt
         analysis_dict = deepseek_analyze_bookmark(
             text=bookmark.text,
             title=bookmark.title,
-            url=bookmark.url
+            url=bookmark.url,
+            user_note=bookmark.note if (note and note.strip()) else None
         )
 
         # Update bookmark tags from the analysis

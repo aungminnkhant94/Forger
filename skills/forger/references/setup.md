@@ -14,7 +14,7 @@ Everything else (`data/`, `reports/`) is auto-created on first run.
 ## Engine install
 
 ```bash
-git clone https://github.com/aungminnkhant94/Forger-oss.git ~/Forger
+git clone https://github.com/aungminnkhant94/Forger.git ~/Forger
 cd ~/Forger
 python3 -m venv .venv && . .venv/bin/activate    # Windows: .venv\Scripts\activate
 pip install -r requirements.txt

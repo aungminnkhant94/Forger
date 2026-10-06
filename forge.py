@@ -100,11 +100,16 @@ def cmd_add(args: argparse.Namespace) -> int:
     from forger.bookmark_workflow import process_bookmark_url
 
     url = args.url
+    note = getattr(args, "note", None)
     print_header("Adding Bookmark")
     print(f"URL: {url}")
+    if note:
+        print(f"Note: {note[:80]}{'...' if len(note) > 80 else ''}")
     print()
 
-    success, message, bookmark, analysis = process_bookmark_url(url, analyze=not getattr(args, "agent", False))
+    success, message, bookmark, analysis = process_bookmark_url(
+        url, analyze=not getattr(args, "agent", False), note=note
+    )
 
     if success:
         print_success("Bookmark saved successfully")
@@ -120,8 +125,13 @@ def cmd_add(args: argparse.Namespace) -> int:
             pending_dir = DATA_DIR / "pending"
             pending_dir.mkdir(parents=True, exist_ok=True)
             content_path = pending_dir / f"{bookmark.id}.content.md"
+            note_block = (
+                f"\nUSER NOTE (the user's own words — judge the bookmark through it):\n{bookmark.note}\n"
+                if note and note.strip()
+                else ""
+            )
             content_path.write_text(
-                f"# {bookmark.title}\n\nURL: {bookmark.url}\n\n{bookmark.text}\n",
+                f"# {bookmark.title}\n\nURL: {bookmark.url}\n{note_block}\n{bookmark.text}\n",
                 encoding="utf-8",
             )
             print()
@@ -771,6 +781,10 @@ For more help on a command:
     # add
     add_parser = subparsers.add_parser("add", help="Add a bookmark from URL")
     add_parser.add_argument("url", help="URL to bookmark")
+    add_parser.add_argument(
+        "--note", "-n",
+        help="The user's own words accompanying the link (from a URL+text message). Stored on the bookmark and weighed as the strongest analysis signal.",
+    )
     add_parser.add_argument(
         "--agent",
         action="store_true",

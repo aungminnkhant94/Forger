@@ -23,10 +23,10 @@ The differentiator is **bring-your-own-profile**: scoring is personal, not gener
 ## Install as a skill (any agent)
 
 ```bash
-npx skills add aungminnkhant94/Forger-oss
+npx skills add aungminnkhant94/Forger
 ```
 
-Pick your agent(s) in the interactive prompt (Claude Code, Codex, Cursor, OpenCode, Kimi Code CLI, ...). Hermes users: `hermes skills install aungminnkhant94/Forger-oss/forger`.
+Pick your agent(s) in the interactive prompt (Claude Code, Codex, Cursor, OpenCode, Kimi Code CLI, ...). Hermes users: `hermes skills install aungminnkhant94/Forger/forger`.
 
 Then just tell your agent in a normal chat:
 
@@ -34,14 +34,17 @@ Then just tell your agent in a normal chat:
 
 The agent reads the skill, installs the engine, interviews you briefly to write your `profile.md`, and you paste your first URL. That first bookmark landing on your dashboard — scored, bucketed, tagged — is the whole setup verification.
 
+> **Agents:** the full operating manual is [`skills/forger/SKILL.md`](skills/forger/SKILL.md) — written for you, not for humans. Read it first.
+
 ## Manual install (no agent)
 
 ```bash
-git clone https://github.com/aungminnkhant94/Forger-oss.git
+git clone https://github.com/aungminnkhant94/Forger.git
 cd Forger
-python -m venv .venv && source .venv/bin/activate
+python3 -m venv .venv && source .venv/bin/activate   # Windows: py -3 -m venv .venv, then .venv\Scripts\activate
 pip install -r requirements.txt
 playwright install chromium          # optional — X links and JS-heavy pages
+# agent mode needs NO .env and NO key — the two cp lines below are for API mode
 cp .env.example .env                 # add ONE LLM API key
 cp profile.example.md profile.md     # describe yourself — this drives all scoring
 python forge add https://example.com/some-article
@@ -64,6 +67,7 @@ python forge stats
 ```
 forge add <url>          scrape → score → store → sync dashboard
 forge add <url> --agent  agent mode: no API key — saves content for YOUR agent to analyze
+forge add <url> --note ".."  pass the user s own words with the link — strongest analysis signal
 forge resolve <id>       ingest the agent-written analysis (completes agent mode)
 forge search <q>         full-text search across everything
 forge stats              counts, bucket distribution, priorities

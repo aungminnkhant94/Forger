@@ -3,6 +3,14 @@
 Every bookmark gets judged against the user's `profile.md` — never against a
 generic tech audience. You are writing for one person.
 
+## User notes override everything
+
+If the user pasted the link WITH their own words (`forge add --note`), those
+words are the single strongest signal you have — they tell you why THIS person
+cared enough to save THIS link right now. Judge through the note first, the
+page content second, the profile third. A humble link with an excited note
+outranks an impressive link with no note.
+
 ## The three questions
 
 Answer these honestly; everything else derives from them:

@@ -15,19 +15,21 @@ installed it). All commands below assume you `cd` there first.
 
 ## First-time setup (once per user)
 
-1. **Check prerequisites**: Python 3.10+ (`python3 --version`). Git. Optional:
-   Node 18+ (dashboard), Playwright chromium (X/Twitter links).
+1. **Check prerequisites**: Python 3.10+ (`python3 --version`; on Windows use
+   `py -3 --version`). Git. Optional: Node 18+ (dashboard), Playwright
+   chromium (X/Twitter links).
 2. **Get the engine**:
    ```
-   git clone https://github.com/aungminnkhant94/Forger-oss.git ~/Forger
+   git clone https://github.com/aungminnkhant94/Forger.git ~/Forger
    cd ~/Forger
-   python3 -m venv .venv && . .venv/bin/activate   # Windows: .venv\Scripts\activate
+   python3 -m venv .venv && . .venv/bin/activate
+   # Windows:  py -3 -m venv .venv  then  .venv\Scripts\activate
    pip install -r requirements.txt
    ```
    No git? Download the repo zip and extract.
    **Safety**: if the target directory already exists and is not a Forger
    checkout (no `forge.py` inside), do NOT touch or clone into it — pick a
-   different directory (e.g. `~/Forger-oss`) and remember it. Never run
+   different directory (e.g. `~/forger-engine`) and remember it. Never run
    forge commands inside a directory that belongs to another project.
 3. **Create the profile** — interview the user briefly (2-4 questions), then
    write their answers into `~/Forger/profile.md` following
@@ -47,6 +49,11 @@ installed it). All commands below assume you `cd` there first.
 No key required — you are the analyst:
 
 1. `python forge add <url> --agent`
+   - **URL + the user's own text?** People often paste a link with commentary
+     ("this is interesting because ..."). Pass their words along verbatim:
+     `python forge add <url> --agent --note "<their words>"`.
+     The note is stored on the bookmark and is the STRONGEST analysis signal —
+     judge the link through what THEY said, not just the page content.
    - Saves the bookmark, scrapes content, prints a `bookmark_id`.
    - Scraped content is written to `data/pending/<id>.content.md`.
    - If it says DUPLICATE, tell the user it's already saved (optionally show the
@@ -78,7 +85,8 @@ No key required — you are the analyst:
 5. Report back in one short block: title, bucket, your one-line reason. Done.
 
 If the user configured an LLM key in `.env`, step 1 becomes plain
-`python forge add <url>` (the API scores it) — then just report the result.
+`python forge add <url>` (the API scores it; `--note` works there too) — then
+just report the result.
 
 ## When the user asks about their saved stuff
 
