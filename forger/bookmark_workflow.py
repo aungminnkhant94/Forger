@@ -6,7 +6,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional, Tuple
 
-from forger.analysis import deepseek_analyze_bookmark
+from forger.analysis import analyze_bookmark
 from forger.similarity import check_duplicate_topic
 from forger.git_auto import git_auto_push
 from forger.models import Bookmark, AnalysisResult, ScoringInputs
@@ -290,7 +290,7 @@ def process_bookmark_url(url: str, analyze: bool = True, note: str | None = None
     if analyze:
         # Run LLM analysis
         LOGGER.info(f"Running LLM analysis for: {bookmark.title[:50]}...")
-        analysis_dict = deepseek_analyze_bookmark(
+        analysis_dict = analyze_bookmark(
             text=bookmark.text,
             title=bookmark.title,
             url=bookmark.url,

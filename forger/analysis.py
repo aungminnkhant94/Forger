@@ -643,6 +643,6 @@ def analyze_pending_bookmarks(
     LOGGER.info("Analyzing %s bookmark(s) through the LLM.", len(pending))
     results: list[AnalysisResult] = []
     for bookmark in pending:
-        payload = deepseek_analyze_bookmark(bookmark.text, bookmark.title or "", bookmark.url)
+        payload = analyze_bookmark(bookmark.text, bookmark.title or "", bookmark.url)
         results.append(_result_from_llm(bookmark, payload))
     return results
