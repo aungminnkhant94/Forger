@@ -6,7 +6,7 @@
 |---|---|---|
 | Python 3.10+ | engine | `python3 --version` |
 | git | cloning, optional auto-git | `git --version` |
-| Node 18+ | dashboard only | `node --version` |
+| Node 20.9+ (repo pins 24.x) | dashboard only | `node --version` |
 | Playwright chromium | X/Twitter + JS-heavy pages | `playwright install chromium` |
 
 Everything else (`data/`, `reports/`) is auto-created on first run.

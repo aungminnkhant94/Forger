@@ -6,7 +6,6 @@ Jinja2==3.1.6                    # CVE-2024-22195 fixed in 3.1.3+
 python-dotenv==1.1.0
 requests==2.33.0                 # CVE-2024-47081, CVE-2026-25645 fixed in 2.33.0
 beautifulsoup4==4.13.3
-lxml==5.3.1
 tenacity==9.0.0
 playwright==1.51.0
 tzdata>=2024.1                    # Windows: ZoneInfo needs the tzdata package

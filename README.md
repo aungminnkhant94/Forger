@@ -38,18 +38,27 @@ The agent reads the skill, installs the engine, interviews you briefly to write 
 
 ## Manual install (no agent)
 
+**Prerequisites:** Python 3.10+ and git. Node 20.9+ only if you want the dashboard. Playwright chromium only for X/Twitter and JS-heavy pages. No API key required for agent mode.
+
 ```bash
 git clone https://github.com/aungminnkhant94/Forger.git
 cd Forger
 python3 -m venv .venv && source .venv/bin/activate   # Windows: py -3 -m venv .venv, then .venv\Scripts\activate
 pip install -r requirements.txt
-playwright install chromium          # optional — X links and JS-heavy pages
-# agent mode needs NO .env and NO key — the two cp lines below are for API mode
-cp .env.example .env                 # add ONE LLM API key
-cp profile.example.md profile.md     # describe yourself — this drives all scoring
-python forge add https://example.com/some-article
-python forge stats
+playwright install chromium                           # optional — X links and JS-heavy pages
+cp profile.example.md profile.md                      # REQUIRED — edit it: this drives all scoring
+cp .env.example .env                                  # only for API-mode scoring — add ONE key (see table below)
 ```
+
+**Verify the install:**
+
+```bash
+python forge health          # should end with "Health Check Passed"
+python forge add https://example.com --agent    # saves a bookmark; content lands in data/pending/
+python forge stats           # should show 1 bookmark
+```
+
+With an API key in `.env`, use `python forge add <url>` (the API scores it). Without a key, `forge add` without `--agent` still saves but the analysis degrades to a fallback stub — prefer `--agent` or configure a key.
 
 ## Configuration (`.env`)
 
@@ -67,7 +76,7 @@ python forge stats
 ```
 forge add <url>          scrape → score → store → sync dashboard
 forge add <url> --agent  agent mode: no API key — saves content for YOUR agent to analyze
-forge add <url> --note ".."  pass the user s own words with the link — strongest analysis signal
+forge add <url> --note ".."  pass the user's own words with the link — strongest analysis signal
 forge resolve <id>       ingest the agent-written analysis (completes agent mode)
 forge search <q>         full-text search across everything
 forge stats              counts, bucket distribution, priorities
@@ -82,7 +91,7 @@ forge health             checks
 ## Dashboard
 
 ```bash
-cd web && npm install && npm run dev
+cd web && npm install && npm run dev     # needs Node 20.9+ (repo pins 24.x; tested on 24)
 ```
 
 Deploy anywhere (Vercel: root directory `web`). See `web/README.md`.

@@ -11,7 +11,6 @@ dependencies = [
     "python-dotenv>=1.0",
     "requests>=2.31",
     "beautifulsoup4>=4.12",
-    "lxml>=5.0",
     "tenacity>=8.2",
     "openai>=1.40",
     "Jinja2>=3.1",

@@ -16,7 +16,7 @@ installed it). All commands below assume you `cd` there first.
 ## First-time setup (once per user)
 
 1. **Check prerequisites**: Python 3.10+ (`python3 --version`; on Windows use
-   `py -3 --version`). Git. Optional: Node 18+ (dashboard), Playwright
+   `py -3 --version`). Git. Optional: Node 20.9+ (dashboard only; repo pins 24.x), Playwright
    chromium (X/Twitter links).
 2. **Get the engine**:
    ```
