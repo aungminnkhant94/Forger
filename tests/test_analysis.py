@@ -272,7 +272,7 @@ class TestDeepseekAnalyzeBookmark:
         result = analyze_bookmark("test content", "Test Title", "https://example.com")
 
         assert result["title"] == "Test Title"
-        assert result["analysis_source"] == "deepseek_fallback"
+        assert result["analysis_source"] == "llm_fallback"
         assert result["recommendation_bucket"] == "archive"
 
     @patch.dict("os.environ", {"DEEPSEEK_API_KEY": "test-key"})
@@ -284,7 +284,7 @@ class TestDeepseekAnalyzeBookmark:
         result = analyze_bookmark("test content", "Original Title")
 
         assert result["title"] == "Original Title"
-        assert result["analysis_source"] == "deepseek_fallback"
+        assert result["analysis_source"] == "llm_fallback"
         assert "scoring_inputs" in result
 
     def test_fallback_without_api_key(self):
@@ -292,7 +292,7 @@ class TestDeepseekAnalyzeBookmark:
         with patch.dict("os.environ", {}, clear=True):
             result = analyze_bookmark("test content")
 
-        assert result["analysis_source"] == "deepseek_fallback"
+        assert result["analysis_source"] == "llm_fallback"
         assert result["priority_score"] == 3.0
 
     @patch.dict("os.environ", {"DEEPSEEK_API_KEY": "test-key"})
