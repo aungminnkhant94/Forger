@@ -1,24 +1,25 @@
 # Forger
 
-**Paste a URL. Your AI agent turns it into a scored, searchable knowledge base.**
+**Turn saved links into things you’ll actually use—with the AI agent you already have.**
 
-Forger is a headless bookmark engine for AI agents. Install the skill into any SKILL.md-compatible agent — Claude Code, Codex, Kimi Code CLI, ZCode, Cursor, OpenCode, Hermes, and 30+ more — and every link you paste in a normal chat gets scraped, judged against **your** profile, bucketed, and stored with a dashboard to browse it all.
+Found an article, guide, or tool you want to come back to? Paste its URL into your agent chat. Forger reads the page, checks it against a short profile of what you're working on, and recommends what deserves your attention—with a clear reason.
 
-```
-URL  →  scrape  →  score against profile.md  →  bucket  →  store  →  dashboard
-```
+Add a note like *"I'm saving this for my deployment project"* to tell your agent why the link matters. Your own words guide the recommendation.
 
-No bot to host. No account. The agent you already use is the front door; Forger is the engine behind it.
+## Decide what to do with each link
 
-## What it does
+- **Try this week** — something you can act on now.
+- **Build later** — something that could help a project you're working on.
+- **Keep as reference** — something worth finding again when you need it.
+- **Ignore** — something that doesn't fit your current needs.
 
-- **Scrape** — articles via requests + BeautifulSoup; X/Twitter and JS-heavy pages via Playwright (optional).
-- **Score** — an LLM reads the full content *and your `profile.md`*, then answers three honest questions: actionable this week? reduces friction on something you're building? worth keeping as reference?
-- **Bucket** — every bookmark lands in `test_this_week` / `build_later` / `archive` / `ignore`, with a blunt one-line reason.
-- **Store** — JSON + SQLite under `data/`, yours entirely, offline.
-- **Browse** — a Next.js dashboard with search, filters and stats; or just ask your agent: *"what's in my forge about docker?"*
+Your profile describes your current projects and interests, so recommendations reflect what matters to you.
 
-The differentiator is **bring-your-own-profile**: scoring is personal, not generic. You write one plain-text file about yourself and your work; every analysis reads it.
+## Find it again when you need it
+
+Your bookmarks are stored in local files. Search through your agent—*"what's in my forge about Docker?"*—or browse the optional dashboard with search, filters, and summaries.
+
+**No additional LLM API key required in agent mode.** Your existing agent handles the analysis. You can also connect an LLM API for automated scoring.
 
 ## Install as a skill (any agent)
 
