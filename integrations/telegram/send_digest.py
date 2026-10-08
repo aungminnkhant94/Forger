@@ -73,7 +73,8 @@ class TelegramFormatter:
         lines.append(f"• 📚 Build later: {stats.build_later}")
         lines.append(f"• 📁 Archive: {stats.archive}")
         if stats.avg_priority_score > 0:
-            lines.append(f"• Avg priority: {stats.avg_priority_score:.1f}/10")
+            avg = cls.escape_markdown(f"{stats.avg_priority_score:.1f}")
+            lines.append(f"• Avg priority: {avg}/10")
         lines.append("")
         
         # Top 3 priority items
@@ -83,8 +84,8 @@ class TelegramFormatter:
                 title = cls.escape_markdown(cls.truncate(item.bookmark.title or item.bookmark.text, 50))
                 priority = item.analysis.priority_score
                 escaped_i = cls.escape_markdown(str(i))
-                lines.append(f"{escaped_i}\\. [{title}]({item.bookmark.url})")
-                lines.append(f"   Priority: {priority:.1f}")
+                lines.append(f"{escaped_i}\\. [{title}]({cls.escape_markdown(item.bookmark.url or '')})")
+                lines.append(f"   Priority: {cls.escape_markdown(f'{priority:.1f}')}")
                 if item.action_items:
                     action = cls.escape_markdown(cls.truncate(item.action_items[0], 60))
                     lines.append(f"   👉 {action}")
@@ -106,7 +107,7 @@ class TelegramFormatter:
             trend_emoji = "📈" if trend == 'up' else "📉" if trend == 'down' else "➡️"
             lines.append(f"{trend_emoji} *Trend:* Quality is {trend}")
             if delta != 0:
-                lines.append(f"   Change: {delta:+.2f} vs historical avg")
+                lines.append(f"   Change: {cls.escape_markdown(f'{delta:+.2f}')} vs historical avg")
         
         # Footer
         lines.append("")
@@ -155,8 +156,10 @@ class TelegramFormatter:
             for i, item in enumerate(digest.test_this_week[:5], 1):
                 title = cls.escape_markdown(cls.truncate(item.bookmark.title or item.bookmark.text, 45))
                 escaped_i = cls.escape_markdown(str(i))
-                lines.append(f"*{escaped_i}\\.* [{title}]({item.bookmark.url})")
-                lines.append(f"   Worth: {item.analysis.worth_score:.1f} | Priority: {item.analysis.priority_score:.1f}")
+                lines.append(f"*{escaped_i}\\.* [{title}]({cls.escape_markdown(item.bookmark.url or '')})")
+                worth = cls.escape_markdown(f"{item.analysis.worth_score:.1f}")
+                prio = cls.escape_markdown(f"{item.analysis.priority_score:.1f}")
+                lines.append(f"   Worth: {worth} \\| Priority: {prio}")
                 if item.bookmark.tags:
                     tags = ", ".join(item.bookmark.tags[:3])
                     lines.append(f"   🏷 {cls.escape_markdown(tags)}")
@@ -172,8 +175,8 @@ class TelegramFormatter:
             for i, item in enumerate(digest.build_later[:3], 1):
                 title = cls.escape_markdown(cls.truncate(item.bookmark.title or item.bookmark.text, 50))
                 escaped_i = cls.escape_markdown(str(i))
-                lines.append(f"{escaped_i}\\. [{title}]({item.bookmark.url})")
-                lines.append(f"   Priority: {item.analysis.priority_score:.1f}")
+                lines.append(f"{escaped_i}\\. [{title}]({cls.escape_markdown(item.bookmark.url or '')})")
+                lines.append(f"   Priority: {cls.escape_markdown(f'{item.analysis.priority_score:.1f}')}")
             lines.append("")
             if len(digest.build_later) > 3:
                 more = len(digest.build_later) - 3
@@ -195,7 +198,7 @@ class TelegramFormatter:
             trend_emoji = "📈" if trend == 'up' else "📉" if trend == 'down' else "➡️"
             lines.append(f"{trend_emoji} *Quality Trend:* {trend}")
             if delta != 0:
-                lines.append(f"   Change: {delta:+.2f} vs historical average")
+                lines.append(f"   Change: {cls.escape_markdown(f'{delta:+.2f}')} vs historical average")
             
             if digest.trends.get('topic_distribution'):
                 lines.append("")
@@ -223,7 +226,8 @@ class TelegramFormatter:
         ]
         
         if stats.avg_priority_score > 0:
-            lines.append(f"⭐ Avg priority: {stats.avg_priority_score:.1f}/10")
+            avg = cls.escape_markdown(f"{stats.avg_priority_score:.1f}")
+            lines.append(f"⭐ Avg priority: {avg}/10")
         
         if digest.trends.get('quality_trend'):
             trend_emoji = "📈" if digest.trends['quality_trend'] == 'up' else "📉"
@@ -235,8 +239,8 @@ class TelegramFormatter:
 async def send_telegram_message(bot_token: str, chat_id: str, text: str) -> bool:
     """Send a message via Telegram Bot API."""
     try:
-        import aiohttp
-        
+        import requests
+
         url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
         payload = {
             "chat_id": chat_id,
@@ -244,17 +248,15 @@ async def send_telegram_message(bot_token: str, chat_id: str, text: str) -> bool
             "parse_mode": "MarkdownV2",
             "disable_web_page_preview": False,
         }
-        
-        async with aiohttp.ClientSession() as session:
-            async with session.post(url, json=payload) as response:
-                result = await response.json()
-                if result.get("ok"):
-                    return True
-                else:
-                    print(f"Telegram API error: {result.get('description')}")
-                    return False
+
+        response = requests.post(url, json=payload, timeout=30)
+        result = response.json()
+        if result.get("ok"):
+            return True
+        print(f"Telegram API error: {result.get('description')}")
+        return False
     except ImportError:
-        print("Error: aiohttp not installed. Run: pip install aiohttp")
+        print("Error: requests not installed. Run: pip install requests")
         return False
     except Exception as e:
         print(f"Error sending message: {e}")
@@ -270,7 +272,7 @@ def print_to_console(text: str, label: str = "Message") -> None:
     print('='*50)
 
 
-async def main_async() -> int:
+async def main_async(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Send Forger weekly digest via Telegram"
     )
@@ -307,7 +309,7 @@ async def main_async() -> int:
         help="Also save digest to reports directory"
     )
     
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     
     # Generate digest
     print(f"Generating {args.days}-day digest...")
@@ -378,9 +380,14 @@ async def main_async() -> int:
     return 0 if success_count == len(messages) else 1
 
 
-def main() -> int:
-    """Entry point."""
-    return asyncio.run(main_async())
+def main(argv: list[str] | None = None) -> int:
+    """Entry point.
+
+    argv defaults to None so `python send_digest.py` still parses sys.argv.
+    Callers such as `forge digest` pass an explicit list so forge's own
+    flags are not fed to this parser.
+    """
+    return asyncio.run(main_async(argv))
 
 
 if __name__ == "__main__":

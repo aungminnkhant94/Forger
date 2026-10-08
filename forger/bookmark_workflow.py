@@ -21,7 +21,7 @@ from forger.storage import (
     save_bookmarks,
     upsert_analysis_results,
 )
-from forger.utils import stable_bookmark_id
+from forger.utils import _canonical_bookmark_identity, stable_bookmark_id
 
 LOGGER = logging.getLogger(__name__)
 
@@ -30,10 +30,18 @@ class IngestionInvariantError(RuntimeError):
     """Raised when bookmark ingestion breaks required data invariants."""
 
 def check_duplicate(url: str) -> Optional[Bookmark]:
-    """Check if URL already exists in bookmarks."""
+    """Check if URL already exists, using the canonical bookmark identity.
+
+    Raw string equality misses the same video with a different tracking
+    param, and used to let a later merge overwrite a different resource
+    that collided on a query-less id.
+    """
     bookmarks = load_bookmarks()
+    target = _canonical_bookmark_identity(url, "")
+    if not target:
+        return None
     for b in bookmarks:
-        if b.url == url:
+        if _canonical_bookmark_identity(b.url, "") == target:
             return b
     return None
 
@@ -156,8 +164,17 @@ def _build_analysis_result(bookmark: Bookmark, analysis_dict: dict) -> AnalysisR
         analysis_source=analysis_dict.get("analysis_source", "deepseek"),
         analyzed_at=bookmark.bookmarked_at,
         title=analysis_dict.get("title") or bookmark.title,
+        actionable_this_week=_bool_if_provided(analysis_dict, "actionable_this_week"),
+        reduces_friction=_bool_if_provided(analysis_dict, "reduces_friction"),
+        reference_material=_bool_if_provided(analysis_dict, "reference_material"),
     )
     return result
+
+
+def _bool_if_provided(payload: dict, key: str) -> bool | None:
+    if key not in payload or not isinstance(payload[key], bool):
+        return None
+    return payload[key]
 
 
 def _build_pending_result(bookmark: Bookmark) -> AnalysisResult:

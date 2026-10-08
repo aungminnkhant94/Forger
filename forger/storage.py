@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import tempfile
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -39,8 +40,14 @@ def load_json(path: Path, default: Any) -> Any:
         with path.open("r", encoding="utf-8") as handle:
             try:
                 return json.load(handle)
-            except json.JSONDecodeError:
-                return default
+            except json.JSONDecodeError as exc:
+                # Do not swallow corrupt files as []. cached_load would keep
+                # that empty list, and the next save would wipe the real data.
+                raise json.JSONDecodeError(
+                    f"Corrupt JSON in {path}: {exc.msg}",
+                    exc.doc,
+                    exc.pos,
+                ) from exc
 
     return cached_load(path, _load)
 
@@ -57,9 +64,26 @@ def write_json(path: Path, payload: Any) -> None:
     NEVER call write_json() directly on production data files.
     """
     ensure_parent(path)
-    with path.open("w", encoding="utf-8") as handle:
-        json.dump(payload, handle, indent=2, ensure_ascii=False)
-        handle.write("\n")
+    tmp_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=path.parent,
+            prefix=f".{path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as handle:
+            tmp_path = Path(handle.name)
+            json.dump(payload, handle, indent=2, ensure_ascii=False)
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp_path, path)
+        tmp_path = None
+    finally:
+        if tmp_path is not None and tmp_path.exists():
+            tmp_path.unlink()
 
     invalidate_path(path)
 

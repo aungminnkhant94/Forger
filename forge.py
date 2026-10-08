@@ -266,24 +266,24 @@ def cmd_digest(args: argparse.Namespace) -> int:
             
             # Import here to avoid circular imports
             from integrations.telegram.send_digest import main as send_main
-            
-            # Set up args for send_digest_telegram
-            send_args = argparse.Namespace(
-                days=args.days,
-                format=args.telegram_format,
-                dry_run=False,
-                bot_token=os.getenv("TELEGRAM_BOT_TOKEN"),
-                chat_id=os.getenv("TELEGRAM_CHAT_ID"),
-                save=False
-            )
-            
+
+            bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
+            chat_id = os.getenv("TELEGRAM_CHAT_ID")
+
             # Check credentials
-            if not send_args.bot_token or not send_args.chat_id:
+            if not bot_token or not chat_id:
                 print_warning("Telegram credentials not configured")
                 print("  Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID environment variables")
                 return 1
-            
-            result = send_main()
+
+            # Pass an explicit argv. send_main() must not parse forge's own
+            # argv (`digest --send-telegram`), which SystemExits.
+            result = send_main([
+                "--days", str(args.days),
+                "--format", args.telegram_format,
+                "--bot-token", bot_token,
+                "--chat-id", chat_id,
+            ])
             if result == 0:
                 print_success("Digest sent to Telegram")
             else:
@@ -680,6 +680,21 @@ def cmd_sync(args: argparse.Namespace) -> int:
 
         if args.push:
             print_info("Pushing to GitHub...")
+            # Personal bookmarks must not be published. If a previous commit
+            # tracked web/public/data.json, drop it from the index (keep the
+            # local file) before staging the dashboard directories.
+            tracked = subprocess.run(
+                ["git", "ls-files", "--", "web/public/data.json"],
+                cwd=BASE_DIR,
+                capture_output=True,
+                text=True,
+            )
+            if tracked.stdout.strip():
+                subprocess.run(
+                    ["git", "rm", "--cached", "--", "web/public/data.json"],
+                    cwd=BASE_DIR,
+                    capture_output=True,
+                )
             subprocess.run(["git", "add", "web/lib", "web/public"], cwd=BASE_DIR, capture_output=True)
             result = subprocess.run(
                 ["git", "commit", "-m", "Sync dashboard data"], cwd=BASE_DIR, capture_output=True

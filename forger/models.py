@@ -11,6 +11,16 @@ def _optional_str(value: Any) -> str | None:
     return text or None
 
 
+def _optional_bool(payload: dict[str, Any], key: str) -> bool | None:
+    """Return a real bool only when the payload included one."""
+    if key not in payload:
+        return None
+    value = payload[key]
+    if isinstance(value, bool):
+        return value
+    return None
+
+
 @dataclass(slots=True)
 class Bookmark:
     id: str
@@ -108,6 +118,12 @@ class AnalysisResult:
     original_priority_score: float | None = None
     original_bucket: str | None = None
     alignment_score: float | None = None
+    # Binary answers from the model/agent. None means the caller did not
+    # provide them — do not invent False, or refine_bucket will treat them
+    # as a real "all false" decision.
+    actionable_this_week: bool | None = None
+    reduces_friction: bool | None = None
+    reference_material: bool | None = None
 
     @classmethod
     def from_dict(cls, payload: dict[str, Any]) -> "AnalysisResult":
@@ -143,6 +159,9 @@ class AnalysisResult:
             original_priority_score=payload.get("original_priority_score"),
             original_bucket=payload.get("original_bucket"),
             alignment_score=payload.get("alignment_score"),
+            actionable_this_week=_optional_bool(payload, "actionable_this_week"),
+            reduces_friction=_optional_bool(payload, "reduces_friction"),
+            reference_material=_optional_bool(payload, "reference_material"),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -154,4 +173,8 @@ class AnalysisResult:
         # Include title if present
         if self.title is not None:
             payload["title"] = self.title
+        # Only persist binary answers the model/agent actually provided.
+        for key in ("actionable_this_week", "reduces_friction", "reference_material"):
+            if payload.get(key) is None:
+                payload.pop(key, None)
         return payload
