@@ -1,5 +1,6 @@
 """Unit tests for X and article scrapers with mocking."""
 import asyncio
+import json
 import sys
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -388,3 +389,198 @@ class TestArticleScraperContent:
         if result["success"] and result.get("text"):
             assert "alert" not in result["text"]
             assert ".css" not in result["text"]
+
+
+class TestArticleFetchHeadersAndEncoding:
+    """User-Agent and charset handling found by a live scrape."""
+
+    @patch("forger.scrapers.article_scraper.requests.get")
+    def test_fetch_sends_user_agent(self, mock_get):
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.headers = {"Content-Type": "text/html; charset=utf-8"}
+        mock_response.apparent_encoding = "utf-8"
+        mock_response.text = "<html><head><title>HN</title></head><body><p>hi</p></body></html>"
+        mock_response.raise_for_status = MagicMock()
+        mock_get.return_value = mock_response
+
+        scrape_article("https://news.ycombinator.com/item?id=1")
+
+        headers = mock_get.call_args.kwargs["headers"]
+        assert headers.get("User-Agent")
+        assert "Mozilla" in headers["User-Agent"]
+
+    @patch("forger.scrapers.article_scraper.requests.get")
+    def test_http_419_retries_with_different_user_agent(self, mock_get):
+        blocked = MagicMock()
+        blocked.status_code = 419
+        blocked.text = "Sorry\n"
+        blocked.raise_for_status = MagicMock()
+        ok = MagicMock()
+        ok.status_code = 200
+        ok.headers = {"Content-Type": "text/html; charset=utf-8"}
+        ok.apparent_encoding = "utf-8"
+        ok.text = "<html><title>Item</title><body><p>hello</p></body></html>"
+        ok.raise_for_status = MagicMock()
+        mock_get.side_effect = [blocked, ok]
+
+        scrape_article("https://news.ycombinator.com/item?id=1")
+
+        assert mock_get.call_count == 2
+        first = mock_get.call_args_list[0].kwargs["headers"]["User-Agent"]
+        second = mock_get.call_args_list[1].kwargs["headers"]["User-Agent"]
+        assert "Mozilla" in first
+        assert second != first
+        assert second
+
+    def test_missing_charset_uses_apparent_encoding(self):
+        # UTF-8 right-single-quote, which ISO-8859-1 shows as "thereâs".
+        sentence = "there’s some task you’d like to automate. " * 8
+        html = (
+            "<html><head><title>Appetite</title></head><body><article><p>"
+            + sentence
+            + "</p></article></body></html>"
+        )
+        response = requests.Response()
+        response.status_code = 200
+        response._content = html.encode("utf-8")
+        response.headers["Content-Type"] = "text/html"
+        response.encoding = "ISO-8859-1"
+        response.url = "https://docs.python.org/3/tutorial/appetite.html"
+
+        with patch("forger.scrapers.article_scraper._fetch_url", return_value=response):
+            result = scrape_article("https://docs.python.org/3/tutorial/appetite.html")
+
+        assert result["success"] is True
+        assert "there’s" in result["text"]
+        assert "thereâ" not in result["text"]
+
+
+class TestYouTubeOEmbed:
+    @patch("forger.scrapers.article_scraper.requests.get")
+    def test_mocked_oembed_title_and_video_id(self, mock_get):
+        from forger.scrapers.article_scraper import fetch_youtube
+
+        response = MagicMock()
+        response.status_code = 200
+        response.json.return_value = {
+            "title": "Never Gonna Give You Up",
+            "author_name": "Rick Astley",
+            "description": "Official video",
+        }
+        mock_get.return_value = response
+
+        url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        result = fetch_youtube(url)
+
+        assert result["success"] is True
+        assert result["title"] == "Never Gonna Give You Up"
+        assert result["author"] == "Rick Astley"
+        assert "dQw4w9WgXcQ" in result["text"]
+        assert url in result["text"]
+        assert "oembed" in mock_get.call_args.args[0]
+        assert mock_get.call_count == 1
+
+    @patch("forger.scrapers.article_scraper.requests.get")
+    def test_oembed_failure_stub_includes_video_id(self, mock_get):
+        from forger.scrapers.article_scraper import fetch_youtube
+
+        mock_get.side_effect = ConnectionError("offline")
+        result = fetch_youtube("https://www.youtube.com/watch?v=abc123xyz")
+
+        assert result["success"] is False
+        assert "abc123xyz" in result["title"]
+        assert "abc123xyz" in result["text"]
+
+
+class TestXSyndication:
+    def test_syndication_parses_text_and_author(self, monkeypatch):
+        payload = {
+            "text": "just setting up my twttr",
+            "user": {"screen_name": "jack", "name": "jack"},
+        }
+
+        class FakeResp:
+            def read(self):
+                return json.dumps(payload).encode()
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+        def fake_urlopen(req, timeout=None):
+            assert "cdn.syndication.twimg.com/tweet-result" in req.full_url
+            assert "id=20" in req.full_url
+            assert "token=0" in req.full_url
+            return FakeResp()
+
+        monkeypatch.setattr("forger.scrapers.x_scraper.urllib.request.urlopen", fake_urlopen)
+        result = XScraper()._fetch_with_syndication("https://x.com/jack/status/20")
+
+        assert result["success"] is True
+        assert result["text"] == "just setting up my twttr"
+        assert result["author"] == "jack"
+        assert result["source"] == "syndication"
+
+    def test_fxtwitter_used_when_syndication_fails(self, monkeypatch):
+        fx = {
+            "code": 200,
+            "tweet": {
+                "text": "a different post",
+                "author": {"screen_name": "other"},
+            },
+        }
+
+        class FakeResp:
+            def __init__(self, payload):
+                self.payload = payload
+
+            def read(self):
+                return json.dumps(self.payload).encode()
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+        def fake_urlopen(req, timeout=None):
+            if "syndication.twimg.com" in req.full_url:
+                raise OSError("syndication down")
+            if "api.fxtwitter.com" in req.full_url:
+                return FakeResp(fx)
+            raise AssertionError(req.full_url)
+
+        monkeypatch.setattr("forger.scrapers.x_scraper.urllib.request.urlopen", fake_urlopen)
+        result = XScraper()._fetch_with_fxtwitter("https://x.com/other/status/555")
+
+        assert result["success"] is True
+        assert result["text"] == "a different post"
+        assert result["author"] == "other"
+        assert result["source"] == "fxtwitter"
+
+    @pytest.mark.asyncio
+    async def test_fetch_tweet_prefers_syndication_over_playwright(self, monkeypatch):
+        scraper = XScraper()
+        monkeypatch.setattr(
+            scraper,
+            "_fetch_with_syndication",
+            lambda url: {
+                "success": True,
+                "text": "hello from syndication",
+                "author": "jack",
+                "title": "hello from syndication",
+                "error": None,
+                "source": "syndication",
+            },
+        )
+
+        async def fail_playwright(url):
+            raise AssertionError("playwright should not run")
+
+        monkeypatch.setattr(scraper, "_fetch_with_playwright", fail_playwright)
+        result = await scraper.fetch_tweet("https://x.com/jack/status/20")
+        assert result["success"] is True
+        assert result["author"] == "jack"

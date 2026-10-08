@@ -3,8 +3,10 @@
 This module combines scraping, analysis, saving, and git push into one workflow.
 """
 import logging
+import re
 from datetime import datetime, timezone
 from typing import Optional, Tuple
+from urllib.parse import urlsplit
 
 from forger.analysis import analyze_bookmark
 from forger.similarity import check_duplicate_topic
@@ -46,9 +48,33 @@ def check_duplicate(url: str) -> Optional[Bookmark]:
     return None
 
 
+def is_scrape_stub(bookmark: Bookmark) -> bool:
+    """True when the bookmark is a failed scrape / URL-only placeholder.
+
+    Those stubs share titles like "Article from www.youtube.com" and text
+    like "[URL content not available]". Comparing them at the 0.82 gate
+    rejects the next distinct URL as DUPLICATE_TOPIC.
+    """
+    payload = bookmark.raw_payload or {}
+    if payload.get("scrape_failed") is True or payload.get("content_kind") == "stub":
+        return True
+    body = (bookmark.text or "").lstrip()
+    if body.startswith("[URL content not available]"):
+        return True
+    if "View on X for full content." in body and not payload.get("scraped_via"):
+        return True
+    return False
+
+
 def find_similar_duplicate(bookmark: Bookmark) -> tuple[Optional[Bookmark], Optional[str]]:
-    """Check if a near-duplicate topic already exists."""
-    bookmarks = load_bookmarks()
+    """Check if a near-duplicate topic already exists.
+
+    Only real extracted text hits the 0.82 similarity gate. Exact canonical
+    URL duplicates are rejected earlier by check_duplicate.
+    """
+    if is_scrape_stub(bookmark):
+        return None, None
+    bookmarks = [item for item in load_bookmarks() if not is_scrape_stub(item)]
     payload = [b.to_dict() for b in bookmarks]
     result = check_duplicate_topic(bookmark.url, bookmark.title, bookmark.tags, bookmark.text, payload)
     if result.get("is_duplicate"):
@@ -61,37 +87,118 @@ def find_similar_duplicate(bookmark: Bookmark) -> tuple[Optional[Bookmark], Opti
     return None, None
 
 
+_DOMAIN_HOST = re.compile(r"^(?:[a-z0-9-]+\.)+[a-z]{2,}(?::\d+)?$", re.IGNORECASE)
+
+
+def normalize_bookmark_url(url: str) -> tuple[Optional[str], Optional[str]]:
+    """Return (url, error). Schemeless domains get https:// prepended."""
+    raw = (url or "").strip()
+    if not raw:
+        return None, "URL is empty"
+    parts = urlsplit(raw)
+    if parts.scheme in ("http", "https"):
+        if not parts.netloc:
+            return None, f"Invalid URL (no host): {raw}"
+        return raw, None
+    if parts.scheme:
+        return None, f"Unsupported URL scheme '{parts.scheme}'. Use http:// or https://."
+    host = raw.split("/")[0].split("?")[0].split("#")[0]
+    if _DOMAIN_HOST.match(host):
+        return "https://" + raw, None
+    return None, (
+        f"Invalid URL '{raw}': no scheme supplied. "
+        "Pass a full https:// link, or a domain like example.com."
+    )
+
+
+def _url_host(url: str) -> str:
+    host = urlsplit(url).hostname
+    return host or "unknown"
+
+
+def _extract_x_status_id(url: str) -> Optional[str]:
+    match = re.search(r"/status/(\d+)", url or "")
+    return match.group(1) if match else None
+
+
+def _x_failure_fields(url: str) -> tuple[str, str]:
+    handle = _extract_x_handle(url)
+    status_id = _extract_x_status_id(url)
+    if status_id:
+        title = f"Twitter/X post {status_id} from @{handle}"
+        text = (
+            f"Twitter/X post from @{handle}. View on X for full content. "
+            f"Status {status_id}."
+        )
+    else:
+        title = f"Twitter/X post from @{handle}"
+        text = f"Twitter/X post from @{handle}. View on X for full content."
+    return title, text
+
+
 def scrape_and_create_bookmark(url: str) -> Optional[Bookmark]:
     """Scrape URL and create bookmark."""
+    normalized, url_error = normalize_bookmark_url(url)
+    if url_error or not normalized:
+        LOGGER.warning("Refusing URL: %s", url_error or url)
+        return None
+    url = normalized
     # Determine source
     url_lower = url.lower()
     if "x.com/" in url_lower or "twitter.com/" in url_lower:
         source = "x"
         # Try to scrape X
+        author = None
+        scrape_failed = False
         try:
             scraped = fetch_x_content_sync(url)
-            if scraped and scraped.get("success"):
+            if scraped and scraped.get("success") and (scraped.get("text") or "").strip():
                 text = scraped["text"]
-                author = scraped.get("author", "unknown")
-                title = scraped.get("title", text[:80] + "..." if len(text) > 80 else text)
+                author = scraped.get("author") or "unknown"
+                title = scraped.get("title") or (text[:80] + "..." if len(text) > 80 else text)
                 note = f"Auto-captured from X. Author: @{author}"
-                scraped_via = "playwright"
+                scraped_via = scraped.get("source") or "x"
             else:
-                # Fallback
-                handle = _extract_x_handle(url)
-                text = f"Twitter/X post from @{handle}. View on X for full content."
-                title = f"Twitter/X post from @{handle}"
+                title, text = _x_failure_fields(url)
                 note = "Auto-captured from URL-only message (scraping failed)"
                 scraped_via = None
+                scrape_failed = True
         except Exception as e:
             LOGGER.warning(f"X scraping failed: {e}")
-            handle = _extract_x_handle(url)
-            text = f"Twitter/X post from @{handle}. View on X for full content."
-            title = f"Twitter/X post from @{handle}"
+            title, text = _x_failure_fields(url)
             note = "Auto-captured from URL-only message"
             scraped_via = None
+            scrape_failed = True
+    elif _is_youtube_watch(url):
+        source = "youtube"
+        author = None
+        scrape_failed = False
+        scraped = None
+        try:
+            from forger.scrapers.article_scraper import fetch_youtube
+
+            scraped = fetch_youtube(url)
+        except Exception as e:
+            LOGGER.warning(f"YouTube scraping failed: {e}")
+        if scraped and scraped.get("success") and (scraped.get("text") or "").strip():
+            text = scraped["text"]
+            title = scraped.get("title") or f"YouTube video {_youtube_id(url) or 'unknown'}"
+            author = scraped.get("author")
+            note = f"Auto-captured YouTube video. Channel: {author}" if author else "Auto-captured YouTube video"
+            scraped_via = scraped.get("source") or "youtube-oembed"
+        else:
+            video_id = (scraped or {}).get("video_id") or _youtube_id(url) or "unknown"
+            title = (scraped or {}).get("title") or f"YouTube video {video_id}"
+            if video_id not in (title or ""):
+                title = f"YouTube video {video_id}"
+            text = (scraped or {}).get("text") or f"[URL content not available] {url}\nVideo id: {video_id}"
+            note = "Captured from URL only (YouTube scrape failed)"
+            scraped_via = None
+            scrape_failed = True
     else:
         source = "article"
+        author = None
+        scrape_failed = False
         scraped = None
         try:
             from forger.scrapers.article_scraper import scrape_article
@@ -101,15 +208,16 @@ def scrape_and_create_bookmark(url: str) -> Optional[Bookmark]:
             LOGGER.warning(f"Article scraping failed: {e}")
         if scraped and scraped.get("success"):
             text = scraped["text"]
-            title = scraped.get("title") or f"Article from {url.split('/')[2]}"
+            title = scraped.get("title") or f"Article from {_url_host(url)}"
             author = scraped.get("author")
             note = f"Auto-captured article. Author: {author}" if author else "Auto-captured from URL"
             scraped_via = scraped.get("source")
         else:
             text = f"[URL content not available] {url}"
-            title = f"Article from {url.split('/')[2]}"
+            title = f"Article from {_url_host(url)}"
             note = "Captured from URL only (scraping failed)"
             scraped_via = None
+            scrape_failed = True
     
     bookmark_id = stable_bookmark_id(url, text)
     timestamp = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
@@ -121,6 +229,7 @@ def scrape_and_create_bookmark(url: str) -> Optional[Bookmark]:
         text=text,
         title=title,
         note=note,
+        author=author,
         created_at=timestamp,
         bookmarked_at=timestamp,
         tags=clean_tags([], title, text, url, note),
@@ -128,20 +237,33 @@ def scrape_and_create_bookmark(url: str) -> Optional[Bookmark]:
             "ingestion_channel": "url",
             "capture_mode": "url_only",
             "scraped_via": scraped_via,
+            "scrape_failed": scrape_failed,
+            "content_kind": "stub" if scrape_failed else "extracted",
         },
     )
     
     return bookmark
 
 
+def _youtube_id(url: str) -> Optional[str]:
+    from forger.scrapers.article_scraper import youtube_video_id
+
+    return youtube_video_id(url)
+
+
+def _is_youtube_watch(url: str) -> bool:
+    return _youtube_id(url) is not None
+
+
 def _extract_x_handle(url: str) -> str:
     """Extract X handle from URL."""
     try:
-        parts = url.split("/")
-        if "x.com" in url or "twitter.com" in url:
-            for i, part in enumerate(parts):
-                if part in ("x.com", "twitter.com") and i + 1 < len(parts):
-                    return parts[i + 1]
+        parts = urlsplit(url)
+        host = (parts.hostname or "").lower()
+        if host in ("x.com", "www.x.com", "twitter.com", "www.twitter.com"):
+            segments = [segment for segment in parts.path.split("/") if segment]
+            if segments and segments[0] not in ("i", "intent", "share"):
+                return segments[0].lstrip("@")
     except (IndexError, ValueError):
         pass
     return "unknown"
@@ -286,6 +408,11 @@ def process_bookmark_url(url: str, analyze: bool = True, note: str | None = None
     Returns:
         (success, message, bookmark, analysis)
     """
+    normalized, url_error = normalize_bookmark_url(url)
+    if url_error or not normalized:
+        return False, url_error or "Invalid URL", None, None
+    url = normalized
+
     # Check for duplicate
     existing = check_duplicate(url)
     if existing:

@@ -2,8 +2,10 @@
 
 ESSENTIAL COMPONENT - See ARCHITECTURE.md before modifying.
 Fetches tweet content from X URLs using multiple methods:
-1. Playwright with stealth + proxy (primary)
-2. yt-dlp (fallback for public tweets)
+1. Public syndication JSON (no key, no cookies)
+2. fxtwitter / vxtwitter JSON if syndication fails
+3. Playwright with stealth (optional; needs a browser)
+4. jina.ai, then yt-dlp
 """
 from __future__ import annotations
 
@@ -11,6 +13,7 @@ import asyncio
 import json
 import logging
 import random
+import re
 import subprocess
 import time
 import urllib.request
@@ -105,21 +108,128 @@ class XScraper:
         LOGGER.warning("No working proxies found")
         return None
     
+    def _status_id(self, url: str) -> Optional[str]:
+        match = re.search(r"/status/(\d+)", url or "")
+        return match.group(1) if match else None
+
+    def _handle(self, url: str) -> Optional[str]:
+        parts = (url or "").split("/")
+        for i, part in enumerate(parts):
+            if part in ("x.com", "twitter.com", "www.x.com", "www.twitter.com") and i + 1 < len(parts):
+                handle = parts[i + 1].lstrip("@")
+                if handle and handle not in ("i", "status", "intent"):
+                    return handle
+        return None
+
+    def _read_json_url(self, endpoint: str) -> dict:
+        req = urllib.request.Request(endpoint, headers={"User-Agent": self.user_agent})
+        with urllib.request.urlopen(req, timeout=15) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+        if not isinstance(payload, dict):
+            raise ValueError("expected JSON object")
+        return payload
+
+    def _ok_tweet(self, text: str, author: Optional[str], source: str) -> dict:
+        text = (text or "").strip()
+        if not text:
+            return self._error_result(f"{source} returned no text")
+        return {
+            "success": True,
+            "text": text,
+            "author": (author or "").lstrip("@") or None,
+            "title": self._generate_title(text),
+            "error": None,
+            "source": source,
+        }
+
+    def _fetch_with_syndication(self, url: str) -> dict:
+        """Public tweet JSON. No API key and no cookies."""
+        status_id = self._status_id(url)
+        if not status_id:
+            return self._error_result("No status id for syndication")
+        endpoint = (
+            "https://cdn.syndication.twimg.com/tweet-result"
+            f"?id={status_id}&token=0"
+        )
+        try:
+            LOGGER.info("Trying X syndication: %s", status_id)
+            data = self._read_json_url(endpoint)
+            user = data.get("user") if isinstance(data.get("user"), dict) else {}
+            author = user.get("screen_name") or user.get("name")
+            return self._ok_tweet(data.get("text") or "", author, "syndication")
+        except Exception as exc:
+            LOGGER.warning("X syndication failed: %s", exc)
+            return self._error_result(f"syndication failed: {exc}")
+
+    def _tweet_text_and_author(self, data: dict) -> tuple[str, Optional[str]]:
+        tweet = data.get("tweet") if isinstance(data.get("tweet"), dict) else data
+        if not isinstance(tweet, dict):
+            return "", None
+        text = tweet.get("text") or ""
+        raw_text = tweet.get("raw_text")
+        if not text and isinstance(raw_text, dict):
+            text = raw_text.get("text") or ""
+        author = None
+        author_obj = tweet.get("author")
+        if isinstance(author_obj, dict):
+            author = author_obj.get("screen_name") or author_obj.get("name")
+        author = author or tweet.get("user_screen_name") or tweet.get("user_name")
+        return text or "", author
+
+    def _fetch_with_fxtwitter(self, url: str) -> dict:
+        """fxtwitter, then vxtwitter, when syndication has no text."""
+        status_id = self._status_id(url)
+        if not status_id:
+            return self._error_result("No status id for fxtwitter")
+        handle = self._handle(url)
+        endpoints = []
+        if handle:
+            endpoints.append(("fxtwitter", f"https://api.fxtwitter.com/{handle}/status/{status_id}"))
+            endpoints.append(("vxtwitter", f"https://api.vxtwitter.com/{handle}/status/{status_id}"))
+        endpoints.append(("fxtwitter", f"https://api.fxtwitter.com/status/{status_id}"))
+        endpoints.append(("vxtwitter", f"https://api.vxtwitter.com/status/{status_id}"))
+        last_error = "fxtwitter failed"
+        for source, endpoint in endpoints:
+            try:
+                LOGGER.info("Trying %s: %s", source, endpoint)
+                data = self._read_json_url(endpoint)
+                text, author = self._tweet_text_and_author(data)
+                result = self._ok_tweet(text, author, source)
+                if result.get("success"):
+                    return result
+                last_error = result.get("error") or last_error
+            except Exception as exc:
+                last_error = f"{source} failed: {exc}"
+                LOGGER.warning("%s", last_error)
+        return self._error_result(last_error)
+
     async def fetch_tweet(self, url: str) -> dict:
         """Fetch tweet content from X URL using multiple methods.
         
         Returns:
             dict with keys: text, author, title, success, error
         """
-        # Method 1: Playwright with stealth + proxy
-        result = await self._fetch_with_playwright(url)
+        # No-key public JSON before Playwright. Most machines have no browser.
+        result = self._fetch_with_syndication(url)
         if result.get("success"):
             return result
+
+        LOGGER.info("Syndication failed, trying fxtwitter/vxtwitter...")
+        result = self._fetch_with_fxtwitter(url)
+        if result.get("success"):
+            return result
+
+        # Playwright with stealth (optional)
+        result = await self._fetch_with_playwright(url)
+        if result.get("success"):
+            result.setdefault("source", "playwright")
+            return result
         
-        # Method 2: jina.ai text extraction (free, no auth)
+        # jina.ai text extraction (free, no auth)
         LOGGER.info("Playwright failed, trying jina.ai...")
         result = self._fetch_with_jina(url)
         if result.get("success"):
+            result.setdefault("source", "jina")
             return result
         
         # Method 3: yt-dlp
@@ -256,7 +366,8 @@ class XScraper:
                         "text": tweet_text,
                         "author": author,
                         "title": self._generate_title(tweet_text),
-                        "error": None
+                        "error": None,
+                        "source": "playwright",
                     }
                 LOGGER.warning(f"Playwright got gate/paywall text ({len(tweet_text)} chars), trying fallback...")
                 return self._error_result("Playwright hit subscribe gate")
@@ -315,7 +426,8 @@ class XScraper:
                         "text": text,
                         "author": author,
                         "title": title if title != "X Post" else self._generate_title(text),
-                        "error": None
+                        "error": None,
+                        "source": "jina",
                     }
             
             LOGGER.warning("jina.ai returned no usable content")
@@ -361,7 +473,8 @@ class XScraper:
                         "text": text.strip(),
                         "author": uploader.replace("@", ""),
                         "title": self._generate_title(text),
-                        "error": None
+                        "error": None,
+                        "source": "yt-dlp",
                     }
             
             LOGGER.warning(f"yt-dlp failed or returned no content")
