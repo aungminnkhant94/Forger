@@ -6,7 +6,40 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+
+
+# Query keys that do not identify the resource. utm_* is matched by prefix.
+_TRACKING_QUERY_KEYS = {
+    "fbclid",
+    "gclid",
+    "gclsrc",
+    "dclid",
+    "gbraid",
+    "wbraid",
+    "msclkid",
+    "mc_eid",
+    "mc_cid",
+    "igshid",
+    "igsh",
+    "twclid",
+    "ttclid",
+    "yclid",
+    "_hsenc",
+    "_hsmi",
+    "mkt_tok",
+    "vero_id",
+    "vero_conv",
+    "oly_anon_id",
+    "oly_enc_id",
+    "rb_clickid",
+    "s_cid",
+}
+
+
+def _is_tracking_query_param(name: str) -> bool:
+    key = (name or "").strip().lower()
+    return key.startswith("utm_") or key in _TRACKING_QUERY_KEYS
 
 
 def utc_now_iso() -> str:
@@ -18,6 +51,12 @@ def ensure_parent(path: Path) -> None:
 
 
 def _canonical_bookmark_identity(url: str, text: str) -> str:
+    """Stable identity for a bookmark.
+
+    Keeps the query string (sorted) so distinct resources that share a path
+    do not collide, but drops the fragment and well-known tracking params.
+    X/Twitter status URLs still collapse to the numeric status id.
+    """
     raw_url = (url or "").strip()
     raw_text = (text or "").strip()
 
@@ -30,7 +69,14 @@ def _canonical_bookmark_identity(url: str, text: str) -> str:
         if host in {"x.com", "www.x.com", "twitter.com", "www.twitter.com"} and status_match:
             return f"x-status:{status_match.group(1)}"
 
-        normalized_url = urlunsplit((parts.scheme.lower(), host, path, "", ""))
+        kept = [
+            (key, value)
+            for key, value in parse_qsl(parts.query, keep_blank_values=True)
+            if not _is_tracking_query_param(key)
+        ]
+        kept.sort()
+        query = urlencode(kept, doseq=True)
+        normalized_url = urlunsplit((parts.scheme.lower(), host, path, query, ""))
         return normalized_url or raw_text
 
     return raw_text

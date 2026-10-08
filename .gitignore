@@ -28,6 +28,7 @@ web/tsconfig.tsbuildinfo
 web/lib/data.json
 web/lib/analysis.json
 web/public/analysis.json
+web/public/data.json
 
 # OS / editor
 .DS_Store

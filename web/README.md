@@ -39,6 +39,11 @@ The dashboard reads JSON files written by `forge sync`:
 
 Run `python3 ../forge sync` from the repo root to copy them before building.
 
+
+## Personal bookmark JSON stays local
+
+`web/public/data.json` and `web/public/analysis.json` are copies of your bookmarks (URLs, page text, notes, tags). They are for local `npm run dev` only. Do not commit them and do not deploy them — `forge sync` must not publish `web/public/data.json`.
+
 ## Deployment
 
 ### Vercel Dashboard

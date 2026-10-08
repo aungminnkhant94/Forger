@@ -21,16 +21,16 @@ def refine_bucket(bookmark: Bookmark, analysis: AnalysisResult) -> str:
     priority = float(analysis.priority_score or 0)
     text = f"{bookmark.title} {bookmark.text} {analysis.summary} {analysis.recommendation_reason}".lower()
 
-    is_duplicate = 'duplicate' in text or 'identical content' in text or 'already covered' in text
-    if is_duplicate:
-        return 'ignore'
+    # Do not force ignore from substrings like "duplicate". The bucket the
+    # agent wrote is the product; page text often mentions those words
+    # without meaning the bookmark itself is a duplicate.
 
     has_high_signal = bool(tags & HIGH_SIGNAL_TAGS)
     has_force_upgrade = any(kw in text for kw in FORCE_UPGRADE_KEYWORDS)
     has_minimum_bl = any(kw in text for kw in MINIMUM_BUILD_LATER)
 
-    # NEW: Use binary answers from DeepSeek if available (Option 2)
-    # These take precedence over the computed bucket when present
+    # Binary answers take precedence only when the model/agent actually
+    # provided them. Missing keys are not treated as False.
     raw_analysis = analysis.to_dict()
     if 'actionable_this_week' in raw_analysis or 'reduces_friction' in raw_analysis or 'reference_material' in raw_analysis:
         actionable = raw_analysis.get('actionable_this_week', False)
@@ -62,7 +62,7 @@ def refine_bucket(bookmark: Bookmark, analysis: AnalysisResult) -> str:
     if bucket == 'archive' and worth >= 7 and has_high_signal:
         return 'build_later'
 
-    if bucket == 'ignore' and worth >= 6 and not is_duplicate:
+    if bucket == 'ignore' and worth >= 6:
         return 'build_later'
 
     # RULE 4: Demote low-priority test_this_week

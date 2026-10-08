@@ -42,23 +42,32 @@ class TestLoadJson:
         result = load_json(test_file, default=default)
         assert result == default
 
-    def test_load_invalid_json_returns_default(self, tmp_path):
-        """Load invalid JSON returns default."""
+    def test_load_invalid_json_raises(self, tmp_path):
+        """Corrupt JSON fails the load instead of looking like an empty file."""
         test_file = tmp_path / "invalid.json"
         test_file.write_text("not valid json")
-        default = {"default": "value"}
 
-        result = load_json(test_file, default=default)
-        assert result == default
+        with pytest.raises(json.JSONDecodeError):
+            load_json(test_file, default={"default": "value"})
 
-    def test_load_empty_file_returns_default(self, tmp_path):
-        """Load empty file returns default."""
+    def test_load_empty_file_raises(self, tmp_path):
+        """An empty file is corrupt JSON, not a missing file."""
         test_file = tmp_path / "empty.json"
         test_file.write_text("")
-        default = []
 
-        result = load_json(test_file, default=default)
-        assert result == default
+        with pytest.raises(json.JSONDecodeError):
+            load_json(test_file, default=[])
+
+    def test_write_json_replaces_atomically(self, tmp_path):
+        """A successful write replaces the file and leaves no temp sibling."""
+        test_file = tmp_path / "output.json"
+        test_file.write_text('{"old": true}\n')
+
+        write_json(test_file, {"new": True})
+
+        assert json.loads(test_file.read_text()) == {"new": True}
+        leftovers = [path.name for path in tmp_path.iterdir() if path.name != "output.json"]
+        assert leftovers == []
 
 
 class TestWriteJson:
