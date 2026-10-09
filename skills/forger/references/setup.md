@@ -75,14 +75,19 @@ X blocks anonymous scraping. Options:
 cd web && npm install && npm run dev     # http://localhost:3000
 ```
 
-Data flows one way: `forge` writes `data/*.json`, `forge sync` copies them to
-`web/lib/` and `web/public/` (sync runs automatically after every add/resolve).
-Deploy: any static host; on Vercel set Root Directory to `web`.
+Data flows one way: `forge` writes `data/*.json`, then syncs the dashboard.
+By default `web/public/*.json` is written as empty `[]` so deploys cannot leak
+personal bookmarks. To view real data locally: `forge sync --publish` or set
+`FORGER_PUBLISH_DASHBOARD=1`. Deploy: any static host; on Vercel set Root
+Directory to `web`. The public dashboard is read-only (no remote edit/delete).
 
 ## Optional extras
 
+- Publish dashboard JSON: `FORGER_PUBLISH_DASHBOARD=1` or `forge sync --publish`
+  (off by default).
 - Auto git push of new bookmarks: set `FORGER_AUTO_GIT=1` (repo needs a
-  remote). Off by default.
+  **private** remote). Off by default; Forger prints a hard warning when
+  enabled because it can commit personal data.
 - Extra context: `FORGER_EXTRA_CONTEXT_DIR=/path/to/notes` — paragraphs
   matching each bookmark get injected as additional context (API mode).
 - Always-on Telegram bot instead of an agent: see `integrations/telegram/`.

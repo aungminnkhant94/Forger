@@ -17,6 +17,8 @@ from tenacity import (
     wait_exponential,
 )
 
+from forger.url_safety import UnsafeURLError, assert_safe_fetch_url
+
 LOGGER = logging.getLogger(__name__)
 
 DEFAULT_TIMEOUT = 15  # seconds
@@ -73,6 +75,19 @@ def scrape_article(url: str, timeout: int = DEFAULT_TIMEOUT) -> dict:
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
     }
+
+    try:
+        assert_safe_fetch_url(url)
+    except UnsafeURLError as e:
+        LOGGER.error("Refusing unsafe article URL %s: %s", url, e)
+        return {
+            'success': False,
+            'title': None,
+            'text': None,
+            'author': None,
+            'source': None,
+            'error': f'Unsafe URL blocked: {e}',
+        }
     
     try:
         LOGGER.info(f"Fetching article: {url}")

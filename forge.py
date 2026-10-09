@@ -671,30 +671,51 @@ def cmd_sync(args: argparse.Namespace) -> int:
     print_header("Syncing to Web Dashboard")
 
     try:
-        from forger.dashboard_sync import sync_dashboard_data
+        from forger.dashboard_sync import publish_dashboard_enabled, sync_dashboard_data
 
-        if sync_dashboard_data():
-            print_success("bookmarks_raw.json + analysis_results.json -> web/lib + web/public")
+        publish = bool(getattr(args, "publish", False)) or publish_dashboard_enabled()
+        if publish:
+            print_warning(
+                "Publishing REAL bookmark JSON to web/public/ "
+                "(FORGER_PUBLISH_DASHBOARD or --publish). Do not deploy that tree publicly unless you intend to."
+            )
+        else:
+            print_info(
+                "Public dashboard JSON will be empty (default). "
+                "Use --publish or FORGER_PUBLISH_DASHBOARD=1 to copy real bookmarks for local/private viewing."
+            )
+
+        if sync_dashboard_data(publish=publish):
+            if publish:
+                print_success("bookmarks_raw.json + analysis_results.json -> web/lib + web/public")
+            else:
+                print_success("web/lib updated; web/public/data.json + analysis.json written as []")
         else:
             print_warning("Some files failed to sync (see log)")
 
         if args.push:
             print_info("Pushing to GitHub...")
-            # Personal bookmarks must not be published. If a previous commit
-            # tracked web/public/data.json, drop it from the index (keep the
-            # local file) before staging the dashboard directories.
-            tracked = subprocess.run(
-                ["git", "ls-files", "--", "web/public/data.json"],
-                cwd=BASE_DIR,
-                capture_output=True,
-                text=True,
-            )
-            if tracked.stdout.strip():
-                subprocess.run(
-                    ["git", "rm", "--cached", "--", "web/public/data.json"],
+            # Personal bookmarks must not be published via git. Drop previously
+            # tracked public/lib JSON from the index (keep local files) before
+            # staging other dashboard paths.
+            for tracked_path in (
+                "web/public/data.json",
+                "web/public/analysis.json",
+                "web/lib/data.json",
+                "web/lib/analysis.json",
+            ):
+                tracked = subprocess.run(
+                    ["git", "ls-files", "--", tracked_path],
                     cwd=BASE_DIR,
                     capture_output=True,
+                    text=True,
                 )
+                if tracked.stdout.strip():
+                    subprocess.run(
+                        ["git", "rm", "--cached", "--", tracked_path],
+                        cwd=BASE_DIR,
+                        capture_output=True,
+                    )
             subprocess.run(["git", "add", "web/lib", "web/public"], cwd=BASE_DIR, capture_output=True)
             result = subprocess.run(
                 ["git", "commit", "-m", "Sync dashboard data"], cwd=BASE_DIR, capture_output=True
@@ -784,7 +805,9 @@ Examples:
   forge health                                 Check system health
   forge search "multi-agent"                   Search bookmarks
   forge export --format json -o export.json    Export data
-  forge sync --push                            Sync & push to GitHub
+  forge sync                                   Sync (public JSON empty by default)
+  forge sync --publish                         Sync REAL bookmarks into web/public/
+  forge sync --publish --push                  Sync published data & push to GitHub
 
 For more help on a command:
   forge <command> --help
@@ -846,6 +869,11 @@ For more help on a command:
     
     # sync
     sync_parser = subparsers.add_parser("sync", help="Sync data to web dashboard")
+    sync_parser.add_argument(
+        "--publish",
+        action="store_true",
+        help="Copy REAL bookmarks into web/public/ (opt-in; default writes empty []). Also set via FORGER_PUBLISH_DASHBOARD=1",
+    )
     sync_parser.add_argument("--push", action="store_true", help="Also push to GitHub")
     sync_parser.set_defaults(func=cmd_sync)
     

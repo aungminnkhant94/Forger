@@ -83,7 +83,7 @@ forge search <q>         full-text search across everything
 forge stats              counts, bucket distribution, priorities
 forge digest             weekly digest (md/html)
 forge export             dump JSON/CSV
-forge sync               copy data/ into web/ for the dashboard
+forge sync               sync dashboard (public JSON empty by default; --publish for real data)
 forge health             checks
 ```
 
