@@ -24,6 +24,7 @@ from tenacity import (
 )
 
 from forger.scrapers.x_auth import load_cookies
+from forger.url_safety import UnsafeURLError, assert_safe_fetch_url
 
 LOGGER = logging.getLogger(__name__)
 
@@ -111,6 +112,12 @@ class XScraper:
         Returns:
             dict with keys: text, author, title, success, error
         """
+        try:
+            assert_safe_fetch_url(url)
+        except UnsafeURLError as e:
+            LOGGER.error("Refusing unsafe X URL %s: %s", url, e)
+            return self._error_result(f"Unsafe URL blocked: {e}")
+
         # Method 1: Playwright with stealth + proxy
         result = await self._fetch_with_playwright(url)
         if result.get("success"):

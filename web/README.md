@@ -14,8 +14,8 @@ A responsive web dashboard for viewing and filtering your Forger bookmarks.
 ```bash
 cd web
 npm install
-# Copy data files first
-python3 ../forge sync
+# Copy data files first (use --publish to see your real bookmarks locally)
+python3 ../forge sync --publish
 npm run dev
 ```
 
@@ -25,6 +25,7 @@ Open http://localhost:3000
 
 ```bash
 cd web
+# Default sync leaves public JSON empty (safe for public deploys)
 python3 ../forge sync
 npm run build
 ```
@@ -34,15 +35,32 @@ Output is a Next.js build in `web/.next/` — serve with `npm run start` or depl
 ## Data Source
 
 The dashboard reads JSON files written by `forge sync`:
-- `web/lib/data.json` + `web/lib/analysis.json` (build-time)
+- `web/lib/data.json` + `web/lib/analysis.json` (private local mirror)
 - `web/public/data.json` + `web/public/analysis.json` (runtime fetch)
 
-Run `python3 ../forge sync` from the repo root to copy them before building.
+**Publishing real bookmarks is opt-in.** By default `forge sync` writes empty
+`[]` into `web/public/` so a deploy cannot leak your personal knowledge base.
 
+```bash
+# Default — public JSON empty
+python3 ../forge sync
+
+# Opt-in — copy REAL bookmarks into web/public/ for local/private viewing
+python3 ../forge sync --publish
+# or: FORGER_PUBLISH_DASHBOARD=1 python3 ../forge sync
+```
 
 ## Personal bookmark JSON stays local
 
-`web/public/data.json` and `web/public/analysis.json` are copies of your bookmarks (URLs, page text, notes, tags). They are for local `npm run dev` only. Do not commit them and do not deploy them — `forge sync` must not publish `web/public/data.json`.
+`web/public/data.json` and `web/public/analysis.json` contain URLs, page text,
+notes, and tags when you opt in with `--publish` / `FORGER_PUBLISH_DASHBOARD=1`.
+Do not commit them. Do not deploy a build that includes published personal JSON
+unless you intentionally want that data public.
+
+## Read-only dashboard
+
+Remote edit/delete API routes are disabled on public Forger. Change bookmarks
+with the local `forge` CLI only.
 
 ## Deployment
 
