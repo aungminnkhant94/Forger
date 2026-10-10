@@ -19,7 +19,7 @@ python3 ../forge sync --publish
 npm run dev
 ```
 
-Open http://localhost:3000
+Open http://localhost:3000 (or http://127.0.0.1:3000 — `allowedDevOrigins` in `next.config.js` allows both).
 
 ## Build for Production
 
