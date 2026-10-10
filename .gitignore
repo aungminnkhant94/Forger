@@ -33,3 +33,7 @@ web/public/data.json
 # OS / editor
 .DS_Store
 Thumbs.db
+
+# brag video output
+brag-output/
+dashboard-demo.png
