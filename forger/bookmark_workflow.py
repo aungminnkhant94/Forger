@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from typing import Optional, Tuple
 
 from forger.analysis import analyze_bookmark
+from forger.scrape_quality import is_usable_scrape_text
 from forger.similarity import check_duplicate_topic
 from forger.git_auto import git_auto_push
 from forger.models import Bookmark, AnalysisResult, ScoringInputs
@@ -47,7 +48,13 @@ def check_duplicate(url: str) -> Optional[Bookmark]:
 
 
 def find_similar_duplicate(bookmark: Bookmark) -> tuple[Optional[Bookmark], Optional[str]]:
-    """Check if a near-duplicate topic already exists."""
+    """Check if a near-duplicate topic already exists.
+
+    Skips the check when the new bookmark text is empty/thin — comparing
+    stubs produces false DUPLICATE_TOPIC hits (e.g. against "Article from …").
+    """
+    if not is_usable_scrape_text(bookmark.text, source=bookmark.source):
+        return None, None
     bookmarks = load_bookmarks()
     payload = [b.to_dict() for b in bookmarks]
     result = check_duplicate_topic(bookmark.url, bookmark.title, bookmark.tags, bookmark.text, payload)
@@ -62,34 +69,30 @@ def find_similar_duplicate(bookmark: Bookmark) -> tuple[Optional[Bookmark], Opti
 
 
 def scrape_and_create_bookmark(url: str) -> Optional[Bookmark]:
-    """Scrape URL and create bookmark."""
-    # Determine source
+    """Scrape URL and create bookmark.
+
+    Returns None when scraping fails or the body is empty/thin so we never
+    save junk stubs (``Article from …``) that poison DUPLICATE_TOPIC checks.
+    """
     url_lower = url.lower()
     if "x.com/" in url_lower or "twitter.com/" in url_lower:
         source = "x"
-        # Try to scrape X
         try:
             scraped = fetch_x_content_sync(url)
-            if scraped and scraped.get("success"):
-                text = scraped["text"]
-                author = scraped.get("author", "unknown")
-                title = scraped.get("title", text[:80] + "..." if len(text) > 80 else text)
-                note = f"Auto-captured from X. Author: @{author}"
-                scraped_via = "playwright"
-            else:
-                # Fallback
-                handle = _extract_x_handle(url)
-                text = f"Twitter/X post from @{handle}. View on X for full content."
-                title = f"Twitter/X post from @{handle}"
-                note = "Auto-captured from URL-only message (scraping failed)"
-                scraped_via = None
         except Exception as e:
             LOGGER.warning(f"X scraping failed: {e}")
-            handle = _extract_x_handle(url)
-            text = f"Twitter/X post from @{handle}. View on X for full content."
-            title = f"Twitter/X post from @{handle}"
-            note = "Auto-captured from URL-only message"
-            scraped_via = None
+            return None
+        if not scraped or not scraped.get("success"):
+            LOGGER.warning("X scrape returned no usable content for %s", url)
+            return None
+        body = (scraped.get("text") or "").strip()
+        if not is_usable_scrape_text(body, source="x"):
+            LOGGER.warning("X scrape body empty/thin for %s", url)
+            return None
+        author = scraped.get("author", "unknown")
+        title = scraped.get("title") or (body[:80] + "..." if len(body) > 80 else body)
+        note = f"Auto-captured from X. Author: @{author}"
+        scraped_via = scraped.get("source") or "playwright"
     else:
         source = "article"
         scraped = None
@@ -99,52 +102,43 @@ def scrape_and_create_bookmark(url: str) -> Optional[Bookmark]:
             scraped = scrape_article(url)
         except Exception as e:
             LOGGER.warning(f"Article scraping failed: {e}")
-        if scraped and scraped.get("success"):
-            text = scraped["text"]
-            title = scraped.get("title") or f"Article from {url.split('/')[2]}"
-            author = scraped.get("author")
-            note = f"Auto-captured article. Author: {author}" if author else "Auto-captured from URL"
-            scraped_via = scraped.get("source")
-        else:
-            text = f"[URL content not available] {url}"
-            title = f"Article from {url.split('/')[2]}"
-            note = "Captured from URL only (scraping failed)"
-            scraped_via = None
-    
-    bookmark_id = stable_bookmark_id(url, text)
+            return None
+        if not scraped or not scraped.get("success"):
+            LOGGER.warning(
+                "Article scrape failed for %s: %s",
+                url,
+                (scraped or {}).get("error") or "unknown",
+            )
+            return None
+        body = (scraped.get("text") or "").strip()
+        if not is_usable_scrape_text(body, source="article"):
+            LOGGER.warning("Article scrape body empty/thin for %s", url)
+            return None
+        title = scraped.get("title") or f"Article from {url.split('/')[2]}"
+        author = scraped.get("author")
+        note = f"Auto-captured article. Author: {author}" if author else "Auto-captured from URL"
+        scraped_via = scraped.get("source")
+
+    bookmark_id = stable_bookmark_id(url, body)
     timestamp = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
-    
-    bookmark = Bookmark(
+
+    return Bookmark(
         id=bookmark_id,
         source=source,
         url=url,
-        text=text,
+        text=body,
         title=title,
         note=note,
         created_at=timestamp,
         bookmarked_at=timestamp,
-        tags=clean_tags([], title, text, url, note),
+        tags=clean_tags([], title, body, url, note),
         raw_payload={
             "ingestion_channel": "url",
             "capture_mode": "url_only",
             "scraped_via": scraped_via,
         },
     )
-    
-    return bookmark
 
-
-def _extract_x_handle(url: str) -> str:
-    """Extract X handle from URL."""
-    try:
-        parts = url.split("/")
-        if "x.com" in url or "twitter.com" in url:
-            for i, part in enumerate(parts):
-                if part in ("x.com", "twitter.com") and i + 1 < len(parts):
-                    return parts[i + 1]
-    except (IndexError, ValueError):
-        pass
-    return "unknown"
 
 
 def _build_analysis_result(bookmark: Bookmark, analysis_dict: dict) -> AnalysisResult:
@@ -294,7 +288,12 @@ def process_bookmark_url(url: str, analyze: bool = True, note: str | None = None
     # Scrape and create bookmark
     bookmark = scrape_and_create_bookmark(url)
     if not bookmark:
-        return False, "Failed to scrape URL", None, None
+        return (
+            False,
+            "SCRAPE_FAILED: No usable content (refusing to save an empty/thin stub)",
+            None,
+            None,
+        )
 
     if note and note.strip():
         bookmark.note = note.strip()

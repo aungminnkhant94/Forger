@@ -3,6 +3,8 @@
 from difflib import SequenceMatcher
 from typing import List, Dict, Any
 
+from forger.scrape_quality import is_usable_scrape_text
+
 def similarity_score(str1: str, str2: str) -> float:
     """Calculate string similarity (0-1)."""
     return SequenceMatcher(None, str1.lower(), str2.lower()).ratio()
@@ -20,8 +22,13 @@ def find_similar_bookmarks(
     Returns list of similar bookmarks with similarity scores.
     """
     similar = []
-    
+
     for bookmark in existing_bookmarks:
+        # Ignore empty/thin stubs left over from older failed scrapes.
+        existing_source = bookmark.get("source") or "article"
+        if not is_usable_scrape_text(bookmark.get("text"), source=existing_source):
+            continue
+
         score = 0.0
         reasons = []
         
@@ -86,7 +93,16 @@ def check_duplicate_topic(
                 'similar': [{'bookmark': b, 'score': 1.0, 'reasons': ['Exact URL match']}],
                 'message': f"Exact duplicate: {b['title'][:50]}..."
             }
-    
+
+    # Thin/empty / failure-stub bodies must not trigger DUPLICATE_TOPIC.
+    source = "x" if url and ("x.com/" in url.lower() or "twitter.com/" in url.lower()) else "article"
+    if not is_usable_scrape_text(text, source=source):
+        return {
+            'is_duplicate': False,
+            'similar': [],
+            'message': None,
+        }
+
     # Check for similar content
     similar = find_similar_bookmarks(title, tags, text, existing_bookmarks)
     
