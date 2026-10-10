@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from typing import Optional, Tuple
 
 from forger.analysis import analyze_bookmark
+from forger.relates_to import validate_relates_to
 from forger.scrape_quality import is_usable_scrape_text
 from forger.similarity import check_duplicate_topic
 from forger.git_auto import git_auto_push
@@ -145,6 +146,11 @@ def _build_analysis_result(bookmark: Bookmark, analysis_dict: dict) -> AnalysisR
     # Bucket & scores come straight from the LLM (one brain; see ADR-0001).
     final_bucket = analysis_dict.get("recommendation_bucket", "archive")
 
+    relates_raw = analysis_dict.get("relates_to")
+    relates_to = None
+    if relates_raw is not None and str(relates_raw).strip():
+        relates_to = str(relates_raw).strip()
+
     result = AnalysisResult(
         bookmark_id=bookmark.id,
         summary=analysis_dict.get("summary", ""),
@@ -158,6 +164,7 @@ def _build_analysis_result(bookmark: Bookmark, analysis_dict: dict) -> AnalysisR
         analysis_source=analysis_dict.get("analysis_source", "deepseek"),
         analyzed_at=bookmark.bookmarked_at,
         title=analysis_dict.get("title") or bookmark.title,
+        relates_to=relates_to,
         actionable_this_week=_bool_if_provided(analysis_dict, "actionable_this_week"),
         reduces_friction=_bool_if_provided(analysis_dict, "reduces_friction"),
         reference_material=_bool_if_provided(analysis_dict, "reference_material"),
@@ -195,11 +202,11 @@ VALID_BUCKETS = {"test_this_week", "build_later", "archive", "ignore"}
 def resolve_pending_analysis(bookmark_id: str, analysis_dict: dict) -> Tuple[bool, str, Optional[AnalysisResult]]:
     """Ingest an agent-written analysis for a bookmark (agent mode step 2).
 
-    The analysis dict must contain: summary, recommendation_bucket (one of
-    test_this_week|build_later|archive|ignore), and the three booleans
-    actionable_this_week / reduces_friction / reference_material. Optional:
-    title, recommendation_reason, relates_to, key_insights, tags, novelty,
-    excitement.
+    Required: summary, recommendation_bucket (test_this_week|build_later|
+    archive|ignore), relates_to (2+ sentences, >=40 chars, no None/N/A),
+    and the three booleans actionable_this_week / reduces_friction /
+    reference_material. Optional: title, recommendation_reason, key_insights,
+    tags, novelty, excitement.
     """
     from forger.analysis import derive_legacy_scores
 
@@ -212,6 +219,11 @@ def resolve_pending_analysis(bookmark_id: str, analysis_dict: dict) -> Tuple[boo
         return False, "recommendation_bucket must be one of: " + "|".join(sorted(VALID_BUCKETS)), None
     if not analysis_dict.get("summary"):
         return False, "summary is required", None
+
+    try:
+        analysis_dict["relates_to"] = validate_relates_to(analysis_dict.get("relates_to"))
+    except ValueError as exc:
+        return False, str(exc), None
 
     derive_legacy_scores(analysis_dict)
     analysis_dict.setdefault("analysis_source", "agent")

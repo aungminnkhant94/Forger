@@ -20,11 +20,39 @@ const bucketLabels = {
   ignore: 'Ignore',
 };
 
+/** Hide placeholder relates_to values (None/N/A/null/-) from the card. */
+function meaningfulRelatesTo(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const text = value.trim();
+  if (!text) return null;
+  const normalized = text.toLowerCase().replace(/\.+$/, '');
+  const placeholders = new Set([
+    'none',
+    'null',
+    'nil',
+    'n/a',
+    'n.a',
+    'na',
+    '-',
+    '--',
+    'nothing',
+    'no',
+    'unknown',
+    'tbd',
+    'not applicable',
+    'no connection',
+    'nothing connects',
+  ]);
+  if (placeholders.has(normalized)) return null;
+  return text;
+}
+
 export function BookmarkCard({ bookmark }: BookmarkCardProps) {
   const analysis = bookmark.analysis;
   const bucket = getEffectiveBucket(analysis) || 'archive';
   const priority = getEffectivePriority(analysis);
   const ageDays = getBookmarkAgeDays(bookmark);
+  const relatesTo = meaningfulRelatesTo(analysis?.relates_to);
 
   // Only show reading time for X/Twitter posts (fully scraped)
   const isXPost = bookmark.source === 'x' || bookmark.url.includes('x.com') || bookmark.url.includes('twitter.com');
@@ -67,10 +95,10 @@ export function BookmarkCard({ bookmark }: BookmarkCardProps) {
         <p className="card-why">{analysis.recommendation_reason}</p>
       )}
 
-      {analysis?.relates_to && (
+      {relatesTo && (
         <div className="card-relates">
           <span className="relates-label">↳ Relates to you</span>
-          <p>{analysis.relates_to}</p>
+          <p>{relatesTo}</p>
         </div>
       )}
 
