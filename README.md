@@ -9,10 +9,12 @@ Add a note like *"I'm saving this for my deployment project"* to tell your agent
 ## Demo
 
 <p align="center">
-  <video src="docs/brag.mp4" poster="docs/brag.jpg" controls muted width="800"></video>
+  <a href="docs/brag.mp4" title="Play the 19s demo (with sound)">
+    <img src="docs/brag.jpg" alt="Forger demo — paste a link, your agent scores it, the dashboard files it into Test This Week / Build Later / Archive / Ignore" width="800">
+  </a>
 </p>
 
-One link goes in — the agent reads it, scores it against your profile, and the dashboard files it: **Test This Week**, **Build Later**, **Archive**, or a confident **Ignore**. (19s, with sound. Made with the [`/brag`](https://github.com/latent-spaces/brag) skill.)
+**[▶ Watch the 19-second demo](docs/brag.mp4)** (with sound) — one link goes in, the agent reads it, scores it against your profile, and the dashboard files it: **Test This Week**, **Build Later**, **Archive**, or a confident **Ignore**. Made with the [`/brag`](https://github.com/latent-spaces/brag) skill.
 
 ## Decide what to do with each link
 
