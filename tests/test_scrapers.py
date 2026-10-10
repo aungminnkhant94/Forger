@@ -1,6 +1,7 @@
 """Unit tests for X and article scrapers with mocking."""
 import asyncio
 import sys
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -33,6 +34,21 @@ class TestXScraperInit:
         scraper = XScraper()
         assert scraper.user_agent is not None
         assert "Mozilla" in scraper.user_agent
+
+    def test_no_free_proxy_machinery(self):
+        """Free-proxy helpers and state were hard-deleted (no silent on-switch)."""
+        scraper = XScraper()
+        assert not hasattr(scraper, "proxies")
+        assert not hasattr(scraper, "_last_proxy_fetch")
+        assert not hasattr(scraper, "_fetch_free_proxies")
+        assert not hasattr(scraper, "_get_working_proxy")
+        # Source must not retain proxyscrape / curl -x proxy testing.
+        import forger.scrapers.x_scraper as mod
+        src = Path(mod.__file__).read_text(encoding="utf-8")
+        assert "proxyscrape" not in src
+        assert "_fetch_free_proxies" not in src
+        assert "_get_working_proxy" not in src
+        assert '"-x"' not in src and "'-x'" not in src
 
 
 class TestXScraperGenerateTitle:
