@@ -2,17 +2,18 @@
 
 ESSENTIAL COMPONENT - See ARCHITECTURE.md before modifying.
 Fetches tweet content from X URLs using multiple methods:
-1. Playwright with stealth + proxy (primary)
-2. yt-dlp (fallback for public tweets)
+1. Playwright with stealth (primary; cookies via X_COOKIES_PATH)
+2. jina.ai text extraction (fallback)
+3. yt-dlp (fallback for public tweets)
+
+Free-proxy fetching was removed; fetches always use a direct connection.
 """
 from __future__ import annotations
 
 import asyncio
 import json
 import logging
-import random
 import subprocess
-import time
 import urllib.request
 from typing import Optional
 
@@ -52,59 +53,6 @@ class XScraper:
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
             "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
         )
-        self.proxies = []
-        self._last_proxy_fetch = 0
-    
-    def _fetch_free_proxies(self) -> list:
-        """Fetch free HTTP proxies from proxyscrape."""
-        try:
-            req = urllib.request.Request(
-                "https://api.proxyscrape.com/v4/free-proxy-list/get?request=display_proxies&proxy_format=protocolipport&format=text&timeout=10000",
-                headers={"User-Agent": self.user_agent}
-            )
-            with urllib.request.urlopen(req, timeout=15) as resp:
-                proxies = []
-                for line in resp.read().decode().strip().split("\n"):
-                    line = line.strip()
-                    if line.startswith("http://"):
-                        proxies.append(line)
-                LOGGER.info(f"Fetched {len(proxies)} HTTP proxies")
-                return proxies
-        except Exception as e:
-            LOGGER.warning(f"Failed to fetch proxies: {e}")
-            return []
-    def _get_working_proxy(self) -> Optional[str]:
-        """Get a working proxy by testing with curl first."""
-        import time
-        # Refresh proxy list every 10 minutes
-        if not self.proxies or time.time() - self._last_proxy_fetch > 600:
-            self.proxies = self._fetch_free_proxies()
-            self._last_proxy_fetch = time.time()
-        
-        if not self.proxies:
-            return None
-        
-        # Test proxies with curl until one works
-        test_url = "https://x.com"
-        for _ in range(min(5, len(self.proxies))):
-            proxy = random.choice(self.proxies)
-            try:
-                cmd = [
-                    "curl", "-s", "-o", "/dev/null", "-w", "%{http_code}",
-                    "--max-time", "8",
-                    "-x", proxy,
-                    test_url
-                ]
-                result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
-                if result.stdout.strip() == "200":
-                    LOGGER.info(f"Found working proxy: {proxy}")
-                    return proxy
-            except Exception as e:
-                LOGGER.debug(f"Proxy test failed for {proxy}: {e}")
-                continue
-        
-        LOGGER.warning("No working proxies found")
-        return None
     
     async def fetch_tweet(self, url: str) -> dict:
         """Fetch tweet content from X URL using multiple methods.
@@ -118,7 +66,7 @@ class XScraper:
             LOGGER.error("Refusing unsafe X URL %s: %s", url, e)
             return self._error_result(f"Unsafe URL blocked: {e}")
 
-        # Method 1: Playwright with stealth + proxy
+        # Method 1: Playwright with stealth (no proxy)
         result = await self._fetch_with_playwright(url)
         if result.get("success"):
             return result
@@ -140,7 +88,7 @@ class XScraper:
         return self._error_result("X content extraction blocked - manual review needed")
     
     async def _fetch_with_playwright(self, url: str) -> dict:
-        """Try Playwright with stealth options and proxy fallback."""
+        """Try Playwright with stealth options (direct connection, no proxy)."""
         try:
             from playwright.async_api import async_playwright
         except ImportError as e:
@@ -162,7 +110,7 @@ class XScraper:
                     ]
                 )
                 
-                # Build context (NO proxy — free proxies are unreliable and cause 60s timeouts)
+                # Direct browser context — no proxy.
                 context = await browser.new_context(
                     user_agent=self.user_agent,
                     viewport={"width": 1920, "height": 1080},
@@ -421,7 +369,6 @@ class XScraper:
             "error": error
         }
 
-
 async def fetch_x_content(url: str) -> Optional[dict]:
     """Convenience function to fetch X content.
     
@@ -433,7 +380,6 @@ async def fetch_x_content(url: str) -> Optional[dict]:
     scraper = XScraper()
     return await scraper.fetch_tweet(url)
 
-
 def fetch_x_content_sync(url: str) -> Optional[dict]:
     """Synchronous wrapper for fetch_x_content."""
     import asyncio
@@ -442,7 +388,6 @@ def fetch_x_content_sync(url: str) -> Optional[dict]:
     except KeyboardInterrupt:
         LOGGER.info("Interrupted by user")
         return {"success": False, "error": "Interrupted by user", "text": "", "title": "X Post", "author": None}
-
 
 if __name__ == "__main__":
     import sys
