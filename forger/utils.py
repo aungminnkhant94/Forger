@@ -88,6 +88,48 @@ def stable_bookmark_id(url: str, text: str) -> str:
     return f"bookmark_{digest}"
 
 
+# Matches stable_bookmark_id(): bookmark_ + 12 lowercase hex chars.
+BOOKMARK_ID_PATTERN = re.compile(r"^bookmark_[0-9a-f]{12}$")
+
+
+class UnsafeBookmarkIdError(ValueError):
+    """Raised when a bookmark id would escape data/pending/ or is malformed."""
+
+
+def is_valid_bookmark_id(bookmark_id: str | None) -> bool:
+    """True when *bookmark_id* matches the forge-generated id shape."""
+    if not bookmark_id:
+        return False
+    return BOOKMARK_ID_PATTERN.fullmatch(str(bookmark_id).strip()) is not None
+
+
+def pending_paths_for_bookmark_id(pending_dir: Path, bookmark_id: str) -> tuple[Path, Path]:
+    """Resolve analysis/content paths under *pending_dir* safely.
+
+    Rejects path traversal (``../``), absolute paths, separators, and any id
+    that does not match ``bookmark_<12 hex>``. Both returned paths are
+    guaranteed to stay inside ``pending_dir.resolve()``.
+    """
+    raw = str(bookmark_id or "").strip()
+    if not is_valid_bookmark_id(raw):
+        raise UnsafeBookmarkIdError(
+            f"Invalid bookmark id {bookmark_id!r}: expected bookmark_<12 hex chars>"
+        )
+
+    pending_root = Path(pending_dir).resolve()
+    # Join as a single filename only — never treat bookmark_id as a subpath.
+    analysis_path = (pending_root / f"{raw}.analysis.json").resolve()
+    content_path = (pending_root / f"{raw}.content.md").resolve()
+    for path in (analysis_path, content_path):
+        try:
+            path.relative_to(pending_root)
+        except ValueError as exc:
+            raise UnsafeBookmarkIdError(
+                f"Resolved path escapes pending dir: {path}"
+            ) from exc
+    return analysis_path, content_path
+
+
 def clamp_score(value: float, lower: float = 0.0, upper: float = 10.0) -> float:
     return max(lower, min(upper, round(float(value), 2)))
 

@@ -306,10 +306,19 @@ def cmd_digest(args: argparse.Namespace) -> int:
 def cmd_resolve(args: argparse.Namespace) -> int:
     """Ingest an agent-written analysis for a pending bookmark (agent mode)."""
     from forger.bookmark_workflow import resolve_pending_analysis
+    from forger.utils import UnsafeBookmarkIdError, pending_paths_for_bookmark_id
 
     print_header("Resolving Pending Analysis")
 
-    analysis_path = DATA_DIR / "pending" / f"{args.bookmark_id}.analysis.json"
+    pending_dir = DATA_DIR / "pending"
+    try:
+        analysis_path, content_path = pending_paths_for_bookmark_id(
+            pending_dir, args.bookmark_id
+        )
+    except UnsafeBookmarkIdError as e:
+        print_error(str(e))
+        return 1
+
     if not analysis_path.exists():
         print_error(f"Analysis file not found: {analysis_path}")
         return 1
@@ -320,14 +329,16 @@ def cmd_resolve(args: argparse.Namespace) -> int:
         print_error(f"Invalid JSON in {analysis_path}: {e}")
         return 1
 
-    success, message, analysis = resolve_pending_analysis(args.bookmark_id, payload)
+    # Use the validated id (stripped), never the raw argv for path joins again.
+    bookmark_id = analysis_path.name.removesuffix(".analysis.json")
+    success, message, analysis = resolve_pending_analysis(bookmark_id, payload)
     if not success:
         print_error(message)
         return 1
 
     print_success(message)
 
-    for stale in (analysis_path, DATA_DIR / "pending" / f"{args.bookmark_id}.content.md"):
+    for stale in (analysis_path, content_path):
         try:
             stale.unlink(missing_ok=True)
         except OSError:
