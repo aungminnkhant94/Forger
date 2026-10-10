@@ -39,8 +39,13 @@ reference.
 - If the profile names always-relevant topics and this bookmark is one, bump UP.
 - If the profile says actively-ignore and this is one, `ignore` — say so in the
   reason.
-- `relates_to` must name the user's actual goals/projects from profile.md. If
-  nothing connects, write that plainly — a fake connection is worse than none.
+- `relates_to` is **required** (agent mode + `forge resolve`). Write 2–4
+  sentences (≥40 characters) that name the user's actual goals/projects from
+  `profile.md`. **Never** write `None`, `N/A`, `null`, `-`, or leave it empty —
+  resolve will reject those placeholders. If nothing connects, still write
+  real prose explaining the miss (e.g. why it sits outside their current
+  projects) — a fake connection is worse than an honest miss, but a bare
+  `None` is not allowed.
 
 ## Writing style
 
@@ -79,5 +84,6 @@ wrong for a specific case, trust your bucket — the bucket is the product.
 }
 ```
 
-`summary` and `recommendation_bucket` are required. Write valid JSON — no
-comments, no trailing commas.
+`summary`, `recommendation_bucket`, and `relates_to` are required. Write
+valid JSON — no comments, no trailing commas. `relates_to` must be 2+
+sentences of profile-grounded prose (not `None`/`N/A`).

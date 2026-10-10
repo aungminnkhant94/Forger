@@ -68,7 +68,7 @@ No key required — you are the analyst:
      "title": "Polished title",
      "summary": "3-4 sentences: what it is, takeaway, why it matters to THIS user",
      "recommendation_reason": "One blunt sentence: why relevant or not, right now",
-     "relates_to": "2-4 sentences tying it to the user's goals from profile.md, or say nothing connects",
+     "relates_to": "REQUIRED: 2-4 sentences naming goals/projects from profile.md. Never None/N/A/null/-. If nothing connects, still write 2+ sentences explaining why.",
      "key_insights": ["3-5 concrete takeaways"],
      "tags": ["2-6 specific tags"],
      "actionable_this_week": false,
@@ -81,6 +81,11 @@ No key required — you are the analyst:
    reduces friction on something they're building. `archive` = worth finding
    again later. `ignore` = none of these. When torn, choose the MORE urgent.
    Judge against THEIR profile, never a generic tech audience. Be strict.
+   **`relates_to` is required.** Read `profile.md` and write 2–4 sentences (≥40
+   characters) that name their goals/projects. Forbidden: `None`, `N/A`,
+   `null`, `-`, or leaving it blank — `forge resolve` will reject those.
+   If nothing connects, say so in full sentences (why it misses their work),
+   never the bare word None.
 4. `python forge resolve <bookmark_id>`
 5. Report back in one short block: title, bucket, your one-line reason. Done.
 
