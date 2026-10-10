@@ -6,6 +6,14 @@ Found an article, guide, or tool you want to come back to? Paste its URL into yo
 
 Add a note like *"I'm saving this for my deployment project"* to tell your agent why the link matters. Your own words guide the recommendation.
 
+## Demo
+
+<p align="center">
+  <video src="docs/brag.mp4" poster="docs/brag.jpg" controls muted width="800"></video>
+</p>
+
+One link goes in — the agent reads it, scores it against your profile, and the dashboard files it: **Test This Week**, **Build Later**, **Archive**, or a confident **Ignore**. (19s, with sound. Made with the [`/brag`](https://github.com/latent-spaces/brag) skill.)
+
 ## Decide what to do with each link
 
 - **Try this week** — something you can act on now.
