@@ -28,44 +28,67 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from forger.digest import generate_weekly_digest, WeeklyDigest
+from forger.digest import DigestItem, WeeklyDigest, generate_weekly_digest
 
 
 class TelegramFormatter:
-    """Format digest for Telegram messages."""
-    
+    """Format digest for Telegram messages (MarkdownV2)."""
+
+    # Telegram MarkdownV2 reserved chars in normal text.
+    # Docs: https://core.telegram.org/bots/api#markdownv2-style
+    _MD_V2_SPECIAL = r"_*[]()~`>#+-=|{}.!"
+
     @staticmethod
     def escape_markdown(text: str | None) -> str:
-        """Escape special characters for Telegram MarkdownV2."""
+        """Escape special characters for Telegram MarkdownV2 (normal text)."""
         if not text:
             return ""
-        # Characters to escape: _ * [ ] ( ) ~ ` > # + - = | { } . !
-        chars_to_escape = r'_*[]()~`>#+-=|{}.!'
-        for char in chars_to_escape:
-            text = text.replace(char, '\\' + char)
-        return text
-    
+        out = str(text)
+        # Backslash first so we do not double-escape inserted escapes.
+        out = out.replace("\\", "\\\\")
+        for char in TelegramFormatter._MD_V2_SPECIAL:
+            out = out.replace(char, "\\" + char)
+        return out
+
+    @staticmethod
+    def escape_markdown_link_url(url: str | None) -> str:
+        """Escape a URL for the (...) part of a MarkdownV2 inline link.
+
+        Inside link URLs only ')' and '\\' must be escaped — not dots, '=', etc.
+        """
+        if not url:
+            return ""
+        return str(url).replace("\\", "\\\\").replace(")", "\\)")
+
+    @classmethod
+    def format_link(cls, label: str | None, url: str | None) -> str:
+        """Build [label](url) with correct MarkdownV2 escaping for both parts."""
+        return f"[{cls.escape_markdown(label)}]({cls.escape_markdown_link_url(url)})"
+
     @staticmethod
     def truncate(text: str, max_len: int = 200) -> str:
-        """Truncate text with ellipsis."""
+        """Truncate text with ellipsis (escape the result afterwards)."""
         if len(text) <= max_len:
             return text
-        return text[:max_len-3].rsplit(' ', 1)[0] + "..."
-    
+        return text[: max_len - 3].rsplit(" ", 1)[0] + "..."
+
+    @classmethod
+    def _bookmark_label(cls, item: DigestItem, max_len: int) -> str:
+        raw = item.bookmark.title or item.bookmark.text or item.bookmark.note or item.bookmark.url or "Untitled"
+        return cls.truncate(raw, max_len)
+
     @classmethod
     def format_concise(cls, digest: WeeklyDigest) -> str:
         """Format a concise digest for Telegram."""
         lines = []
-        
-        # Header
+
         week_start = digest.week_start.strftime("%b %d")
         week_end = digest.week_end.strftime("%b %d")
         week_range = cls.escape_markdown(f"{week_start} - {week_end}")
         lines.append("📚 *Forger Weekly Digest*")
         lines.append(f"📅 {week_range}")
         lines.append("")
-        
-        # Stats
+
         stats = digest.stats
         lines.append("📊 *Summary*")
         lines.append(f"• New bookmarks: {stats.total_new}")
@@ -76,59 +99,60 @@ class TelegramFormatter:
             avg = cls.escape_markdown(f"{stats.avg_priority_score:.1f}")
             lines.append(f"• Avg priority: {avg}/10")
         lines.append("")
-        
-        # Top 3 priority items
+
         if digest.test_this_week:
             lines.append("⚡ *Top Priority Items*")
             for i, item in enumerate(digest.test_this_week[:3], 1):
-                title = cls.escape_markdown(cls.truncate(item.bookmark.title or item.bookmark.text, 50))
+                label = cls._bookmark_label(item, 50)
                 priority = item.analysis.priority_score
                 escaped_i = cls.escape_markdown(str(i))
-                lines.append(f"{escaped_i}\\. [{title}]({cls.escape_markdown(item.bookmark.url or '')})")
+                lines.append(f"{escaped_i}\\. {cls.format_link(label, item.bookmark.url)}")
                 lines.append(f"   Priority: {cls.escape_markdown(f'{priority:.1f}')}")
+                if item.bookmark.note:
+                    note = cls.escape_markdown(cls.truncate(item.bookmark.note, 60))
+                    lines.append(f"   📝 {note}")
                 if item.action_items:
                     action = cls.escape_markdown(cls.truncate(item.action_items[0], 60))
                     lines.append(f"   👉 {action}")
                 lines.append("")
-        
-        # Insights
+
         if digest.insights:
             lines.append("💡 *Insights*")
             for insight in digest.insights[:3]:
-                # Remove emoji for cleaner look
                 clean_insight = insight.lstrip("⚡📚📱✅🤔🎯💡📝 ")
                 lines.append(f"• {cls.escape_markdown(clean_insight)}")
             lines.append("")
-        
-        # Trends
-        if digest.trends.get('quality_trend'):
-            trend = digest.trends['quality_trend']
-            delta = digest.trends.get('quality_delta', 0)
-            trend_emoji = "📈" if trend == 'up' else "📉" if trend == 'down' else "➡️"
-            lines.append(f"{trend_emoji} *Trend:* Quality is {trend}")
+
+        if digest.trends.get("quality_trend"):
+            trend = digest.trends["quality_trend"]
+            delta = digest.trends.get("quality_delta", 0)
+            trend_emoji = "📈" if trend == "up" else "📉" if trend == "down" else "➡️"
+            lines.append(f"{trend_emoji} *Trend:* Quality is {cls.escape_markdown(str(trend))}")
             if delta != 0:
-                lines.append(f"   Change: {cls.escape_markdown(f'{delta:+.2f}')} vs historical avg")
-        
-        # Footer
+                lines.append(
+                    f"   Change: {cls.escape_markdown(f'{delta:+.2f}')} vs historical avg"
+                )
+
         lines.append("")
-        lines.append(f"_Generated: {digest.generated_at.strftime('%H:%M')}_")
-        
+        generated = cls.escape_markdown(digest.generated_at.strftime("%H:%M"))
+        lines.append(f"_Generated: {generated}_")
+
         return "\n".join(lines)
-    
+
     @classmethod
     def format_full(cls, digest: WeeklyDigest) -> list[str]:
         """Format full digest (may be split into multiple messages)."""
         messages = []
-        
-        # First message: Overview
+
         week_start = digest.week_start.strftime("%b %d")
         week_end = digest.week_end.strftime("%b %d")
         week_range = cls.escape_markdown(f"{week_start} - {week_end}")
-        
+        generated = cls.escape_markdown(digest.generated_at.strftime("%H:%M"))
+
         lines = [
             "📚 *Forger Weekly Digest*",
             f"📅 {week_range}",
-            f"⏰ Generated: {digest.generated_at.strftime('%H:%M')}",
+            f"⏰ Generated: {generated}",
             "",
             "📊 *Statistics*",
             f"• Total new: {digest.stats.total_new}",
@@ -137,29 +161,33 @@ class TelegramFormatter:
             f"• 📚 Build later: {digest.stats.build_later}",
             f"• 📁 Archive: {digest.stats.archive}",
         ]
-        
+
         if digest.stats.avg_worth_score > 0:
-            lines.append(f"• Avg worth: {digest.stats.avg_worth_score:.1f}/10")
-            lines.append(f"• Avg priority: {digest.stats.avg_priority_score:.1f}/10")
-        
+            worth = cls.escape_markdown(f"{digest.stats.avg_worth_score:.1f}")
+            prio = cls.escape_markdown(f"{digest.stats.avg_priority_score:.1f}")
+            lines.append(f"• Avg worth: {worth}/10")
+            lines.append(f"• Avg priority: {prio}/10")
+
         if digest.stats.top_sources:
             lines.append("")
             lines.append("📱 *Top Sources*")
             for source, count in digest.stats.top_sources[:3]:
                 lines.append(f"• {cls.escape_markdown(source)}: {count}")
-        
+
         messages.append("\n".join(lines))
-        
-        # Second message: Test this week items
+
         if digest.test_this_week:
             lines = ["⚡ *Test This Week*", ""]
             for i, item in enumerate(digest.test_this_week[:5], 1):
-                title = cls.escape_markdown(cls.truncate(item.bookmark.title or item.bookmark.text, 45))
+                label = cls._bookmark_label(item, 45)
                 escaped_i = cls.escape_markdown(str(i))
-                lines.append(f"*{escaped_i}\\.* [{title}]({cls.escape_markdown(item.bookmark.url or '')})")
+                lines.append(f"*{escaped_i}\\.* {cls.format_link(label, item.bookmark.url)}")
                 worth = cls.escape_markdown(f"{item.analysis.worth_score:.1f}")
                 prio = cls.escape_markdown(f"{item.analysis.priority_score:.1f}")
                 lines.append(f"   Worth: {worth} \\| Priority: {prio}")
+                if item.bookmark.note:
+                    note = cls.escape_markdown(cls.truncate(item.bookmark.note, 55))
+                    lines.append(f"   📝 {note}")
                 if item.bookmark.tags:
                     tags = ", ".join(item.bookmark.tags[:3])
                     lines.append(f"   🏷 {cls.escape_markdown(tags)}")
@@ -168,22 +196,25 @@ class TelegramFormatter:
                     lines.append(f"   👉 {action}")
                 lines.append("")
             messages.append("\n".join(lines))
-        
-        # Third message: Build later items
+
         if digest.build_later:
             lines = ["📚 *Build Later*", ""]
             for i, item in enumerate(digest.build_later[:3], 1):
-                title = cls.escape_markdown(cls.truncate(item.bookmark.title or item.bookmark.text, 50))
+                label = cls._bookmark_label(item, 50)
                 escaped_i = cls.escape_markdown(str(i))
-                lines.append(f"{escaped_i}\\. [{title}]({cls.escape_markdown(item.bookmark.url or '')})")
-                lines.append(f"   Priority: {cls.escape_markdown(f'{item.analysis.priority_score:.1f}')}")
+                lines.append(f"{escaped_i}\\. {cls.format_link(label, item.bookmark.url)}")
+                lines.append(
+                    f"   Priority: {cls.escape_markdown(f'{item.analysis.priority_score:.1f}')}"
+                )
+                if item.bookmark.note:
+                    note = cls.escape_markdown(cls.truncate(item.bookmark.note, 55))
+                    lines.append(f"   📝 {note}")
             lines.append("")
             if len(digest.build_later) > 3:
                 more = len(digest.build_later) - 3
                 lines.append(f"_\\+ {more} more items_")
             messages.append("\n".join(lines))
-        
-        # Fourth message: Insights and trends
+
         lines = []
         if digest.insights:
             lines.append("💡 *Insights*")
@@ -191,49 +222,63 @@ class TelegramFormatter:
                 clean_insight = insight.lstrip("⚡📚📱✅🤔🎯💡📝 ")
                 lines.append(f"• {cls.escape_markdown(clean_insight)}")
             lines.append("")
-        
-        if digest.trends.get('quality_trend'):
-            trend = digest.trends['quality_trend']
-            delta = digest.trends.get('quality_delta', 0)
-            trend_emoji = "📈" if trend == 'up' else "📉" if trend == 'down' else "➡️"
-            lines.append(f"{trend_emoji} *Quality Trend:* {trend}")
+
+        if digest.trends.get("quality_trend"):
+            trend = digest.trends["quality_trend"]
+            delta = digest.trends.get("quality_delta", 0)
+            trend_emoji = "📈" if trend == "up" else "📉" if trend == "down" else "➡️"
+            lines.append(
+                f"{trend_emoji} *Quality Trend:* {cls.escape_markdown(str(trend))}"
+            )
             if delta != 0:
-                lines.append(f"   Change: {cls.escape_markdown(f'{delta:+.2f}')} vs historical average")
-            
-            if digest.trends.get('topic_distribution'):
+                lines.append(
+                    f"   Change: {cls.escape_markdown(f'{delta:+.2f}')} vs historical average"
+                )
+
+            if digest.trends.get("topic_distribution"):
                 lines.append("")
                 lines.append("📊 *Topic Distribution*")
-                for topic, data in list(digest.trends['topic_distribution'].items())[:3]:
-                    lines.append(f"• {topic}: {data['percentage']}%")
-        
+                for topic, data in list(digest.trends["topic_distribution"].items())[:3]:
+                    pct = data.get("percentage", data) if isinstance(data, dict) else data
+                    lines.append(
+                        f"• {cls.escape_markdown(str(topic))}: "
+                        f"{cls.escape_markdown(str(pct))}%"
+                    )
+
         if lines:
             messages.append("\n".join(lines))
-        
+
         return messages
-    
+
     @classmethod
     def format_stats_only(cls, digest: WeeklyDigest) -> str:
         """Format just the statistics."""
         week_start = digest.week_start.strftime("%b %d")
         week_end = digest.week_end.strftime("%b %d")
         stats = digest.stats
-        
+
         week_range = cls.escape_markdown(f"{week_start}-{week_end}")
         lines = [
-            f"📚 *Forger Digest* | {week_range}",
+            f"📚 *Forger Digest* \\| {week_range}",
             "",
-            f"📊 New: {stats.total_new} | ⚡ {stats.test_this_week} | 📚 {stats.build_later} | 📁 {stats.archive}",
+            (
+                f"📊 New: {stats.total_new} \\| ⚡ {stats.test_this_week} \\| "
+                f"📚 {stats.build_later} \\| 📁 {stats.archive}"
+            ),
         ]
-        
+
         if stats.avg_priority_score > 0:
             avg = cls.escape_markdown(f"{stats.avg_priority_score:.1f}")
             lines.append(f"⭐ Avg priority: {avg}/10")
-        
-        if digest.trends.get('quality_trend'):
-            trend_emoji = "📈" if digest.trends['quality_trend'] == 'up' else "📉"
-            lines.append(f"{trend_emoji} Trend: {digest.trends['quality_trend']}")
-        
+
+        if digest.trends.get("quality_trend"):
+            trend = digest.trends["quality_trend"]
+            trend_emoji = "📈" if trend == "up" else "📉" if trend == "down" else "➡️"
+            lines.append(f"{trend_emoji} Trend: {cls.escape_markdown(str(trend))}")
+
         return "\n".join(lines)
+
+
 
 
 async def send_telegram_message(bot_token: str, chat_id: str, text: str) -> bool:
