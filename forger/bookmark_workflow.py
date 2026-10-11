@@ -123,6 +123,9 @@ def scrape_and_create_bookmark(url: str) -> Optional[Bookmark]:
     bookmark_id = stable_bookmark_id(url, body)
     timestamp = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
 
+    # Defer tags until analysis (API analyze or agent resolve). Heuristic
+    # auto-tags at scrape time invent junk ("research", "ai-tools") that
+    # pollutes the bookmark while agent mode is still pending.
     return Bookmark(
         id=bookmark_id,
         source=source,
@@ -132,7 +135,7 @@ def scrape_and_create_bookmark(url: str) -> Optional[Bookmark]:
         note=note,
         created_at=timestamp,
         bookmarked_at=timestamp,
-        tags=clean_tags([], title, body, url, note),
+        tags=[],
         raw_payload={
             "ingestion_channel": "url",
             "capture_mode": "url_only",
@@ -334,6 +337,8 @@ def process_bookmark_url(url: str, analyze: bool = True, note: str | None = None
         analysis = clean_analysis_text(bookmark, analysis)
     else:
         # Agent mode: no API call — the calling agent analyzes and resolves.
+        # Keep tags empty until resolve writes real analysis tags.
+        bookmark.tags = []
         analysis = _build_pending_result(bookmark)
 
     before_bookmarks = load_bookmarks()
