@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { ExternalLink, Calendar, User, Clock } from 'lucide-react';
 import { BookmarkWithAnalysis, getBookmarkAgeDays, getEffectiveBucket, getEffectivePriority, getReadingTime } from '@/lib/data';
+import { truncateAtWordBoundary } from '@/lib/truncate';
 
 interface BookmarkCardProps {
   bookmark: BookmarkWithAnalysis;
@@ -83,11 +84,7 @@ export function BookmarkCard({ bookmark }: BookmarkCardProps) {
 
       {analysis?.summary && (
         <p className="card-summary">
-          {analysis.summary
-            .replace(/\.{3,}$/, '')
-            .replace(/\.$/, '')
-            .trim()}
-          .
+          {truncateAtWordBoundary(analysis.summary)}
         </p>
       )}
 
