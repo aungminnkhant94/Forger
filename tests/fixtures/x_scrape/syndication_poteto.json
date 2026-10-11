@@ -1,0 +1,9 @@
+{
+  "__typename": "Tweet",
+  "id_str": "2109110547824378140",
+  "text": "codebases have always contained slop. we have always been okay with this because code rarely needs to be perfect, outside of mission critical & safety-critical software.",
+  "user": {
+    "screen_name": "poteto",
+    "name": "lauren"
+  }
+}

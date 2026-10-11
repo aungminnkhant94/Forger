@@ -45,7 +45,7 @@ The agent reads the skill, installs the engine, interviews you briefly to write 
 
 ## Manual install (no agent)
 
-**Prerequisites:** Python 3.10+ and git. Node 20.9+ only if you want the dashboard. Playwright chromium only for X/Twitter and JS-heavy pages. No API key required for agent mode.
+**Prerequisites:** Python 3.10+ and git. Node 20.9+ only if you want the dashboard. Playwright chromium optional (JS-heavy pages; X cookies upgrade). Public X status URLs need no cookies. No API key required for agent mode.
 
 ```bash
 git clone https://github.com/aungminnkhant94/Forger.git
@@ -76,7 +76,7 @@ With an API key in `.env`, use `python forge add <url>` (the API scores it). Wit
 | `ANALYSIS_PROVIDER=custom` + `LLM_BASE_URL` + `LLM_API_KEY` + `LLM_MODEL` | Any OpenAI-compatible API (GLM, OpenAI, Ollama, ...) |
 | `FORGER_PROFILE` | Path to your profile (default `./profile.md`) |
 | `FORGER_EXTRA_CONTEXT_DIR` | Optional folder of `.md` notes searched for extra context |
-| `X_COOKIES_PATH` | Optional X cookies JSON for tweet scraping |
+| `X_COOKIES_PATH` | Optional X cookies JSON — Playwright upgrade for gated tweets (public tweets work without it) |
 
 ## The CLI
 

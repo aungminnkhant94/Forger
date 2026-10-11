@@ -104,8 +104,8 @@ just report the result.
 
 ## Troubleshooting
 
-See `references/troubleshooting.md`. Common cases: X links need cookies
-(`X_COOKIES_PATH`) or fall back to a stub; JS-heavy pages need
+See `references/troubleshooting.md`. Common cases: rare X public-API misses may use cookies
+(`X_COOKIES_PATH`) as an optional Playwright upgrade; JS-heavy pages need
 `playwright install chromium`; missing `data/` dirs are auto-created.
 
 ## References
