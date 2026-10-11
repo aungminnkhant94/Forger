@@ -1,0 +1,16 @@
+{
+  "InformationList": {
+    "Information": [
+      {
+        "CID": 2519,
+        "Title": "Caffeine"
+      },
+      {
+        "CID": 2519,
+        "Description": "Caffeine is a trimethylxanthine in which the three methyl groups are located at positions 1, 3, and 7. A purine alkaloid that occurs naturally in tea and coffee. It has a role as a geroprotector, a mutagen, a central nervous system stimulant, a psychotropic drug, a diuretic, a xenobiotic, an EC 3.1.4.* (phosphoric diester hydrolase) inhibitor, an EC 2.7.11.1 (non-specific serine/threonine protein kinase) inhibitor, an adenosine A2A receptor antagonist, an adjuvant, a food additive, a ryanodine receptor agonist, an adenosine receptor antagonist, a mouse metabolite, a plant metabolite, a fungal metabolite, an environmental contaminant and a human blood serum metabolite. It is a purine alkaloid and a trimethylxanthine.",
+        "DescriptionSourceName": "ChEBI",
+        "DescriptionURL": "https://www.ebi.ac.uk/chebi/searchId.do?chebiId=CHEBI:27732"
+      }
+    ]
+  }
+}
