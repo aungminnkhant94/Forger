@@ -62,12 +62,16 @@ API. Without one, always use `--agent` and score it yourself.
 
 ## X/Twitter links
 
-X blocks anonymous scraping. Options:
+Public status URLs are scraped **without X cookies** via Twitter syndication /
+oEmbed (and a fxtwitter JSON fallback). No Playwright and no yt-dlp required
+for ordinary public tweets.
+
+Optional upgrade:
 1. Export cookies from a logged-in browser session to JSON, point
-   `X_COOKIES_PATH` at it in `.env` (best quality).
-2. No cookies: X links save a stub — ask the user to paste the tweet text and
-   mention it in your analysis (you can fold pasted text into the summary).
-3. `playwright install chromium` improves JS-page scraping generally.
+   `X_COOKIES_PATH` at it in `.env` — Playwright then runs as a fallback for
+   gated or flaky posts.
+2. `playwright install chromium` also helps other JS-heavy pages.
+3. If a rare public API miss still fails, ask the user to paste the tweet text.
 
 ## Dashboard
 

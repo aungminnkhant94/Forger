@@ -1,9 +1,9 @@
 """X cookie storage for the Playwright scraper — cookies only, never credentials.
 
-X blocks anonymous scraping for many pages. To analyze X/Twitter links,
-export the cookies of a logged-in browser session into a JSON file and point
-X_COOKIES_PATH at it (default: <repo>/data/x_cookies.json). Without cookies
-the scraper degrades gracefully — X links fall back to a manual-text flow.
+Public X status URLs are scraped via syndication/oEmbed without cookies.
+Optional upgrade: export the cookies of a logged-in browser session into a
+JSON file and point X_COOKIES_PATH at it (default: <repo>/data/x_cookies.json)
+so Playwright can fetch gated posts. Never store passwords or credentials.
 """
 from __future__ import annotations
 

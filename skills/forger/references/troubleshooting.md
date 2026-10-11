@@ -4,7 +4,7 @@
 |---|---|---|
 | `python: command not found` | Windows/macOS launcher names | try `py -3` or `python3` |
 | `forge add` exits with sqlite "unable to open database file" | very old checkout | pull latest; `data/` is auto-created since v1.0 |
-| X link saved as a stub ("View on X for full content") | X login wall | set `X_COOKIES_PATH` (see setup.md) or ask the user to paste the tweet text |
+| X link scrape fails / thin stub | Public syndication/oEmbed miss or private tweet | retry; optional `X_COOKIES_PATH` (setup.md); or ask user to paste tweet text |
 | Article saved as "[URL content not available]" | site blocks bots or needs JS | `playwright install chromium`; or fetch the page yourself and fold the key content into your analysis JSON summary |
 | `DUPLICATE: Already saved` | exact URL already in the forge | not an error — show the existing entry (`forge search <title>`) |
 | `DUPLICATE_TOPIC` | near-identical topic exists | treat as duplicate unless the user insists; mention the similar one |
