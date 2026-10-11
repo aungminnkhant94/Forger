@@ -17,7 +17,7 @@ def _make_bookmark():
 def _patch_workflow(monkeypatch):
     monkeypatch.setattr(bw, "check_duplicate", lambda url: None)
     monkeypatch.setattr(bw, "scrape_and_create_bookmark", lambda url: _make_bookmark())
-    monkeypatch.setattr(bw, "find_similar_duplicate", lambda b: (None, None))
+    monkeypatch.setattr(bw, "find_similar_duplicate", lambda b, exclude_ids=None: (None, None))
     monkeypatch.setattr(bw, "load_bookmarks", lambda: [])
     monkeypatch.setattr(bw, "load_analysis_results", lambda: [])
     monkeypatch.setattr(bw, "save_bookmarks", lambda bookmarks: None)
@@ -76,7 +76,7 @@ def test_agent_mode_defers_tags_until_resolve(monkeypatch):
 
     monkeypatch.setattr(bw, "check_duplicate", lambda url: None)
     monkeypatch.setattr(bw, "scrape_and_create_bookmark", lambda url: junk_tagged)
-    monkeypatch.setattr(bw, "find_similar_duplicate", lambda b: (None, None))
+    monkeypatch.setattr(bw, "find_similar_duplicate", lambda b, exclude_ids=None: (None, None))
     monkeypatch.setattr(bw, "load_bookmarks", lambda: [])
     monkeypatch.setattr(bw, "load_analysis_results", lambda: [])
     monkeypatch.setattr(bw, "save_bookmarks", capture_save)

@@ -57,7 +57,12 @@ No key required — you are the analyst:
    - Saves the bookmark, scrapes content, prints a `bookmark_id`.
    - Scraped content is written to `data/pending/<id>.content.md`.
    - If it says DUPLICATE, tell the user it's already saved (optionally show the
-     existing entry via `python forge search <title>`).
+     existing entry via `python forge search <title>`). To re-fetch after a
+     scrape fix (thin stub / empty body), re-run with `--replace`:
+     `python forge add <url> --agent --replace` (or `forge add <bookmark_id>
+     --agent --replace`). That overwrites the stored bookmark and leaves a
+     fresh pending file for resolve. Without `--replace`, DUPLICATE stays the
+     default — do not delete data files by hand.
 2. Read `data/pending/<id>.content.md` (and open the URL yourself if the
    scrape looks thin).
 3. Analyze it against the user's `profile.md` — see the Analysis Contract in

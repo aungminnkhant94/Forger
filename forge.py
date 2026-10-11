@@ -97,23 +97,51 @@ def print_info(message: str) -> None:
 # COMMAND: add
 # ============================================================================
 def cmd_add(args: argparse.Namespace) -> int:
-    """Add a bookmark from URL."""
-    from forger.bookmark_workflow import process_bookmark_url
+    """Add a bookmark from URL (or re-scrape/replace an existing one)."""
+    from forger.bookmark_workflow import (
+        find_bookmark_by_id,
+        process_bookmark_url,
+    )
+    from forger.utils import is_valid_bookmark_id
 
-    url = args.url
+    target = args.url
     note = getattr(args, "note", None)
-    print_header("Adding Bookmark")
+    replace = bool(getattr(args, "replace", False))
+    url = target
+
+    # Allow `forge add <bookmark_id> --replace` to refresh by id.
+    if is_valid_bookmark_id(target):
+        by_id = find_bookmark_by_id(target)
+        if not by_id:
+            print_error(f"Bookmark {target} not found")
+            return 1
+        url = by_id.url
+        if not replace:
+            print_info(
+                f"Resolved id {target} → {url}. "
+                "Pass --replace to re-scrape; without it DUPLICATE still applies."
+            )
+
+    print_header("Replacing Bookmark" if replace else "Adding Bookmark")
     print(f"URL: {url}")
+    if replace:
+        print("Mode: replace (re-scrape existing)")
     if note:
         print(f"Note: {note[:80]}{'...' if len(note) > 80 else ''}")
     print()
 
     success, message, bookmark, analysis = process_bookmark_url(
-        url, analyze=not getattr(args, "agent", False), note=note
+        url,
+        analyze=not getattr(args, "agent", False),
+        note=note,
+        replace=replace,
     )
 
     if success:
-        print_success("Bookmark saved successfully")
+        did_replace = bool(replace and bookmark and (bookmark.raw_payload or {}).get("replaced"))
+        print_success(
+            "Bookmark replaced successfully" if did_replace else "Bookmark saved successfully"
+        )
         print()
         print(f"  Title:    {bookmark.title[:60]}..." if bookmark.title and len(bookmark.title) > 60 else f"  Title:    {bookmark.title}")
         print(f"  Bucket:   {color(analysis.recommendation_bucket, Colors.YELLOW)}")
@@ -770,6 +798,7 @@ def create_parser() -> argparse.ArgumentParser:
         epilog="""
 Examples:
   forge add https://x.com/user/status/123     Add a bookmark
+  forge add <url> --replace --agent            Re-scrape/replace existing URL
   forge stats                                  Show statistics
   forge status                                 Show project status
   forge status --format html -o status.html    Generate HTML report
@@ -791,7 +820,7 @@ For more help on a command:
     
     # add
     add_parser = subparsers.add_parser("add", help="Add a bookmark from URL")
-    add_parser.add_argument("url", help="URL to bookmark")
+    add_parser.add_argument("url", help="URL to bookmark (or bookmark id with --replace)")
     add_parser.add_argument(
         "--note", "-n",
         help="The user's own words accompanying the link (from a URL+text message). Stored on the bookmark and weighed as the strongest analysis signal.",
@@ -800,6 +829,11 @@ For more help on a command:
         "--agent",
         action="store_true",
         help="Agent mode: save without an API key; content is written to data/pending/ for the agent to analyze, then resolved with `forge resolve`",
+    )
+    add_parser.add_argument(
+        "--replace",
+        action="store_true",
+        help="Re-scrape and overwrite an existing bookmark for this URL (or bookmark id). Without this flag, a known URL returns DUPLICATE.",
     )
     add_parser.set_defaults(func=cmd_add)
 
