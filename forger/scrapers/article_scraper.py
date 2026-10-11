@@ -18,6 +18,7 @@ from tenacity import (
 )
 
 from forger.url_safety import UnsafeURLError, assert_safe_fetch_url
+from forger.scrapers.pubchem import is_pubchem_compound_url, scrape_pubchem_compound
 
 LOGGER = logging.getLogger(__name__)
 
@@ -88,6 +89,17 @@ def scrape_article(url: str, timeout: int = DEFAULT_TIMEOUT) -> dict:
             'source': None,
             'error': f'Unsafe URL blocked: {e}',
         }
+
+    # PubChem compound pages are JS-heavy / bot-challenged; use PUG REST first.
+    if is_pubchem_compound_url(url):
+        pubchem = scrape_pubchem_compound(url, timeout=timeout)
+        if pubchem.get("success"):
+            return pubchem
+        LOGGER.warning(
+            "PubChem API scrape failed for %s (%s); falling back to HTML",
+            url,
+            pubchem.get("error") or "unknown",
+        )
     
     try:
         LOGGER.info(f"Fetching article: {url}")
