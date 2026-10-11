@@ -26,18 +26,18 @@ def _normalize(text: str) -> str:
 
 
 def infer_tags(*parts: str | None, limit: int = 5) -> list[str]:
+    """Return high-signal tags from TAG_RULES keyword hits only.
+
+    No URL/domain fallbacks — inventing "research" / "ai-tools" / "coding"
+    just because the host is example.com / x.com / github.com pollutes
+    bookmarks before real analysis (especially agent mode: add → pending →
+    resolve). Empty is better than junk; resolve/API analysis supplies tags.
+    """
     haystack = " ".join(_normalize(p or "") for p in parts)
     tags: list[str] = []
     for tag, keywords in TAG_RULES:
         if any(keyword in haystack for keyword in keywords):
             tags.append(tag)
-    if not tags:
-        if "github.com" in haystack:
-            tags.extend(["coding", "research"])
-        elif "x.com" in haystack or "twitter.com" in haystack:
-            tags.append("ai-tools")
-        else:
-            tags.append("research")
     deduped: list[str] = []
     for tag in tags:
         if tag not in deduped:
