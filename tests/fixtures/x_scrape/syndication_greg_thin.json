@@ -1,0 +1,26 @@
+{
+  "__typename": "Tweet",
+  "id_str": "2101760050108797268",
+  "text": "https://t.co/wfHAsNRGZT",
+  "entities": {
+    "urls": [
+      {
+        "display_url": "x.com/i/article/2101\u2026",
+        "expanded_url": "https://x.com/i/article/2101757072904007680",
+        "indices": [
+          0,
+          23
+        ],
+        "url": "https://t.co/wfHAsNRGZT"
+      }
+    ]
+  },
+  "article": {
+    "title": "AI-native services: a $100B opportunity",
+    "preview_text": "AI-native services are here, and I think they're the best business you can start right now. There's probably $100 billion up for grabs. This is the full guide: what AI native services are, how to",
+    "rest_id": "2101757072904007680"
+  },
+  "user": {
+    "screen_name": "gregisenberg"
+  }
+}

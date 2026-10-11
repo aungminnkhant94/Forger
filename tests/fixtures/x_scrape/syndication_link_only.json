@@ -1,0 +1,19 @@
+{
+  "id_str": "1",
+  "text": "https://t.co/abcdefghij",
+  "entities": {
+    "urls": [
+      {
+        "url": "https://t.co/abcdefghij",
+        "expanded_url": "https://example.com/post",
+        "indices": [
+          0,
+          23
+        ]
+      }
+    ]
+  },
+  "user": {
+    "screen_name": "someone"
+  }
+}
