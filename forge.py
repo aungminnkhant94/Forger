@@ -41,6 +41,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from forger.storage import load_bookmarks, load_analysis_results
+from forger.search import search_bookmarks
 from forger.digest import generate_weekly_digest
 from config.settings import DATA_DIR, REPORTS_DIR, BASE_DIR
 
@@ -488,52 +489,13 @@ def run_health_check() -> int:
 # ============================================================================
 def cmd_search(args: argparse.Namespace) -> int:
     """Search bookmarks."""
-    query = args.query.lower()
     bookmarks = load_bookmarks()
     analyses = load_analysis_results()
     analysis_map = {a.bookmark_id: a for a in analyses}
-    
+
     print_header(f"Search Results: \"{args.query}\"")
-    
-    results = []
-    for b in bookmarks:
-        score = 0
-        matches = []
-        
-        # Search in title
-        if b.title and query in b.title.lower():
-            score += 10
-            matches.append("title")
-        
-        # Search in text
-        if query in b.text.lower():
-            score += 5
-            matches.append("text")
-        
-        # Search in tags
-        for tag in b.tags:
-            if query in tag.lower():
-                score += 8
-                matches.append("tag")
-                break
-        
-        # Search in analysis
-        if b.id in analysis_map:
-            a = analysis_map[b.id]
-            if query in a.summary.lower():
-                score += 3
-                matches.append("summary")
-            for insight in a.key_insights:
-                if query in insight.lower():
-                    score += 2
-                    matches.append("insight")
-                    break
-        
-        if score > 0:
-            results.append((score, b, analysis_map.get(b.id), matches))
-    
-    # Sort by score
-    results.sort(key=lambda x: -x[0])
+
+    results = search_bookmarks(args.query, bookmarks, analysis_map)
     
     if not results:
         print(f"\nNo results found for \"{args.query}\"")

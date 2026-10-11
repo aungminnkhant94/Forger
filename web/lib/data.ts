@@ -1,3 +1,5 @@
+import { matchesSearchQuery } from './search';
+
 // Types
 export interface Bookmark {
   id: string;
@@ -140,11 +142,10 @@ export function searchBookmarks(
     return getBookmarksWithAnalysis(bookmarks, analysisResults);
   }
   
-  const searchTerm = query.toLowerCase();
   const allBookmarks = getBookmarksWithAnalysis(bookmarks, analysisResults);
   
   return allBookmarks.filter(bookmark => {
-    const searchableFields = [
+    return matchesSearchQuery(query, [
       bookmark.title,
       bookmark.text,
       bookmark.author,
@@ -152,9 +153,7 @@ export function searchBookmarks(
       bookmark.analysis?.summary,
       bookmark.analysis?.recommendation_reason,
       bookmark.analysis?.key_insights?.join(' '),
-    ].filter(Boolean).join(' ').toLowerCase();
-    
-    return searchableFields.includes(searchTerm);
+    ]);
   });
 }
 
@@ -176,9 +175,8 @@ export function advancedSearch({
   
   // Text search
   if (query?.trim()) {
-    const searchTerm = query.toLowerCase();
     results = results.filter(bookmark => {
-      const searchableFields = [
+      return matchesSearchQuery(query, [
         bookmark.title,
         bookmark.text,
         bookmark.author,
@@ -186,9 +184,7 @@ export function advancedSearch({
         bookmark.analysis?.summary,
         bookmark.analysis?.recommendation_reason,
         bookmark.analysis?.key_insights?.join(' '),
-      ].filter(Boolean).join(' ').toLowerCase();
-      
-      return searchableFields.includes(searchTerm);
+      ]);
     });
   }
   

@@ -7,6 +7,7 @@ import { BookmarkList } from './BookmarkList';
 import { NotesSync } from './NotesSync';
 import { useAuth } from './AuthContext';
 import { BookmarkWithAnalysis, getEffectiveBucket } from '@/lib/data';
+import { matchesSearchQuery } from '@/lib/search';
 
 interface BookmarksContentProps {
   allBookmarks: BookmarkWithAnalysis[];
@@ -41,18 +42,15 @@ export function BookmarksContent({ allBookmarks, allTags, onRefresh, isRefreshin
         
         // Search filter - full text search
         if (searchQuery.trim()) {
-          const query = searchQuery.toLowerCase();
-          const searchableText = `
-            ${bookmark.title} 
-            ${bookmark.text} 
-            ${bookmark.author || ''} 
-            ${bookmark.analysis?.summary || ''}
-            ${bookmark.analysis?.recommendation_reason || ''}
-            ${bookmark.analysis?.key_insights?.join(' ') || ''}
-            ${bookmark.tags?.join(' ') || ''}
-          `.toLowerCase();
-          
-          if (!searchableText.includes(query)) {
+          if (!matchesSearchQuery(searchQuery, [
+            bookmark.title,
+            bookmark.text,
+            bookmark.author,
+            bookmark.analysis?.summary,
+            bookmark.analysis?.recommendation_reason,
+            bookmark.analysis?.key_insights?.join(' '),
+            bookmark.tags?.join(' '),
+          ])) {
             return false;
           }
         }
