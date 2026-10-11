@@ -311,8 +311,13 @@ body {
   font-size: 0.875rem;
   margin-bottom: 16px;
   line-height: 1.5;
-  max-height: none;
-  overflow: visible;
+  /* Prefer line-clamp so cards stay scannable; JS also truncates at a word boundary. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  word-break: normal;
 }
 
 .card-why {

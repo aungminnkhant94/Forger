@@ -16,10 +16,47 @@ GENERIC_SUMMARY_PATTERNS = [
     r"assigned '[^']+' because",
 ]
 
+# Soft cap for stored summaries. Truncation must stop at a word boundary so
+# cards never show fragments like "catalys...".
+SUMMARY_MAX_LENGTH = 320
+
 
 def _squeeze(text: str) -> str:
     text = re.sub(r"\s+", " ", text or "").strip()
     return text
+
+
+def truncate_at_word_boundary(
+    text: str,
+    max_length: int = SUMMARY_MAX_LENGTH,
+    ellipsis: str = "...",
+) -> str:
+    """Truncate ``text`` to ``max_length`` without splitting a word.
+
+    If the text already fits, it is returned unchanged. Otherwise the cut is
+    made at the last whitespace before the budget (leaving room for
+    ``ellipsis``). A single oversized token is hard-cut as a last resort.
+    """
+    text = (text or "").strip()
+    if max_length <= 0:
+        return ""
+    if len(text) <= max_length:
+        return text
+
+    budget = max_length - len(ellipsis)
+    if budget <= 0:
+        return ellipsis[:max_length]
+
+    cut = text[:budget].rstrip()
+    last_space = cut.rfind(" ")
+    # Only back up when we still keep a meaningful prefix.
+    if last_space > max(0, budget // 2):
+        cut = cut[:last_space].rstrip()
+    cut = cut.rstrip(".,;:!?-")
+    if not cut:
+        # Pathological: first token longer than budget.
+        cut = text[:budget].rstrip()
+    return cut + ellipsis
 
 
 def clean_reason(text: str, bookmark: Bookmark, analysis: AnalysisResult) -> str:
@@ -48,8 +85,8 @@ def clean_summary(text: str, bookmark: Bookmark, analysis: AnalysisResult) -> st
     summary = summary.replace("This is a social media post", "This post")
     summary = summary.replace("This is a Twitter/X post", "This X post")
     summary = summary.replace("This bookmark describes", "This covers")
-    if len(summary) > 320:
-        summary = summary[:317].rstrip() + "..."
+    if len(summary) > SUMMARY_MAX_LENGTH:
+        summary = truncate_at_word_boundary(summary, SUMMARY_MAX_LENGTH)
     if not summary:
         summary = (bookmark.text or bookmark.title or "Reference item").strip()
     return summary
