@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { StatCard } from '@/components/StatCard';
 import { BookmarkCard } from '@/components/BookmarkCard';
 import { SearchBar } from '@/components/SearchBar';
+import { matchesSearchQuery } from '@/lib/search';
 import { useBookmarks } from '@/lib/useBookmarks';
 import { BookmarkWithAnalysis } from '@/lib/useBookmarks';
 
@@ -17,20 +18,17 @@ export default function OverviewPage() {
     let filtered = bookmarks;
 
     if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      filtered = bookmarks.filter((bookmark: BookmarkWithAnalysis) => {
-        const searchableText = `
-          ${bookmark.title} 
-          ${bookmark.text} 
-          ${bookmark.author || ''} 
-          ${bookmark.analysis?.summary || ''}
-          ${bookmark.analysis?.recommendation_reason || ''}
-          ${bookmark.analysis?.key_insights?.join(' ') || ''}
-          ${bookmark.tags?.join(' ') || ''}
-        `.toLowerCase();
-
-        return searchableText.includes(query);
-      });
+      filtered = bookmarks.filter((bookmark: BookmarkWithAnalysis) =>
+        matchesSearchQuery(searchQuery, [
+          bookmark.title,
+          bookmark.text,
+          bookmark.author,
+          bookmark.analysis?.summary,
+          bookmark.analysis?.recommendation_reason,
+          bookmark.analysis?.key_insights?.join(' '),
+          bookmark.tags?.join(' '),
+        ])
+      );
     }
 
     // Take top 10
