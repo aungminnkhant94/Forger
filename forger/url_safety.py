@@ -33,6 +33,9 @@ _BLOCKED_NETWORKS = (
 
 _IPV4_DOTTED = re.compile(r"^\d{1,3}(?:\.\d{1,3}){3}$")
 
+# Full Chrome UA makes t.co serve a 200 interstitial instead of 301.
+_REDIRECT_UA = "Mozilla/5.0 (compatible; ForgerBot/1.0)"
+
 
 class UnsafeURLError(ValueError):
     """Raised when a URL targets a private, local, or metadata address."""
@@ -93,3 +96,54 @@ def assert_safe_fetch_url(url: str) -> str:
         raise UnsafeURLError(f"Refusing private/link-local IP: {host}")
 
     return raw
+
+
+def resolve_redirect_url(
+    url: str,
+    *,
+    timeout: float = 10.0,
+    max_hops: int = 5,
+    user_agent: str | None = None,
+) -> str:
+    """Follow HTTP redirects hop-by-hop, validating each URL against SSRF rules.
+
+    Returns the final URL after redirects (or *url* if none). Raises
+    ``UnsafeURLError`` if any hop is unsafe.
+
+    A non-redirect HTTP error at the final hop still returns that hop's URL —
+    resolution succeeded; the caller decides whether to scrape it.
+    """
+    import urllib.error
+    import urllib.parse
+    import urllib.request
+
+    class _NoRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: N802
+            return None
+
+    current = assert_safe_fetch_url(url)
+    ua = user_agent or _REDIRECT_UA
+    opener = urllib.request.build_opener(_NoRedirect)
+
+    for _ in range(max(1, int(max_hops))):
+        current = assert_safe_fetch_url(current)
+        req = urllib.request.Request(
+            current,
+            headers={"User-Agent": ua, "Accept": "*/*"},
+        )
+        try:
+            with opener.open(req, timeout=timeout) as resp:
+                return assert_safe_fetch_url(resp.geturl() or current)
+        except urllib.error.HTTPError as e:
+            if e.code in {301, 302, 303, 307, 308}:
+                loc = e.headers.get("Location") if e.headers else None
+                if not loc:
+                    return assert_safe_fetch_url(current)
+                current = assert_safe_fetch_url(
+                    urllib.parse.urljoin(current, loc)
+                )
+                continue
+            # Landed on an error page — still the resolved destination.
+            return assert_safe_fetch_url(current)
+
+    return assert_safe_fetch_url(current)

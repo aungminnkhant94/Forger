@@ -18,6 +18,7 @@ def test_thin_definition_matches_article_scraper_bar():
     assert not is_usable_scrape_text("x" * 200, source="article")  # need > 200
     assert is_usable_scrape_text("x" * 201, source="article")
     assert is_usable_scrape_text("short tweet ok", source="x")
+    assert not is_usable_scrape_text("https://t.co/wfHAsNRGZT", source="x")
     assert is_scrape_failure_stub("[URL content not available] https://example.com")
     assert is_scrape_failure_stub(
         "Twitter/X post from @alice. View on X for full content."

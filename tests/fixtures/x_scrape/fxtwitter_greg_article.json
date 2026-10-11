@@ -1,0 +1,94 @@
+{
+  "code": 200,
+  "message": "OK",
+  "tweet": {
+    "text": "https://x.com/i/article/2101757072904007680",
+    "author": {
+      "screen_name": "gregisenberg"
+    },
+    "article": {
+      "title": "AI-native services: a $100B opportunity",
+      "preview_text": "AI-native services are here, and I think they're the best business you can start right now. There's probably $100 billion up for grabs. This is the full guide: what AI native services are, how to",
+      "content": {
+        "blocks": [
+          {
+            "data": {},
+            "entityRanges": [],
+            "inlineStyleRanges": [],
+            "key": "68pbm",
+            "text": "AI-native services are here, and I think they're the best business you can start right now. There's probably $100 billion up for grabs. This is the full guide: what AI native services are, how to build one, and the opportunity map.",
+            "type": "unstyled"
+          },
+          {
+            "data": {},
+            "entityRanges": [],
+            "inlineStyleRanges": [],
+            "key": "cltah",
+            "text": "This is pretty DENSE article so grab a coffee/tea, give it 15 minutes, and let's get into it.",
+            "type": "unstyled"
+          },
+          {
+            "data": {},
+            "entityRanges": [],
+            "inlineStyleRanges": [
+              {
+                "length": 10,
+                "offset": 0,
+                "style": "Bold"
+              }
+            ],
+            "key": "bsg69",
+            "text": "Background",
+            "type": "header-two"
+          },
+          {
+            "data": {},
+            "entityRanges": [],
+            "inlineStyleRanges": [],
+            "key": "au16r",
+            "text": "For most of my career, running a service business meant pretty good living and a bad company (at least in the eyes of many VCs). You sold hours, the revenue stopped when you stopped, and the whole thing lived on a few people who could leave. That's changing, and the reason is simple enough to fit in one example.",
+            "type": "unstyled"
+          },
+          {
+            "data": {},
+            "entityRanges": [],
+            "inlineStyleRanges": [],
+            "key": "b41av",
+            "text": "A business pays about $10,000 a year for QuickBooks. It pays about $120,000 a year for the accountant who uses QuickBooks. For twenty years, software companies fought over the $10,000, because that was the part you could sell at scale. The $120,000 was locked behind a human, and you couldn't scale a human without hiring another one. That's the money that just opened up. AI can now do most of what the accountant does, which means you can sell the finished work, the closed books, instead of the tool, and you can do it at software margins.",
+            "type": "unstyled"
+          },
+          {
+            "data": {},
+            "entityRanges": [],
+            "inlineStyleRanges": [],
+            "key": "bkk66",
+            "text": "That's what an AI-native service is. The work is done mostly by agents, and a small team handles the parts that still need a person. How you charge is up to you, a monthly retainer, a per-unit price, usage-based, whatever fits the customer. The thing that makes it AI-native is that the delivery runs on software instead of headcount.",
+            "type": "unstyled"
+          },
+          {
+            "data": {},
+            "entityRanges": [],
+            "inlineStyleRanges": [],
+            "key": "apnqi",
+            "text": "This essay walks through every piece of it: what it's made of, how to build one, and the opportunity map.",
+            "type": "unstyled"
+          },
+          {
+            "data": {},
+            "entityRanges": [],
+            "inlineStyleRanges": [
+              {
+                "length": 37,
+                "offset": 0,
+                "style": "Bold"
+              }
+            ],
+            "key": "49fgt",
+            "text": "What an AI-native service actually is",
+            "type": "header-two"
+          }
+        ]
+      }
+    }
+  }
+}

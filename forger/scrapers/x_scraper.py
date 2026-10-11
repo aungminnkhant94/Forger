@@ -10,6 +10,11 @@ Fetch order for status URLs:
 5. jina.ai text extraction — soft fallback
 6. yt-dlp — only if the binary is already installed (not required)
 
+Thin link-only posts (bare t.co / X Articles): merge API ``article``
+payloads when present; otherwise resolve outbound links (url_safety) and
+scrape the destination with article_scraper. Still-thin results are refused
+(no empty/X Post stubs). Bookmark URL stays the original X status.
+
 Public Forger users can bookmark public tweets without an X login.
 Free-proxy fetching was removed earlier; fetches always use a direct connection.
 """
@@ -29,7 +34,8 @@ import urllib.request
 from typing import Optional
 
 from forger.scrapers.x_auth import load_cookies
-from forger.url_safety import UnsafeURLError, assert_safe_fetch_url
+from forger.scrape_quality import is_link_only_text
+from forger.url_safety import UnsafeURLError, assert_safe_fetch_url, resolve_redirect_url
 
 LOGGER = logging.getLogger(__name__)
 
@@ -46,6 +52,17 @@ _DEFAULT_UA = (
     "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 )
 _HTTP_TIMEOUT = 15
+_MAX_ENRICH_TEXT = 5000
+_URL_IN_TEXT_RE = re.compile(r"https?://\S+", re.IGNORECASE)
+_X_HOSTS = {
+    "x.com",
+    "www.x.com",
+    "twitter.com",
+    "www.twitter.com",
+    "mobile.twitter.com",
+    "mobile.x.com",
+    "t.co",
+}
 
 
 class XScraperError(Exception):
@@ -130,11 +147,277 @@ def _text_from_oembed_html(raw_html: str) -> str:
     return html_lib.unescape(inner).strip()
 
 
+
+def _extract_entity_urls(payload: dict | None) -> list[str]:
+    """Collect expanded_url / url values from syndication or fxtwitter JSON."""
+    if not isinstance(payload, dict):
+        return []
+    found: list[str] = []
+    seen: set[str] = set()
+
+    def _add(u: str | None) -> None:
+        raw = (u or "").strip()
+        if not raw or raw in seen:
+            return
+        seen.add(raw)
+        found.append(raw)
+
+    entities = payload.get("entities")
+    if isinstance(entities, dict):
+        for item in entities.get("urls") or []:
+            if isinstance(item, dict):
+                _add(item.get("expanded_url") or item.get("url"))
+
+    # fxtwitter sometimes nests under tweet
+    tweet = payload.get("tweet")
+    if isinstance(tweet, dict):
+        for u in _extract_entity_urls(tweet):
+            _add(u)
+        # fxtwitter may already expand the body link
+        _add(tweet.get("url"))
+
+    return found
+
+
+def _urls_from_text(text: str | None) -> list[str]:
+    if not text:
+        return []
+    return list(dict.fromkeys(_URL_IN_TEXT_RE.findall(text)))
+
+
+def _text_from_x_article(
+    article: dict | None,
+) -> tuple[str | None, str | None, str | None]:
+    """Return ``(title, text, kind)`` from syndication/fxtwitter ``article``.
+
+    *kind* is ``"full"`` when content.blocks are present, ``"preview"`` when
+    only preview_text/title are available, or ``None`` when empty.
+    """
+    if not isinstance(article, dict):
+        return None, None, None
+    title = (article.get("title") or "").strip() or None
+    content = article.get("content")
+    if isinstance(content, dict):
+        blocks = content.get("blocks") or []
+        lines: list[str] = []
+        for block in blocks:
+            if not isinstance(block, dict):
+                continue
+            piece = (block.get("text") or "").strip()
+            if piece:
+                lines.append(piece)
+        body = "\n\n".join(lines).strip()
+        if body:
+            return title, body[:_MAX_ENRICH_TEXT], "full"
+    preview = (article.get("preview_text") or "").strip()
+    if title and preview:
+        return title, f"{title}\n\n{preview}"[:_MAX_ENRICH_TEXT], "preview"
+    if preview:
+        return title, preview[:_MAX_ENRICH_TEXT], "preview"
+    if title:
+        return title, None, "preview"
+    return None, None, None
+
+
+def _is_x_status_url(url: str) -> bool:
+    return extract_status_id(url) is not None
+
+
+def _is_x_hosted_url(url: str) -> bool:
+    try:
+        host = (urllib.parse.urlsplit(url).hostname or "").lower()
+    except Exception:
+        return False
+    return host in _X_HOSTS
+
+
+def is_thin_x_result(result: dict | None) -> bool:
+    """True when an X scrape is link-only / title-less stub content."""
+    if not result:
+        return True
+    text = (result.get("text") or "").strip()
+    title = (result.get("title") or "").strip()
+    if not text:
+        return True
+    if is_link_only_text(text):
+        return True
+    if title in ("", "X Post") and is_link_only_text(text):
+        return True
+    return False
+
+
 class XScraper:
     """Scrape X/Twitter content using public APIs, then optional cookie Playwright."""
 
     def __init__(self):
         self.user_agent = _DEFAULT_UA
+
+    def _merge_x_article(self, result: dict, article: dict | None) -> dict:
+        """Prefer X Articles payload when the status body is thin."""
+        atitle, atext, kind = _text_from_x_article(article)
+        if not atext:
+            if atitle and (result.get("title") in (None, "", "X Post")):
+                out = dict(result)
+                out["title"] = atitle
+                out["article_enrichment"] = kind or "preview"
+                return out
+            return result
+        out = dict(result)
+        if is_thin_x_result(result) or len(atext) > len((result.get("text") or "").strip()):
+            out["text"] = atext
+            if atitle:
+                out["title"] = atitle
+            elif out.get("title") in (None, "", "X Post"):
+                out["title"] = self._generate_title(atext)
+            src = out.get("source") or ""
+            if "x_article" not in src:
+                out["source"] = f"{src}+x_article" if src else "x_article"
+            out["article_enrichment"] = kind
+        elif atitle and out.get("title") in (None, "", "X Post"):
+            out["title"] = atitle
+            out["article_enrichment"] = kind
+        return out
+
+    def _attach_outbound_urls(self, result: dict, *url_lists: list[str]) -> dict:
+        urls: list[str] = []
+        seen: set[str] = set()
+        for group in url_lists:
+            for u in group or []:
+                raw = (u or "").strip()
+                if not raw or raw in seen:
+                    continue
+                seen.add(raw)
+                urls.append(raw)
+        # Also pull any bare links still in the body.
+        for u in _urls_from_text(result.get("text")):
+            if u not in seen:
+                seen.add(u)
+                urls.append(u)
+        out = dict(result)
+        if urls:
+            out["outbound_urls"] = urls
+        return out
+
+
+    def _better_thin_fallback(self, current: dict | None, candidate: dict) -> dict:
+        """Keep the richest thin/preview candidate while the public chain continues."""
+        if not current:
+            return candidate
+        cur_len = len((current.get("text") or "").strip())
+        new_len = len((candidate.get("text") or "").strip())
+        cur_kind = current.get("article_enrichment")
+        new_kind = candidate.get("article_enrichment")
+        # Prefer full article body, then preview, then longer prose.
+        rank = {None: 0, "preview": 1, "full": 2}
+        if rank.get(new_kind, 0) > rank.get(cur_kind, 0):
+            return candidate
+        if rank.get(new_kind, 0) == rank.get(cur_kind, 0) and new_len > cur_len:
+            return candidate
+        # Never replace a usable preview with a bare t.co stub.
+        if not is_thin_x_result(current) and is_thin_x_result(candidate):
+            return current
+        if new_len > cur_len:
+            return candidate
+        return current
+
+    def _enrich_thin_via_outbound_links(self, result: dict) -> dict:
+        """Resolve outbound links and scrape destinations for thin X posts.
+
+        Keeps the original X status as the bookmark identity; only title/text
+        are replaced. Skips X status URLs (no infinite loop) and X-hosted
+        HTML pages that do not scrape cleanly (prefer API article payload).
+        """
+        if not is_thin_x_result(result):
+            return result
+
+        candidates = list(result.get("outbound_urls") or [])
+        for u in _urls_from_text(result.get("text")):
+            if u not in candidates:
+                candidates.append(u)
+        if not candidates:
+            return result
+
+        try:
+            from forger.scrapers.article_scraper import scrape_article
+        except ImportError:
+            LOGGER.warning("article_scraper unavailable for X link enrich")
+            return result
+
+        for raw in candidates[:3]:
+            try:
+                try:
+                    resolved = resolve_redirect_url(raw)  # redirect-friendly UA (Chrome UA breaks t.co)
+                except UnsafeURLError as e:
+                    LOGGER.info("Skip unsafe outbound link %s: %s", raw, e)
+                    continue
+                except Exception as e:
+                    LOGGER.info("Redirect resolve failed for %s: %s", raw, e)
+                    resolved = raw
+                    try:
+                        assert_safe_fetch_url(resolved)
+                    except UnsafeURLError:
+                        continue
+
+                if _is_x_status_url(resolved):
+                    LOGGER.info("Skip outbound X status (loop guard): %s", resolved)
+                    continue
+                if _is_x_hosted_url(resolved):
+                    # x.com/i/article etc. — HTML scrape is a login/404 wall;
+                    # API article payload should already have been merged.
+                    LOGGER.info("Skip X-hosted outbound HTML scrape: %s", resolved)
+                    continue
+
+                scraped = scrape_article(resolved)
+                if not scraped or not scraped.get("success"):
+                    LOGGER.info(
+                        "Outbound scrape failed for %s: %s",
+                        resolved,
+                        (scraped or {}).get("error"),
+                    )
+                    continue
+                body = (scraped.get("text") or "").strip()
+                title = (scraped.get("title") or "").strip()
+                if is_link_only_text(body) or len(body) < 50:
+                    continue
+                out = dict(result)
+                out["text"] = body[:_MAX_ENRICH_TEXT]
+                if title:
+                    out["title"] = title
+                else:
+                    out["title"] = self._generate_title(body)
+                src = out.get("source") or "x"
+                out["source"] = f"{src}+link" if "+link" not in src else src
+                out["outbound_resolved"] = resolved
+                out.pop("outbound_urls", None)
+                LOGGER.info(
+                    "Enriched thin X post via outbound link (%s chars from %s)",
+                    len(out["text"]),
+                    resolved,
+                )
+                return out
+            except Exception as e:
+                LOGGER.warning("Outbound enrich error for %s: %s", raw, e)
+                continue
+        return result
+
+    def _refuse_if_thin(self, result: dict) -> dict:
+        """Convert still-thin successes into failures (no empty/link stubs)."""
+        if not result.get("success"):
+            return result
+        if not is_thin_x_result(result):
+            # Drop internal enrich hints before returning to callers.
+            out = dict(result)
+            out.pop("outbound_urls", None)
+            out.pop("article_enrichment", None)
+            return out
+        LOGGER.warning(
+            "Refusing thin link-only X scrape (title=%r text_len=%s)",
+            result.get("title"),
+            len(result.get("text") or ""),
+        )
+        return self._error_result(
+            "Thin link-only X post; outbound enrich failed or unavailable"
+        )
 
     async def fetch_tweet(self, url: str) -> dict:
         """Fetch tweet content from an X/Twitter status URL.
@@ -150,44 +433,60 @@ class XScraper:
 
         # Method 1–3: cookie-free public endpoints (preferred for public tweets)
         result = self._fetch_with_public_apis(url)
-        if result.get("success"):
-            return result
+        if result.get("success") and not is_thin_x_result(result):
+            return self._refuse_if_thin(result)
 
         # Method 4: Playwright only when cookies exist (optional upgrade)
         cookies = load_cookies()
         if cookies:
             LOGGER.info("Public APIs missed; trying Playwright with %d cookies...", len(cookies))
-            result = await self._fetch_with_playwright(url, cookies=cookies)
-            if result.get("success"):
-                return result
+            pw = await self._fetch_with_playwright(url, cookies=cookies)
+            if pw.get("success") and not is_thin_x_result(pw):
+                return self._refuse_if_thin(pw)
+            if pw.get("success"):
+                result = pw
         else:
             LOGGER.info("No X cookies — skipping Playwright (login wall without cookies)")
 
         # Method 5: jina.ai
         LOGGER.info("Trying jina.ai fallback...")
-        result = self._fetch_with_jina(url)
-        if result.get("success"):
-            return result
+        jina = self._fetch_with_jina(url)
+        if jina.get("success") and not is_thin_x_result(jina):
+            return self._refuse_if_thin(jina)
+        if jina.get("success"):
+            result = jina
 
         # Method 6: yt-dlp only if already installed
         if shutil.which("yt-dlp"):
             LOGGER.info("Trying yt-dlp fallback...")
-            result = self._fetch_with_ytdlp(url)
-            if result.get("success"):
-                return result
+            yt = self._fetch_with_ytdlp(url)
+            if yt.get("success") and not is_thin_x_result(yt):
+                return self._refuse_if_thin(yt)
+            if yt.get("success"):
+                result = yt
         else:
             LOGGER.info("yt-dlp not installed — skipping (not required)")
+
+        if result.get("success"):
+            # Last chance: follow outbound t.co / expanded_url.
+            result = self._enrich_thin_via_outbound_links(result)
+            return self._refuse_if_thin(result)
 
         LOGGER.error("All methods failed for: %s", url)
         return self._error_result("X content extraction blocked - manual review needed")
 
     def _fetch_with_public_apis(self, url: str) -> dict:
-        """Try syndication → oEmbed → fxtwitter without any X cookies."""
+        """Try syndication → oEmbed → fxtwitter without any X cookies.
+
+        Thin link-only successes do not short-circuit the chain — fxtwitter
+        often carries the full X Articles body that syndication only previews.
+        """
         parts = extract_status_parts(url)
         if not parts:
             return self._error_result("Not an X/Twitter status URL")
         user, status_id = parts
 
+        thin_fallback = None
         for name, fetcher in (
             ("syndication", lambda: self._fetch_with_syndication(status_id, user)),
             ("oembed", lambda: self._fetch_with_oembed(url, user)),
@@ -198,10 +497,44 @@ class XScraper:
             except Exception as e:
                 LOGGER.warning("%s fetch raised: %s", name, e)
                 continue
-            if result.get("success"):
+            if not result.get("success"):
+                LOGGER.info("%s unavailable: %s", name, result.get("error"))
+                continue
+            # Preview-only X Articles are usable but incomplete — keep
+            # trying fxtwitter which often has full content.blocks.
+            preview_only = result.get("article_enrichment") == "preview"
+            if not is_thin_x_result(result) and not preview_only:
                 LOGGER.info("Fetched via %s (%s chars)", name, len(result.get("text") or ""))
-                return result
-            LOGGER.info("%s unavailable: %s", name, result.get("error"))
+                out = dict(result)
+                out.pop("article_enrichment", None)
+                out.pop("outbound_urls", None)
+                return out
+            LOGGER.info(
+                "%s returned thin/preview content (%s chars, enrichment=%s); trying next source",
+                name,
+                len(result.get("text") or ""),
+                result.get("article_enrichment"),
+            )
+            thin_fallback = self._better_thin_fallback(thin_fallback, result)
+
+        if thin_fallback:
+            enriched = self._enrich_thin_via_outbound_links(thin_fallback)
+            if enriched.get("success") and not is_thin_x_result(enriched):
+                LOGGER.info(
+                    "Thin X post enriched via outbound link (%s chars)",
+                    len(enriched.get("text") or ""),
+                )
+                out = dict(enriched)
+                out.pop("article_enrichment", None)
+                out.pop("outbound_urls", None)
+                return out
+            # Keep a usable preview even if outbound follow failed.
+            if thin_fallback.get("success") and not is_thin_x_result(thin_fallback):
+                out = dict(thin_fallback)
+                out.pop("article_enrichment", None)
+                out.pop("outbound_urls", None)
+                return out
+            return enriched
         return self._error_result("Public X APIs returned no usable content")
 
     def _http_get_json(self, api_url: str) -> Optional[dict]:
@@ -258,7 +591,7 @@ class XScraper:
                 or author
             )
 
-        return {
+        result = {
             "success": True,
             "text": text,
             "author": (author or "").lstrip("@") or None,
@@ -266,6 +599,8 @@ class XScraper:
             "error": None,
             "source": "syndication",
         }
+        result = self._merge_x_article(result, data.get("article") if isinstance(data.get("article"), dict) else None)
+        return self._attach_outbound_urls(result, _extract_entity_urls(data))
 
     def _fetch_with_oembed(self, url: str, user: Optional[str]) -> dict:
         """Official publish.twitter.com oEmbed HTML → plain text."""
@@ -288,7 +623,7 @@ class XScraper:
             if tail and re.fullmatch(r"[A-Za-z0-9_]{1,15}", tail):
                 author = tail
 
-        return {
+        result = {
             "success": True,
             "text": text,
             "author": (author or "").lstrip("@") or None,
@@ -296,6 +631,7 @@ class XScraper:
             "error": None,
             "source": "oembed",
         }
+        return self._attach_outbound_urls(result, _urls_from_text(text))
 
     def _fetch_with_fxtwitter(self, status_id: str, user: Optional[str]) -> dict:
         """fxtwitter / FixupX public JSON mirror."""
@@ -320,7 +656,7 @@ class XScraper:
         else:
             author = tweet.get("user_screen_name") or author
 
-        return {
+        result = {
             "success": True,
             "text": text,
             "author": (author or "").lstrip("@") or None,
@@ -328,6 +664,14 @@ class XScraper:
             "error": None,
             "source": "fxtwitter",
         }
+        article = tweet.get("article") if isinstance(tweet.get("article"), dict) else None
+        result = self._merge_x_article(result, article)
+        return self._attach_outbound_urls(
+            result,
+            _extract_entity_urls(data),
+            _extract_entity_urls(tweet),
+            _urls_from_text(text),
+        )
 
     async def _fetch_with_playwright(self, url: str, cookies: Optional[list] = None) -> dict:
         """Playwright with stealth; call only when cookies are available."""
