@@ -48,15 +48,21 @@ def check_duplicate(url: str) -> Optional[Bookmark]:
     return None
 
 
-def find_similar_duplicate(bookmark: Bookmark) -> tuple[Optional[Bookmark], Optional[str]]:
+def find_similar_duplicate(
+    bookmark: Bookmark,
+    exclude_ids: set[str] | None = None,
+) -> tuple[Optional[Bookmark], Optional[str]]:
     """Check if a near-duplicate topic already exists.
 
     Skips the check when the new bookmark text is empty/thin — comparing
     stubs produces false DUPLICATE_TOPIC hits (e.g. against "Article from …").
+    Pass *exclude_ids* (e.g. the bookmark being replaced) so self-matches
+    do not trip DUPLICATE_TOPIC / exact-URL hits during --replace.
     """
     if not is_usable_scrape_text(bookmark.text, source=bookmark.source):
         return None, None
-    bookmarks = load_bookmarks()
+    skip = exclude_ids or set()
+    bookmarks = [b for b in load_bookmarks() if b.id not in skip]
     payload = [b.to_dict() for b in bookmarks]
     result = check_duplicate_topic(bookmark.url, bookmark.title, bookmark.tags, bookmark.text, payload)
     if result.get("is_duplicate"):
@@ -279,7 +285,23 @@ def _verify_ingestion_invariants(before_bookmarks: list[Bookmark], before_analys
     return after_bookmarks, after_analyses
 
 
-def process_bookmark_url(url: str, analyze: bool = True, note: str | None = None) -> Tuple[bool, str, Optional[Bookmark], Optional[AnalysisResult]]:
+def find_bookmark_by_id(bookmark_id: str) -> Optional[Bookmark]:
+    """Return a stored bookmark by id, or None."""
+    target = (bookmark_id or "").strip()
+    if not target:
+        return None
+    for b in load_bookmarks():
+        if b.id == target:
+            return b
+    return None
+
+
+def process_bookmark_url(
+    url: str,
+    analyze: bool = True,
+    note: str | None = None,
+    replace: bool = False,
+) -> Tuple[bool, str, Optional[Bookmark], Optional[AnalysisResult]]:
     """
     Complete workflow: scrape, analyze, save, push.
 
@@ -291,16 +313,20 @@ def process_bookmark_url(url: str, analyze: bool = True, note: str | None = None
         note: the user's own words accompanying the URL (a URL+text message).
             Stored on the bookmark and passed to the analysis as the
             strongest signal of why they saved it.
+        replace: when True, re-scrape and overwrite an existing bookmark for
+            the same canonical URL instead of returning DUPLICATE. Default
+            False keeps DUPLICATE as the safe default for `forge add`.
 
     Returns:
         (success, message, bookmark, analysis)
     """
-    # Check for duplicate
+    # Check for duplicate (default) or locate the row to replace
     existing = check_duplicate(url)
-    if existing:
+    if existing and not replace:
         return False, f"DUPLICATE: Already saved - {existing.title[:50]}...", existing, None
 
-    # Scrape and create bookmark
+    # Scrape and create bookmark. On replace failure the existing row is left
+    # untouched — never wipe a stub only to save nothing.
     bookmark = scrape_and_create_bookmark(url)
     if not bookmark:
         return (
@@ -310,11 +336,27 @@ def process_bookmark_url(url: str, analyze: bool = True, note: str | None = None
             None,
         )
 
+    if existing and replace:
+        # Same URL → same stable id; keep original created_at, mark replace.
+        bookmark.created_at = existing.created_at or bookmark.created_at
+        bookmark.raw_payload = {
+            **(existing.raw_payload or {}),
+            **(bookmark.raw_payload or {}),
+            "replaced": True,
+            "replaced_at": bookmark.bookmarked_at,
+        }
+        if existing.note and not (note and note.strip()):
+            # Keep prior user note unless a new --note was supplied
+            bookmark.note = existing.note
+
     if note and note.strip():
         bookmark.note = note.strip()
         bookmark.raw_payload["capture_mode"] = "url_with_note"
 
-    similar_existing, similar_message = find_similar_duplicate(bookmark)
+    exclude_ids = {existing.id} if (existing and replace) else None
+    similar_existing, similar_message = find_similar_duplicate(
+        bookmark, exclude_ids=exclude_ids
+    )
     if similar_existing:
         return False, f"DUPLICATE_TOPIC: {similar_message}", similar_existing, None
 
@@ -344,6 +386,12 @@ def process_bookmark_url(url: str, analyze: bool = True, note: str | None = None
     before_bookmarks = load_bookmarks()
     before_analyses = load_analysis_results()
 
+    if existing and replace and existing.id != bookmark.id:
+        # Legacy / odd identity: drop the old row so replace does not leave
+        # two bookmarks for the same URL.
+        before_bookmarks = [b for b in before_bookmarks if b.id != existing.id]
+        before_analyses = [a for a in before_analyses if a.bookmark_id != existing.id]
+
     merged_bookmarks = merge_bookmarks(before_bookmarks, [bookmark])
     save_bookmarks(merged_bookmarks)
     LOGGER.info(f"Saved bookmark: {bookmark.id}")
@@ -368,9 +416,10 @@ def process_bookmark_url(url: str, analyze: bool = True, note: str | None = None
     why = analysis.recommendation_reason or ""
     if len(why) > 120:
         why = why[:117] + "..."
+    verb = "Replaced" if (existing and replace) else "Saved"
     if push_success:
-        message = f"✓ Saved: {bookmark.title}\n✓ Bucket: {analysis.recommendation_bucket}\n✓ Priority: {analysis.priority_score}\n✓ Why: {why}\n✓ Pushed to GitHub"
+        message = f"✓ {verb}: {bookmark.title}\n✓ Bucket: {analysis.recommendation_bucket}\n✓ Priority: {analysis.priority_score}\n✓ Why: {why}\n✓ Pushed to GitHub"
     else:
-        message = f"✓ Saved: {bookmark.title}\n✓ Bucket: {analysis.recommendation_bucket}\n✓ Priority: {analysis.priority_score}\n✓ Why: {why}\n✓ Saved locally"
+        message = f"✓ {verb}: {bookmark.title}\n✓ Bucket: {analysis.recommendation_bucket}\n✓ Priority: {analysis.priority_score}\n✓ Why: {why}\n✓ Saved locally"
     
     return True, message, bookmark, analysis

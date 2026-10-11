@@ -175,7 +175,7 @@ def test_find_similar_duplicate_skips_thin_new_bookmark(monkeypatch):
 
 def test_good_scrape_still_saves(monkeypatch):
     monkeypatch.setattr(bw, "check_duplicate", lambda url: None)
-    monkeypatch.setattr(bw, "find_similar_duplicate", lambda b: (None, None))
+    monkeypatch.setattr(bw, "find_similar_duplicate", lambda b, exclude_ids=None: (None, None))
     stored = {}
 
     def save_bookmarks(bookmarks):
