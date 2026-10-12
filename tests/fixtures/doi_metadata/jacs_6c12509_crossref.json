@@ -1,0 +1,87 @@
+{
+  "status": "ok",
+  "message-type": "work",
+  "message-version": "1.0.0",
+  "message": {
+    "DOI": "10.1021/jacs.6c12509",
+    "title": [
+      "Alkyl-to-Alkyl\nPalladium Migration Enables Remote\nC\u2013C Bond Formation"
+    ],
+    "author": [
+      {
+        "given": "Yangjin",
+        "family": "Kuang",
+        "sequence": "first",
+        "affiliation": [
+          {
+            "name": "New York University , , , ,",
+            "place": [
+              "New York, New York, United States, 10003"
+            ]
+          }
+        ],
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      },
+      {
+        "given": "Daniel",
+        "family": "Zhou",
+        "sequence": "additional",
+        "affiliation": [
+          {
+            "name": "New York University , , , ,",
+            "place": [
+              "New York, New York, United States, 10003"
+            ]
+          }
+        ],
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      },
+      {
+        "ORCID": "https://orcid.org/0000-0003-0285-9663",
+        "authenticated-orcid": true,
+        "given": "Martin",
+        "family": "Tomanik",
+        "sequence": "additional",
+        "affiliation": [
+          {
+            "name": "New York University , , , ,",
+            "place": [
+              "New York, New York, United States, 10003"
+            ]
+          }
+        ],
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      }
+    ],
+    "container-title": [
+      "Journal of the American\nChemical Society"
+    ],
+    "abstract": "<jats:title>Abstract</jats:title>\n                  <jats:p>Palladium-catalyzed C\u2013H activation reactions are typically viewed as positionally static, with the site of reactivity dictated by the location of the initial metalation event. Herein, we report a strategy that overcomes this constraint by enabling migration of a \u03c3-alkyl palladium intermediate prior to carbon\u2013carbon bond formation via a previously inaccessible through-space alkyl-to-alkyl palladium shift. This two-component annulation of 2-bromoanilines or 2-bromophenols with allylic bromides proceeds through the formation of an alkyl\u2013Pd species that undergoes translocation across the carbon framework via engagement of a distal C(sp3)\u2013H bond. This process enables a cross-dehydrogenative bond formation at a site far from the point of initial catalyst installation and furnishes tricyclic heterocycle products from simple precursors. Our transformation displays a broad substrate scope across both coupling partners and exhibits excellent heteroatom compatibility. Mechanistic studies support a pathway involving reversible C\u2013H activation and migration driven by relief of steric congestion at the palladium center. These findings establish alkyl-to-alkyl palladium migration as a viable mode of reactivity and provide a foundation for reaction design based on catalyst translocation mechanisms.</jats:p>",
+    "published-print": {
+      "date-parts": [
+        [
+          2026,
+          9,
+          9
+        ]
+      ]
+    },
+    "URL": "https://doi.org/10.1021/jacs.6c12509",
+    "publisher": "American Chemical Society (ACS)"
+  }
+}
