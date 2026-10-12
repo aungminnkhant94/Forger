@@ -18,6 +18,11 @@ from tenacity import (
 )
 
 from forger.url_safety import UnsafeURLError, assert_safe_fetch_url
+from forger.scrapers.doi_metadata import (
+    extract_doi_from_url,
+    is_acs_doi_url,
+    scrape_doi_metadata,
+)
 from forger.scrapers.pubchem import is_pubchem_compound_url, scrape_pubchem_compound
 
 LOGGER = logging.getLogger(__name__)
@@ -100,7 +105,18 @@ def scrape_article(url: str, timeout: int = DEFAULT_TIMEOUT) -> dict:
             url,
             pubchem.get("error") or "unknown",
         )
-    
+
+    # ACS/JACS DOI pages often return HTTP 403 to scrapers; prefer Crossref metadata.
+    if is_acs_doi_url(url):
+        doi_meta = scrape_doi_metadata(url, timeout=timeout)
+        if doi_meta.get("success"):
+            return doi_meta
+        LOGGER.warning(
+            "DOI metadata scrape failed for %s (%s); falling back to HTML",
+            url,
+            doi_meta.get("error") or "unknown",
+        )
+
     try:
         LOGGER.info(f"Fetching article: {url}")
         response = _fetch_url(url, headers, timeout)
@@ -175,6 +191,14 @@ def scrape_article(url: str, timeout: int = DEFAULT_TIMEOUT) -> dict:
             }
         else:
             LOGGER.warning(f"Insufficient content extracted from {url}")
+            if extract_doi_from_url(url):
+                doi_meta = scrape_doi_metadata(url, timeout=timeout)
+                if doi_meta.get("success"):
+                    LOGGER.info(
+                        "Recovered thin HTML scrape via DOI metadata for %s",
+                        url,
+                    )
+                    return doi_meta
             return {
                 'success': False,
                 'title': title,
@@ -206,6 +230,15 @@ def scrape_article(url: str, timeout: int = DEFAULT_TIMEOUT) -> dict:
         }
     except HTTPError as e:
         LOGGER.error(f"HTTP error for {url}: {e}")
+        # Publisher 403/paywall: if the URL carries a DOI, try Crossref title+abstract.
+        if extract_doi_from_url(url):
+            doi_meta = scrape_doi_metadata(url, timeout=timeout)
+            if doi_meta.get("success"):
+                LOGGER.info(
+                    "Recovered from HTTP error via DOI metadata for %s",
+                    url,
+                )
+                return doi_meta
         return {
             'success': False,
             'title': None,
