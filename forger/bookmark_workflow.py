@@ -59,7 +59,9 @@ def find_similar_duplicate(
     Pass *exclude_ids* (e.g. the bookmark being replaced) so self-matches
     do not trip DUPLICATE_TOPIC / exact-URL hits during --replace.
     """
-    if not is_usable_scrape_text(bookmark.text, source=bookmark.source):
+    if not is_usable_scrape_text(
+        bookmark.text, source=bookmark.source, title=bookmark.title
+    ):
         return None, None
     skip = exclude_ids or set()
     bookmarks = [b for b in load_bookmarks() if b.id not in skip]
@@ -93,11 +95,12 @@ def scrape_and_create_bookmark(url: str) -> Optional[Bookmark]:
             LOGGER.warning("X scrape returned no usable content for %s", url)
             return None
         body = (scraped.get("text") or "").strip()
-        if not is_usable_scrape_text(body, source="x"):
+        title_guess = scraped.get("title")
+        if not is_usable_scrape_text(body, source="x", title=title_guess):
             LOGGER.warning("X scrape body empty/thin for %s", url)
             return None
         author = scraped.get("author", "unknown")
-        title = scraped.get("title") or (body[:80] + "..." if len(body) > 80 else body)
+        title = title_guess or (body[:80] + "..." if len(body) > 80 else body)
         note = f"Auto-captured from X. Author: @{author}"
         scraped_via = scraped.get("source") or "playwright"
     else:
@@ -118,10 +121,14 @@ def scrape_and_create_bookmark(url: str) -> Optional[Bookmark]:
             )
             return None
         body = (scraped.get("text") or "").strip()
-        if not is_usable_scrape_text(body, source="article"):
-            LOGGER.warning("Article scrape body empty/thin for %s", url)
+        title_guess = scraped.get("title")
+        if not is_usable_scrape_text(body, source="article", title=title_guess):
+            LOGGER.warning(
+                "Article scrape body empty/thin/challenge for %s",
+                url,
+            )
             return None
-        title = scraped.get("title") or f"Article from {url.split('/')[2]}"
+        title = title_guess or f"Article from {url.split('/')[2]}"
         author = scraped.get("author")
         note = f"Auto-captured article. Author: {author}" if author else "Auto-captured from URL"
         scraped_via = scraped.get("source")
@@ -331,7 +338,7 @@ def process_bookmark_url(
     if not bookmark:
         return (
             False,
-            "SCRAPE_FAILED: No usable content (refusing to save an empty/thin stub)",
+            "SCRAPE_FAILED: No usable content (refusing to save empty/thin/challenge trash)",
             None,
             None,
         )

@@ -18,6 +18,11 @@ from tenacity import (
 )
 
 from forger.url_safety import UnsafeURLError, assert_safe_fetch_url
+from forger.scrape_quality import (
+    is_bot_challenge_content,
+    is_bot_challenge_headers,
+    is_bot_challenge_html,
+)
 from forger.scrapers.doi_metadata import (
     extract_doi_from_url,
     is_acs_doi_url,
@@ -57,6 +62,20 @@ def _fetch_url(url: str, headers: dict, timeout: int) -> requests.Response:
     response = requests.get(url, headers=headers, timeout=timeout)
     response.raise_for_status()
     return response
+
+
+
+def _challenge_failure(url: str, *, title=None, text=None, detail: str = "bot challenge") -> dict:
+    """Uniform failure payload for anti-bot interstitials."""
+    LOGGER.warning("Refusing bot-challenge / trash scrape for %s (%s)", url, detail)
+    return {
+        "success": False,
+        "title": title,
+        "text": text,
+        "author": None,
+        "source": None,
+        "error": f"Bot challenge / anti-bot interstitial ({detail})",
+    }
 
 
 def scrape_article(url: str, timeout: int = DEFAULT_TIMEOUT) -> dict:
@@ -120,7 +139,26 @@ def scrape_article(url: str, timeout: int = DEFAULT_TIMEOUT) -> dict:
     try:
         LOGGER.info(f"Fetching article: {url}")
         response = _fetch_url(url, headers, timeout)
-        
+
+        # Cloudflare advertises challenges via cf-mitigated; Nature/Fastly and
+        # others serve HTTP 200 Client Challenge HTML that still looks "long".
+        if is_bot_challenge_headers(getattr(response, "headers", None)):
+            return _challenge_failure(url, detail="cf-mitigated: challenge")
+        if is_bot_challenge_html(response.text):
+            # Prefer title from HTML for logging; do not save the body.
+            rough_title = None
+            try:
+                rough_soup = BeautifulSoup(response.text, "html.parser")
+                if rough_soup.find("title"):
+                    rough_title = rough_soup.find("title").get_text().strip()
+            except Exception:
+                rough_title = None
+            return _challenge_failure(
+                url,
+                title=rough_title,
+                detail="challenge HTML markers",
+            )
+
         soup = BeautifulSoup(response.text, 'html.parser')
         
         # Extract title
@@ -178,6 +216,16 @@ def scrape_article(url: str, timeout: int = DEFAULT_TIMEOUT) -> dict:
         except Exception as e:
             LOGGER.debug(f"Could not extract author: {e}")
         
+        # Challenge pages can clear HTML markers after script stripping but
+        # still leave interstitial titles / enable-JS copy — refuse those too.
+        if is_bot_challenge_content(title=title, text=text, html=response.text):
+            return _challenge_failure(
+                url,
+                title=title,
+                text=text,
+                detail="challenge title/body",
+            )
+
         # Check if we got meaningful content
         if title and text and len(text) > 200:
             LOGGER.info(f"Successfully scraped article: {title[:80]}...")
@@ -304,6 +352,14 @@ def scrape_article_with_fallback(url: str, timeout: int = DEFAULT_TIMEOUT) -> di
         text = '\n'.join(p.get_text().strip() for p in paragraphs if p.get_text().strip())
         text = text[:MAX_TEXT_LENGTH]
         
+        if is_bot_challenge_content(title=title, text=text, html=response.text):
+            return _challenge_failure(
+                url,
+                title=title,
+                text=text,
+                detail="challenge in fallback scrape",
+            )
+
         if title or text:
             LOGGER.info(f"Fallback scrape successful for {url}")
             return {
