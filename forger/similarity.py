@@ -26,7 +26,11 @@ def find_similar_bookmarks(
     for bookmark in existing_bookmarks:
         # Ignore empty/thin stubs left over from older failed scrapes.
         existing_source = bookmark.get("source") or "article"
-        if not is_usable_scrape_text(bookmark.get("text"), source=existing_source):
+        if not is_usable_scrape_text(
+            bookmark.get("text"),
+            source=existing_source,
+            title=bookmark.get("title"),
+        ):
             continue
 
         score = 0.0
@@ -96,7 +100,7 @@ def check_duplicate_topic(
 
     # Thin/empty / failure-stub bodies must not trigger DUPLICATE_TOPIC.
     source = "x" if url and ("x.com/" in url.lower() or "twitter.com/" in url.lower()) else "article"
-    if not is_usable_scrape_text(text, source=source):
+    if not is_usable_scrape_text(text, source=source, title=title):
         return {
             'is_duplicate': False,
             'similar': [],
