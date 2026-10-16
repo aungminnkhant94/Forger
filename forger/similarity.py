@@ -4,6 +4,7 @@ from difflib import SequenceMatcher
 from typing import List, Dict, Any
 
 from forger.scrape_quality import is_usable_scrape_text
+from forger.tagging import normalize_tags
 
 def similarity_score(str1: str, str2: str) -> float:
     """Calculate string similarity (0-1)."""
@@ -37,8 +38,8 @@ def find_similar_bookmarks(
         reasons = []
         
         # Tag overlap (high weight)
-        existing_tags = set(bookmark.get('tags', []))
-        new_tags_set = set(new_tags)
+        existing_tags = set(normalize_tags(bookmark.get('tags', [])))
+        new_tags_set = set(normalize_tags(new_tags))
         if existing_tags and new_tags_set:
             tag_overlap = len(existing_tags & new_tags_set) / max(len(existing_tags), len(new_tags_set))
             if tag_overlap >= 0.5:  # 50% tag overlap

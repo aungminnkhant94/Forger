@@ -1,4 +1,5 @@
 import { matchesSearchQuery } from './search';
+import { hasTag, normalizeTag } from './tags';
 
 // Types
 export interface Bookmark {
@@ -128,7 +129,7 @@ export function getBookmarksByBucket(
 
 export function getAllTags(bookmarks: Bookmark[]): string[] {
   const tagSet = new Set<string>();
-  bookmarks.forEach(b => b.tags?.forEach(tag => tagSet.add(tag)));
+  bookmarks.forEach(b => b.tags?.forEach(tag => { const t = normalizeTag(tag); if (t) tagSet.add(t); }));
   return Array.from(tagSet).sort();
 }
 
@@ -198,7 +199,7 @@ export function advancedSearch({
   // Tags filter
   if (tags && tags.length > 0) {
     results = results.filter(b => 
-      tags.some(tag => b.tags?.includes(tag))
+      tags.some(tag => hasTag(b.tags, tag))
     );
   }
   

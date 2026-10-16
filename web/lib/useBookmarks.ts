@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { normalizeTag } from './tags';
 
 // Types (copied from data.ts to avoid import issues)
 export interface Bookmark {
@@ -137,7 +138,7 @@ export function useBookmarks(): UseBookmarksReturn {
       // Extract unique tags
       const tagSet = new Set<string>();
       bookmarksData.forEach((b: Bookmark) => {
-        b.tags?.forEach((tag: string) => tagSet.add(tag));
+        b.tags?.forEach((tag: string) => { const t = normalizeTag(tag); if (t) tagSet.add(t); });
       });
       const uniqueTags = Array.from(tagSet).sort();
 

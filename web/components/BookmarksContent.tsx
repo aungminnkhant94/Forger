@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { hasTag } from '../lib/tags';
 import { FilterSidebar } from './FilterSidebar';
 import { SearchBar } from './SearchBar';
 import { BookmarkList } from './BookmarkList';
@@ -35,7 +36,7 @@ export function BookmarksContent({ allBookmarks, allTags, onRefresh, isRefreshin
         // Tag filter
         if (selectedTags.length > 0) {
           const hasSelectedTag = selectedTags.some(tag => 
-            bookmark.tags?.includes(tag)
+            hasTag(bookmark.tags, tag)
           );
           if (!hasSelectedTag) return false;
         }
