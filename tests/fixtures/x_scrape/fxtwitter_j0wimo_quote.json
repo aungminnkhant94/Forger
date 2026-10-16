@@ -1,0 +1,41 @@
+{
+  "code": 200,
+  "message": "OK",
+  "tweet": {
+    "id": "2108723087214620910",
+    "text": "this is purely insane btw",
+    "author": {
+      "screen_name": "j0wimo",
+      "name": "jonas wiedermann-m\u00f6ller"
+    },
+    "quote": {
+      "id": "2108680150556737819",
+      "text": "We\u2019re beginning a process of publishing more frequent reports on model behavior, beyond what appears in our system cards and regular risk reports.\n\nToday\u2019s report describes four types of behaviors we\u2019ve identified during evaluations and internal use. In each, Claude acted on real websites or systems in ways we didn\u2019t intend, sometimes by working around a restriction instead of stopping. \n\nAll cases had minimal real-world impact. From an alignment and security perspective, we consider these behaviors significantly less severe than the cybersecurity incidents we reported in July and September.\n\nRead the full report: https://www.anthropic.com/research/investigating-unintended-model-actions",
+      "url": "https://x.com/AnthropicAI/status/2108680150556737819",
+      "author": {
+        "screen_name": "AnthropicAI",
+        "name": "Anthropic"
+      },
+      "raw_text": {
+        "text": "We\u2019re beginning a process of publishing more frequent reports on model behavior, beyond what appears in our system cards and regular risk reports.\n\nToday\u2019s report describes four types of behaviors we\u2019ve identified during evaluations and internal use. In each, Claude acted on real websites or systems in ways we didn\u2019t intend, sometimes by working around a restriction instead of stopping. \n\nAll cases had minimal real-world impact. From an alignment and security perspective, we consider these behaviors significantly less severe than the cybersecurity incidents we reported in July and September.\n\nRead the full report: https://t.co/mGeVIBgdou",
+        "display_text_range": [
+          0,
+          645
+        ],
+        "facets": [
+          {
+            "type": "url",
+            "indices": [
+              622,
+              645
+            ],
+            "original": "https://t.co/mGeVIBgdou",
+            "replacement": "https://www.anthropic.com/research/investigating-unintended-model-actions",
+            "display": "anthropic.com/research/inves\u2026"
+          }
+        ]
+      }
+    },
+    "url": "https://x.com/j0wimo/status/2108723087214620910"
+  }
+}
