@@ -1,6 +1,27 @@
 from __future__ import annotations
 
+import re
 from typing import Iterable
+
+# Canonical tag form: lowercase kebab-case ("machine-learning"), matching
+# TAG_RULES and the analysis prompts. Spaces/underscores become hyphens.
+_TAG_SEP_RE = re.compile(r"[\s_\-]+")
+
+
+def normalize_tag(tag: object) -> str:
+    """Return the canonical form of *tag* ("Machine Learning" -> "machine-learning")."""
+    text = str(tag or "").strip().lower().lstrip("#").strip()
+    return _TAG_SEP_RE.sub("-", text).strip("-")
+
+
+def normalize_tags(tags: Iterable[object] | None) -> list[str]:
+    """Normalize, drop empties, and dedupe while keeping first-seen order."""
+    out: list[str] = []
+    for tag in tags or []:
+        norm = normalize_tag(tag)
+        if norm and norm not in out:
+            out.append(norm)
+    return out
 
 TAG_RULES: list[tuple[str, tuple[str, ...]]] = [
     ("agents", ("agent", "agents", "agentic", "multi-agent", "orchestration")),
@@ -46,7 +67,7 @@ def infer_tags(*parts: str | None, limit: int = 5) -> list[str]:
 
 
 def clean_tags(existing: Iterable[str] | None, *parts: str | None, limit: int = 5) -> list[str]:
-    cleaned = [t.strip().lower() for t in (existing or []) if t and t.strip().lower() != "general"]
+    cleaned = [t for t in normalize_tags(existing) if t != "general"]
     inferred = infer_tags(*parts, limit=limit)
     final: list[str] = []
     for tag in [*cleaned, *inferred]:

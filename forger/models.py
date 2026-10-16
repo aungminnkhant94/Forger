@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
 from typing import Any
+from forger.tagging import normalize_tags
 
 
 def _optional_str(value: Any) -> str | None:
@@ -47,7 +48,7 @@ class Bookmark:
             author=payload.get("author"),
             created_at=payload.get("created_at"),
             bookmarked_at=payload.get("bookmarked_at"),
-            tags=[str(tag) for tag in payload.get("tags", []) if str(tag).strip()],
+            tags=normalize_tags(payload.get("tags", []) or []),
             raw_payload=payload.get("raw_payload", {}) or {},
         )
 
@@ -144,7 +145,7 @@ class AnalysisResult:
             next_action=str(payload.get("next_action", "")).strip() or None,
             title=str(payload.get("title", "")).strip() or None,
             relates_to=str(payload.get("relates_to", "")).strip() or None,
-            tags=[str(tag) for tag in payload.get("tags", []) if str(tag).strip()],
+            tags=normalize_tags(payload.get("tags", []) or []),
             # Personalized scoring fields
             personalized_worth_score=payload.get("personalized_worth_score"),
             personalized_priority_score=payload.get("personalized_priority_score"),
