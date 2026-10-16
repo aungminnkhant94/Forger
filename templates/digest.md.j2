@@ -21,6 +21,7 @@
 | Test This Week | **{{ stats.test_this_week }}** ⚡ |
 | Build Later | **{{ stats.build_later }}** 📚 |
 | Archive | **{{ stats.archive }}** |
+| Ignore | **{{ stats.ignore }}** 🗑️ |
 | Avg Worth Score | **{{ "%.1f"|format(stats.avg_worth_score) }}** / 10 |
 | Avg Priority Score | **{{ "%.1f"|format(stats.avg_priority_score) }}** / 10 |
 
@@ -61,7 +62,7 @@
 {% if build_later %}
 ## 📚 Build Later ({{ build_later|length }} items)
 
-High-priority items from your backlog:
+Items parked in build_later:
 
 {% for item in build_later[:10] %}
 {{ loop.index }}. **{{ item.bookmark.title or item.bookmark.text[:60] + "..." }}**

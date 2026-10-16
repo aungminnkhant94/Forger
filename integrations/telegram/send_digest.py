@@ -95,13 +95,14 @@ class TelegramFormatter:
         lines.append(f"• ⚡ Test this week: {stats.test_this_week}")
         lines.append(f"• 📚 Build later: {stats.build_later}")
         lines.append(f"• 📁 Archive: {stats.archive}")
+        lines.append(f"• 🗑️ Ignore: {stats.ignore}")
         if stats.avg_priority_score > 0:
             avg = cls.escape_markdown(f"{stats.avg_priority_score:.1f}")
             lines.append(f"• Avg priority: {avg}/10")
         lines.append("")
 
         if digest.test_this_week:
-            lines.append("⚡ *Top Priority Items*")
+            lines.append("⚡ *Test This Week*")
             for i, item in enumerate(digest.test_this_week[:3], 1):
                 label = cls._bookmark_label(item, 50)
                 priority = item.analysis.priority_score
@@ -160,6 +161,7 @@ class TelegramFormatter:
             f"• ⚡ Test this week: {digest.stats.test_this_week}",
             f"• 📚 Build later: {digest.stats.build_later}",
             f"• 📁 Archive: {digest.stats.archive}",
+            f"• 🗑️ Ignore: {digest.stats.ignore}",
         ]
 
         if digest.stats.avg_worth_score > 0:
@@ -263,7 +265,8 @@ class TelegramFormatter:
             "",
             (
                 f"📊 New: {stats.total_new} \\| ⚡ {stats.test_this_week} \\| "
-                f"📚 {stats.build_later} \\| 📁 {stats.archive}"
+                f"📚 {stats.build_later} \\| 📁 {stats.archive} \\| "
+                f"🗑️ {stats.ignore}"
             ),
         ]
 
