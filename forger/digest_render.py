@@ -92,6 +92,7 @@ def print_console_summary(digest: WeeklyDigest) -> None:
     print(f"   ⚡ Test this week: {digest.stats.test_this_week}")
     print(f"   📚 Build later:    {digest.stats.build_later}")
     print(f"   📁 Archive:        {digest.stats.archive}")
+    print(f"   🗑️  Ignore:         {digest.stats.ignore}")
 
     if digest.stats.avg_worth_score > 0:
         print(f"\n   Avg worth score:   {digest.stats.avg_worth_score:.1f}/10")

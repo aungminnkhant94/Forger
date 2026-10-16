@@ -18,17 +18,56 @@ from zoneinfo import ZoneInfo
 # Local timezone for digest windows. Configure with FORGER_TZ (any IANA
 # name, e.g. "Asia/Macau"). Defaults to the system timezone; falls back to UTC
 # when neither is resolvable (Windows without the tzdata package).
+#
+# Do NOT use datetime.tzname() abbreviations like "CST" — ZoneInfo rejects
+# them, which previously silently fell back to UTC and skewed the week window
+# relative to local wall-clock `datetime.now()`.
 import os as _os
+from pathlib import Path as _Path
+
+
+def _try_zone(name: str | None) -> ZoneInfo | None:
+    if not name:
+        return None
+    try:
+        return ZoneInfo(name.strip())
+    except Exception:
+        return None
 
 
 def _resolve_local_tz() -> ZoneInfo:
-    for candidate in (_os.getenv("FORGER_TZ"), datetime.now().astimezone().tzname()):
-        if not candidate:
-            continue
-        try:
-            return ZoneInfo(candidate)
-        except Exception:
-            continue
+    env_tz = _try_zone(_os.getenv("FORGER_TZ"))
+    if env_tz is not None:
+        return env_tz
+
+    # Linux: /etc/timezone or the zoneinfo target of /etc/localtime
+    try:
+        tz_file = _Path("/etc/timezone")
+        if tz_file.is_file():
+            z = _try_zone(tz_file.read_text(encoding="utf-8").splitlines()[0])
+            if z is not None:
+                return z
+    except Exception:
+        pass
+    try:
+        localtime = _Path("/etc/localtime")
+        if localtime.exists():
+            resolved = localtime.resolve()
+            parts = resolved.parts
+            if "zoneinfo" in parts:
+                key = "/".join(parts[parts.index("zoneinfo") + 1 :])
+                z = _try_zone(key)
+                if z is not None:
+                    return z
+    except Exception:
+        pass
+
+    # ZoneInfo-backed tzinfo exposes .key (IANA). Fixed-offset zones do not.
+    key = getattr(datetime.now().astimezone().tzinfo, "key", None)
+    z = _try_zone(key if isinstance(key, str) else None)
+    if z is not None:
+        return z
+
     return ZoneInfo("UTC")
 
 
@@ -76,7 +115,11 @@ class WeeklyDigest:
 
 
 def parse_datetime(dt_str: str | None) -> datetime | None:
-    """Parse ISO datetime string and normalize to local timezone."""
+    """Parse ISO datetime string and normalize to local timezone (naive).
+
+    Timestamps with an offset/Z are converted into LOCAL_TZ wall time.
+    Naive timestamps are treated as already-local (no silent UTC shift).
+    """
     if not dt_str:
         return None
     try:
@@ -87,6 +130,11 @@ def parse_datetime(dt_str: str | None) -> datetime | None:
         return dt
     except (ValueError, TypeError):
         return None
+
+
+def bookmark_event_time(bookmark: Bookmark) -> datetime | None:
+    """Best timestamp for week-window membership: bookmarked_at, else created_at."""
+    return parse_datetime(bookmark.bookmarked_at) or parse_datetime(bookmark.created_at)
 
 
 def extract_action_items(analysis: AnalysisResult) -> list[str]:
@@ -204,9 +252,13 @@ def generate_insights(digest: WeeklyDigest) -> list[str]:
     insights = []
     stats = digest.stats
     
-    # Priority insight
+    # test_this_week bucket insight (do not call this "high-priority" —
+    # priority_score is a separate signal; the bucket name is the label).
     if stats.test_this_week > 0:
-        insights.append(f"⚡ You have {stats.test_this_week} high-priority item{'s' if stats.test_this_week > 1 else ''} to test this week.")
+        n = stats.test_this_week
+        insights.append(
+            f"⚡ You have {n} item{'s' if n > 1 else ''} in test_this_week."
+        )
     
     # Build later insight
     if stats.build_later > 5:
@@ -236,8 +288,15 @@ def generate_insights(digest: WeeklyDigest) -> list[str]:
 
 
 def generate_weekly_digest(days: int = 7) -> WeeklyDigest:
-    """Generate a weekly digest of bookmarks."""
-    now = datetime.now()
+    """Generate a weekly digest of bookmarks.
+
+    Only bookmarks whose bookmarked_at (else created_at) falls inside
+    [now - days, now] in LOCAL_TZ are counted. Older library items must
+    not inflate "New bookmarks" or bucket totals.
+    """
+    # Use LOCAL_TZ wall clock so the window matches the range printed on
+    # the digest (not a UTC-skewed datetime.now() after a bad tz fallback).
+    now = datetime.now(LOCAL_TZ).replace(tzinfo=None)
     week_start = now - timedelta(days=days)
     
     # Load all data
@@ -245,13 +304,15 @@ def generate_weekly_digest(days: int = 7) -> WeeklyDigest:
     all_analyses = load_analysis_results()
     analysis_map = {a.bookmark_id: a for a in all_analyses}
     
-    # Filter to current week
+    # Filter to current week window only
     current_bookmarks = []
     current_analyses = []
     
     for bookmark in all_bookmarks:
-        bookmarked_at = parse_datetime(bookmark.bookmarked_at)
-        if bookmarked_at and bookmarked_at >= week_start:
+        event_at = bookmark_event_time(bookmark)
+        if event_at is None:
+            continue
+        if week_start <= event_at <= now:
             current_bookmarks.append(bookmark)
             if bookmark.id in analysis_map:
                 current_analyses.append(analysis_map[bookmark.id])

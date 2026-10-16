@@ -120,6 +120,7 @@
         .stat-card.test .stat-value { color: var(--accent-green); }
         .stat-card.build .stat-value { color: var(--accent-orange); }
         .stat-card.archive .stat-value { color: var(--text-secondary); }
+        .stat-card.ignore .stat-value { color: #ef4444; }
         
         .section {
             margin-bottom: 40px;
@@ -353,6 +354,10 @@
             <div class="stat-card archive">
                 <div class="stat-value">{{ stats.archive }}</div>
                 <div class="stat-label">Archive</div>
+            </div>
+            <div class="stat-card ignore">
+                <div class="stat-value">{{ stats.ignore }}</div>
+                <div class="stat-label">Ignore</div>
             </div>
         </div>
         
