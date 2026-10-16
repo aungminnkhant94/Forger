@@ -100,6 +100,15 @@ class TestXScraperGenerateTitle:
         title = scraper._generate_title("")
         assert title == "X Post"
 
+    def test_generate_title_strips_trailing_tco(self):
+        """Raw t.co must not leak into the title."""
+        scraper = XScraper()
+        title = scraper._generate_title(
+            "this is purely insane btw https://t.co/olDx5YYBqY"
+        )
+        assert title == "this is purely insane btw"
+        assert "t.co" not in title
+
 
 class TestXScraperErrorResult:
     """Tests for error result generation."""

@@ -1,0 +1,200 @@
+{
+  "__typename": "Tweet",
+  "favorite_count": 2657,
+  "lang": "en",
+  "possibly_sensitive": false,
+  "created_at": "2026-10-10T00:55:36.000Z",
+  "display_text_range": [
+    0,
+    25
+  ],
+  "entities": {
+    "media": [
+      {
+        "display_url": "pic.x.com/olDx5YYBqY",
+        "expanded_url": "https://x.com/j0wimo/status/2108723087214620910/photo/1",
+        "indices": [
+          26,
+          49
+        ],
+        "url": "https://t.co/olDx5YYBqY"
+      }
+    ]
+  },
+  "id_str": "2108723087214620910",
+  "text": "this is purely insane btw https://t.co/olDx5YYBqY",
+  "user": {
+    "id_str": "1129880257220235264",
+    "name": "jonas wiedermann-m\u00f6ller",
+    "screen_name": "j0wimo",
+    "is_blue_verified": true,
+    "profile_image_shape": "Circle",
+    "verified": false,
+    "profile_image_url_https": "https://pbs.twimg.com/profile_images/2050185744145080320/C8IRD5HK_normal.jpg"
+  },
+  "edit_control": {
+    "edit_tweet_ids": [
+      "2108723087214620910"
+    ],
+    "editable_until_msecs": "1791597336000",
+    "edits_remaining": "5",
+    "is_edit_eligible": true
+  },
+  "mediaDetails": [
+    {
+      "display_url": "pic.x.com/olDx5YYBqY",
+      "expanded_url": "https://x.com/j0wimo/status/2108723087214620910/photo/1",
+      "ext_media_availability": {
+        "status": "Available"
+      },
+      "indices": [
+        26,
+        49
+      ],
+      "media_url_https": "https://pbs.twimg.com/media/HUOwd5qXwAEWVgf.jpg",
+      "original_info": {
+        "focus_rects": [
+          {
+            "h": 739,
+            "w": 1320,
+            "x": 0,
+            "y": 1026
+          },
+          {
+            "h": 1320,
+            "w": 1320,
+            "x": 0,
+            "y": 605
+          },
+          {
+            "h": 1505,
+            "w": 1320,
+            "x": 0,
+            "y": 420
+          },
+          {
+            "h": 1925,
+            "w": 963,
+            "x": 179,
+            "y": 0
+          },
+          {
+            "h": 1925,
+            "w": 1320,
+            "x": 0,
+            "y": 0
+          }
+        ],
+        "height": 1925,
+        "width": 1320
+      },
+      "sizes": {
+        "large": {
+          "h": 1925,
+          "resize": "fit",
+          "w": 1320
+        },
+        "medium": {
+          "h": 1200,
+          "resize": "fit",
+          "w": 823
+        },
+        "small": {
+          "h": 680,
+          "resize": "fit",
+          "w": 466
+        },
+        "thumb": {
+          "h": 150,
+          "resize": "crop",
+          "w": 150
+        }
+      },
+      "type": "photo",
+      "url": "https://t.co/olDx5YYBqY"
+    }
+  ],
+  "photos": [
+    {
+      "backgroundColor": {
+        "red": 204,
+        "green": 214,
+        "blue": 221
+      },
+      "cropCandidates": [
+        {
+          "h": 739,
+          "w": 1320,
+          "x": 0,
+          "y": 1026
+        },
+        {
+          "h": 1320,
+          "w": 1320,
+          "x": 0,
+          "y": 605
+        },
+        {
+          "h": 1505,
+          "w": 1320,
+          "x": 0,
+          "y": 420
+        },
+        {
+          "h": 1925,
+          "w": 963,
+          "x": 179,
+          "y": 0
+        },
+        {
+          "h": 1925,
+          "w": 1320,
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "expandedUrl": "https://x.com/j0wimo/status/2108723087214620910/photo/1",
+      "url": "https://pbs.twimg.com/media/HUOwd5qXwAEWVgf.jpg",
+      "width": 1320,
+      "height": 1925
+    }
+  ],
+  "conversation_count": 37,
+  "news_action_type": "conversation",
+  "quoted_tweet": {
+    "favorite_count": 4574,
+    "lang": "en",
+    "reply_count": 670,
+    "retweet_count": 447,
+    "created_at": "2026-10-09T22:04:59.000Z",
+    "display_text_range": [
+      0,
+      280
+    ],
+    "entities": {},
+    "id_str": "2108680150556737819",
+    "text": "We\u2019re beginning a process of publishing more frequent reports on model behavior, beyond what appears in our system cards and regular risk reports.\n\nToday\u2019s report describes four types of behaviors we\u2019ve identified during evaluations and internal use. In each, Claude acted on real",
+    "user": {
+      "id_str": "1353836358901501952",
+      "name": "Anthropic",
+      "screen_name": "AnthropicAI",
+      "is_blue_verified": true,
+      "profile_image_shape": "Square",
+      "verified": false,
+      "verified_type": "Business",
+      "profile_image_url_https": "https://pbs.twimg.com/profile_images/1798110641414443008/XP8gyBaY_normal.jpg"
+    },
+    "edit_control": {
+      "edit_tweet_ids": [
+        "2108680150556737819"
+      ],
+      "editable_until_msecs": "1791587099000",
+      "edits_remaining": "5",
+      "is_edit_eligible": true
+    },
+    "isEdited": false,
+    "isStaleEdit": false
+  },
+  "isEdited": false,
+  "isStaleEdit": false
+}

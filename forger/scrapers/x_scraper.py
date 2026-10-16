@@ -12,7 +12,9 @@ Fetch order for status URLs:
 
 Thin link-only posts (bare t.co / X Articles): merge API ``article``
 payloads when present; otherwise resolve outbound links (url_safety) and
-scrape the destination with article_scraper. Still-thin results are refused
+scrape the destination with article_scraper. Quote tweets merge nested
+``quoted_tweet`` / ``quote`` text into the saved body. Titles are built
+from prose with raw t.co / URLs stripped. Still-thin results are refused
 (no empty/X Post stubs). Bookmark URL stays the original X status.
 
 Public Forger users can bookmark public tweets without an X login.
@@ -34,7 +36,7 @@ import urllib.request
 from typing import Optional
 
 from forger.scrapers.x_auth import load_cookies
-from forger.scrape_quality import is_link_only_text
+from forger.scrape_quality import is_link_only_text, prose_without_urls
 from forger.url_safety import UnsafeURLError, assert_safe_fetch_url, resolve_redirect_url
 
 LOGGER = logging.getLogger(__name__)
@@ -217,6 +219,84 @@ def _text_from_x_article(
     if title:
         return title, None, "preview"
     return None, None, None
+
+
+def _screen_name_from_user(user_obj: dict | None) -> str | None:
+    """Pull screen_name from syndication/fxtwitter user/author objects."""
+    if not isinstance(user_obj, dict):
+        return None
+    legacy = user_obj.get("legacy") if isinstance(user_obj.get("legacy"), dict) else {}
+    name = (
+        user_obj.get("screen_name")
+        or legacy.get("screen_name")
+        or user_obj.get("user_screen_name")
+    )
+    if isinstance(name, str) and name.strip():
+        return name.strip().lstrip("@")
+    return None
+
+
+def _extract_quoted_tweet(payload: dict | None) -> tuple[str | None, str | None]:
+    """Return ``(screen_name, text)`` from nested quote fields, or ``(None, None)``.
+
+    Syndication uses ``quoted_tweet``; fxtwitter uses ``quote`` (sometimes
+    nested under ``tweet``).
+    """
+    if not isinstance(payload, dict):
+        return None, None
+
+    candidates: list[dict] = []
+    for key in ("quoted_tweet", "quote", "quoted_status"):
+        node = payload.get(key)
+        if isinstance(node, dict):
+            candidates.append(node)
+    tweet = payload.get("tweet")
+    if isinstance(tweet, dict):
+        for key in ("quoted_tweet", "quote", "quoted_status"):
+            node = tweet.get(key)
+            if isinstance(node, dict):
+                candidates.append(node)
+
+    for qt in candidates:
+        text = (qt.get("text") or qt.get("full_text") or "").strip()
+        if not text:
+            raw = qt.get("raw_text")
+            if isinstance(raw, dict):
+                text = (raw.get("text") or "").strip()
+            elif isinstance(raw, str):
+                text = raw.strip()
+        if not text:
+            continue
+        author = _screen_name_from_user(
+            qt.get("author") if isinstance(qt.get("author"), dict) else None
+        )
+        if not author:
+            author = _screen_name_from_user(
+                qt.get("user") if isinstance(qt.get("user"), dict) else None
+            )
+        if not author and isinstance(qt.get("user_screen_name"), str):
+            author = qt.get("user_screen_name").strip().lstrip("@") or None
+        return author, text
+    return None, None
+
+
+def _format_with_quote(outer_text: str, quote_author: str | None, quote_text: str) -> str:
+    """Append quoted tweet body under the outer status text."""
+    outer = (outer_text or "").strip()
+    quoted = (quote_text or "").strip()
+    if not quoted:
+        return outer
+    # Already merged (e.g. Playwright captured both).
+    probe = quoted[:120]
+    if probe and probe in outer:
+        return outer[:_MAX_ENRICH_TEXT]
+    author = (quote_author or "").strip().lstrip("@")
+    header = f"Quoting @{author}:" if author else "Quoted post:"
+    if outer:
+        merged = f"{outer}\n\n{header}\n{quoted}"
+    else:
+        merged = f"{header}\n{quoted}"
+    return merged[:_MAX_ENRICH_TEXT]
 
 
 def _is_x_status_url(url: str) -> bool:
@@ -409,6 +489,7 @@ class XScraper:
             out = dict(result)
             out.pop("outbound_urls", None)
             out.pop("article_enrichment", None)
+            out.pop("quote_enrichment", None)
             return out
         LOGGER.warning(
             "Refusing thin link-only X scrape (title=%r text_len=%s)",
@@ -507,6 +588,7 @@ class XScraper:
                 LOGGER.info("Fetched via %s (%s chars)", name, len(result.get("text") or ""))
                 out = dict(result)
                 out.pop("article_enrichment", None)
+                out.pop("quote_enrichment", None)
                 out.pop("outbound_urls", None)
                 return out
             LOGGER.info(
@@ -526,12 +608,14 @@ class XScraper:
                 )
                 out = dict(enriched)
                 out.pop("article_enrichment", None)
+                out.pop("quote_enrichment", None)
                 out.pop("outbound_urls", None)
                 return out
             # Keep a usable preview even if outbound follow failed.
             if thin_fallback.get("success") and not is_thin_x_result(thin_fallback):
                 out = dict(thin_fallback)
                 out.pop("article_enrichment", None)
+                out.pop("quote_enrichment", None)
                 out.pop("outbound_urls", None)
                 return out
             return enriched
@@ -581,6 +665,10 @@ class XScraper:
         if not text:
             return self._error_result("syndication no text")
 
+        q_author, q_text = _extract_quoted_tweet(data)
+        if q_text:
+            text = _format_with_quote(text, q_author, q_text)
+
         author = user
         user_obj = data.get("user")
         if isinstance(user_obj, dict):
@@ -599,6 +687,8 @@ class XScraper:
             "error": None,
             "source": "syndication",
         }
+        if q_text:
+            result["quote_enrichment"] = True
         result = self._merge_x_article(result, data.get("article") if isinstance(data.get("article"), dict) else None)
         return self._attach_outbound_urls(result, _extract_entity_urls(data))
 
@@ -649,6 +739,12 @@ class XScraper:
         if not text:
             return self._error_result("fxtwitter no text")
 
+        q_author, q_text = _extract_quoted_tweet(data)
+        if not q_text:
+            q_author, q_text = _extract_quoted_tweet(tweet)
+        if q_text:
+            text = _format_with_quote(text, q_author, q_text)
+
         author = user
         author_obj = tweet.get("author")
         if isinstance(author_obj, dict):
@@ -664,6 +760,8 @@ class XScraper:
             "error": None,
             "source": "fxtwitter",
         }
+        if q_text:
+            result["quote_enrichment"] = True
         article = tweet.get("article") if isinstance(tweet.get("article"), dict) else None
         result = self._merge_x_article(result, article)
         return self._attach_outbound_urls(
@@ -918,17 +1016,24 @@ class XScraper:
             return self._error_result(f"yt-dlp error: {e}")
 
     def _generate_title(self, text: str, max_length: int = 80) -> str:
-        """Generate title from tweet text."""
+        """Generate title from tweet prose; never keep raw t.co / URLs."""
         if not text:
             return "X Post"
 
-        text_stripped = text.strip()
-        if text_stripped.startswith("http://") or text_stripped.startswith("https://"):
-            return "X Post"
+        first_line = ""
+        for line in text.split("\n"):
+            cleaned = prose_without_urls(line).strip()
+            if not cleaned:
+                continue
+            # Skip the quote-merge header line.
+            if cleaned.lower().startswith("quoting @") or cleaned.lower() == "quoted post:":
+                continue
+            if cleaned.startswith("http://") or cleaned.startswith("https://"):
+                continue
+            first_line = cleaned
+            break
 
-        first_line = text.split("\n")[0].strip()
-
-        if first_line.startswith("http://") or first_line.startswith("https://"):
+        if not first_line:
             return "X Post"
 
         for punct in [". ", "? ", "! "]:
