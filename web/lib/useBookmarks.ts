@@ -77,6 +77,9 @@ export interface UseBookmarksReturn {
 }
 
 
+// Stats cached on the hook function between renders (legacy pattern).
+type CachedStatsHolder = typeof useBookmarks & { cachedStats?: UseBookmarksReturn['stats'] };
+
 export function useBookmarks(): UseBookmarksReturn {
   const [bookmarks, setBookmarks] = useState<BookmarkWithAnalysis[]>([]);
   const [tags, setTags] = useState<string[]>([]);
@@ -166,7 +169,7 @@ export function useBookmarks(): UseBookmarksReturn {
       setTags(uniqueTags);
 
       // Store stats in a way that can be accessed
-      (useBookmarks as any).cachedStats = stats;
+      (useBookmarks as CachedStatsHolder).cachedStats = stats;
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : 'Failed to fetch bookmarks';
@@ -188,7 +191,7 @@ export function useBookmarks(): UseBookmarksReturn {
   //   return () => clearInterval(interval);
   // }, [fetchData]);
 
-  const stats = (useBookmarks as any).cachedStats || {
+  const stats = (useBookmarks as CachedStatsHolder).cachedStats || {
     total: 0,
     test_this_week: 0,
     build_later: 0,
