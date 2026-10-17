@@ -1,0 +1,192 @@
+{
+  "_comment": "Shared cases for rules implemented in both Python (forger/) and TypeScript (web/lib/). Checked by tests/test_shared_cases.py and web/scripts/shared-cases.test.mjs.",
+  "normalize_tag": [
+    {
+      "input": "machine learning",
+      "expected": "machine-learning"
+    },
+    {
+      "input": "Machine-Learning",
+      "expected": "machine-learning"
+    },
+    {
+      "input": "#machine_learning",
+      "expected": "machine-learning"
+    },
+    {
+      "input": "  ai  tools ",
+      "expected": "ai-tools"
+    },
+    {
+      "input": "multi--agent",
+      "expected": "multi-agent"
+    },
+    {
+      "input": "c++",
+      "expected": "c++"
+    },
+    {
+      "input": "node.js",
+      "expected": "node.js"
+    },
+    {
+      "input": "C-H",
+      "expected": "c-h"
+    },
+    {
+      "input": "--x--",
+      "expected": "x"
+    },
+    {
+      "input": "",
+      "expected": ""
+    },
+    {
+      "input": "   ",
+      "expected": ""
+    },
+    {
+      "input": "Deep_Learning",
+      "expected": "deep-learning"
+    }
+  ],
+  "search_query_terms": [
+    {
+      "input": "named-reactions",
+      "expected": [
+        "named",
+        "reactions"
+      ]
+    },
+    {
+      "input": "named reactions",
+      "expected": [
+        "named",
+        "reactions"
+      ]
+    },
+    {
+      "input": "C-H activation",
+      "expected": [
+        "c h",
+        "activation"
+      ]
+    },
+    {
+      "input": "a/b",
+      "expected": [
+        "a b"
+      ]
+    },
+    {
+      "input": "  Mixed_Case  text ",
+      "expected": [
+        "mixed",
+        "case",
+        "text"
+      ]
+    },
+    {
+      "input": "ML/AI",
+      "expected": [
+        "ml",
+        "ai"
+      ]
+    },
+    {
+      "input": "E-Z isomer",
+      "expected": [
+        "e z",
+        "isomer"
+      ]
+    },
+    {
+      "input": "",
+      "expected": []
+    }
+  ],
+  "search_normalize": [
+    {
+      "input": "named-reactions",
+      "expected": "named reactions"
+    },
+    {
+      "input": "named reactions",
+      "expected": "named reactions"
+    },
+    {
+      "input": "C-H activation",
+      "expected": "c h activation"
+    },
+    {
+      "input": "a/b",
+      "expected": "a b"
+    },
+    {
+      "input": "  Mixed_Case  text ",
+      "expected": "mixed case text"
+    },
+    {
+      "input": "ML/AI",
+      "expected": "ml ai"
+    },
+    {
+      "input": "E-Z isomer",
+      "expected": "e z isomer"
+    },
+    {
+      "input": "",
+      "expected": ""
+    }
+  ],
+  "truncate_at_word_boundary": [
+    {
+      "input": "short text",
+      "max_length": 20,
+      "ellipsis": "...",
+      "expected": "short text"
+    },
+    {
+      "input": "The quick brown fox jumps over the lazy dog",
+      "max_length": 20,
+      "ellipsis": "...",
+      "expected": "The quick brown..."
+    },
+    {
+      "input": "The quick brown fox jumps over the lazy dog",
+      "max_length": 20,
+      "ellipsis": "…",
+      "expected": "The quick brown…"
+    },
+    {
+      "input": "Supercalifragilisticexpialidocious word",
+      "max_length": 10,
+      "ellipsis": "...",
+      "expected": "Superca..."
+    },
+    {
+      "input": "Ends with comma, then more words here",
+      "max_length": 22,
+      "ellipsis": "...",
+      "expected": "Ends with comma..."
+    },
+    {
+      "input": "anything",
+      "max_length": 0,
+      "ellipsis": "...",
+      "expected": ""
+    },
+    {
+      "input": "abcdef",
+      "max_length": 2,
+      "ellipsis": "...",
+      "expected": ".."
+    },
+    {
+      "input": "Catalysis enables selective C-H activation in complex molecules",
+      "max_length": 40,
+      "ellipsis": "…",
+      "expected": "Catalysis enables selective C-H…"
+    }
+  ]
+}

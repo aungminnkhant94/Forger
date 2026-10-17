@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test:shared": "node --test scripts/shared-cases.test.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.344.0",
