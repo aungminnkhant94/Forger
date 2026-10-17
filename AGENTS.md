@@ -7,7 +7,8 @@ results, not code, so the code and its checks carry the rules below.
 ## Check your work
 
 - Python: `.venv/bin/pytest -q` (CI: `tests` job, Python 3.10 and 3.12).
-- Dashboard, when you touch `web/`: `cd web && npm ci && npm run lint && npx tsc --noEmit && npm run build`.
+- Dashboard, when you touch `web/`: `cd web && npm ci && npm run lint && npx tsc --noEmit && npm run test:shared && npm run build` (CI: `web` job, Node 24).
+- Shared text rules (tags, search, truncation): `tests/fixtures/shared_cases/text_rules.json` — checked by pytest and `npm run test:shared`.
 - Report the exact pass/fail counts you saw. If you could not run something, say so.
 
 ## Rules and what enforces them
@@ -17,12 +18,12 @@ means nothing fails if you break the rule, so take extra care there.
 
 | Rule | Enforced by |
 |---|---|
-| Refuse trash: an empty, thin, link-only or bot-challenge scrape is never saved, and agent mode never fills it in later. `forge add` answers `SCRAPE_FAILED`. | `is_usable_scrape_text` in `forger/scrape_quality.py`, checked in `scrape_and_create_bookmark` (`forger/bookmark_workflow.py`); tests `tests/test_challenge_scrape_refuse.py`, `tests/test_empty_scrape_duplicate.py`, `tests/test_x_thin_follow_link.py` |
+| Refuse trash: an empty, thin, link-only or bot-challenge scrape is never saved, and agent mode never fills it in later. `forge add` answers `SCRAPE_FAILED`. | `forger.scrape_result.scrape_url` returns `Saved` \| `Refused`; only `Saved` becomes a bookmark (`forger/bookmark_workflow.py`). Replay: `tests/test_scrape_replay.py`. Boundary: `tests/test_scrape_boundary.py`. Quality helpers still live in `forger/scrape_quality.py`. |
 | No video scraping: don't add code that downloads or transcribes video. Video URLs are bookmarked from their page text only. | Prose only |
 | Work on a branch and open a PR. The owner merges. Don't push or open a PR until the owner says so. | Prose only |
 | Never force-push or rewrite `main`. | Prose only. `main` has no branch protection on GitHub yet |
 | No personal data in commits: no emails, real names, tokens or user bookmark data. Commit as the GitHub noreply address. | `gitleaks` CI job (secrets only, not names or emails); `.gitignore` keeps `data/` out. The rest is prose only |
-| Never report a green result you didn't see. | CI `tests` job on every PR and push to `main` (shows real results, but doesn't block a merge while `main` is unprotected) |
+| Never report a green result you didn't see. | CI `tests` + `web` + `gitleaks` on every PR and push to `main` (shows real results, but doesn't block a merge while `main` is unprotected) |
 | Write to the owner in plain English: what changed for them, with one concrete before/after example, then the details. | Prose only |
 | Don't touch `/workspace/forger-users/` (tester data). | Prose only |
 
