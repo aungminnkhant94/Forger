@@ -45,6 +45,42 @@ def test_normal_article_html_not_challenge():
     )
 
 
+def test_cf_jsd_script_on_real_article_is_not_challenge():
+    """Passive CF JSD (/scripts/jsd/) on a real page must not trip refuse.
+
+    Substack and other Cloudflare sites inject challenge-platform/scripts/jsd
+    on HTTP 200 article HTML. That is not a bot wall — PR#22's bare
+    cdn-cgi/challenge-platform marker caused a Substack regression.
+    """
+    html = _read("article_with_cf_jsd.html")
+    assert "cdn-cgi/challenge-platform/scripts/jsd" in html
+    assert not is_bot_challenge_html(html)
+    assert not is_bot_challenge_content(html=html)
+
+
+def test_scrape_article_saves_html_with_cf_jsd(monkeypatch):
+    html = _read("article_with_cf_jsd.html")
+
+    class Resp:
+        content = html.encode("utf-8")
+        encoding = "utf-8"
+        headers = {"Content-Type": "text/html; charset=utf-8"}
+        text = html
+        status_code = 200
+
+        def raise_for_status(self):
+            return None
+
+    monkeypatch.setattr(
+        "forger.scrapers.article_scraper._fetch_url",
+        lambda url, headers, timeout: Resp(),
+    )
+    result = scrape_article("https://axial.substack.com/p/transannular-ch-functionalization")
+    assert result["success"] is True
+    assert "Transannular" in (result["title"] or "")
+    assert result["text"] and len(result["text"]) > 200
+
+
 def test_cf_mitigated_header_detected():
     assert is_bot_challenge_headers({"cf-mitigated": "challenge"})
     assert is_bot_challenge_headers({"CF-Mitigated": "challenge"})
