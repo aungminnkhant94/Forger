@@ -318,6 +318,9 @@ def _repair_json_response(client: OpenAI, raw_content: str) -> Optional[dict]:
     return _parse_json_response(repaired)
 
 
+from forger.bucketing import VALID_BUCKETS, _derive_bucket as derive_bucket_from_answers
+
+
 def derive_legacy_scores(analysis: dict) -> dict:
     """Derive 0-10 scores, bucket fallback and scoring_inputs from the three
     binary answers (actionable_this_week / reduces_friction / reference_material).
@@ -338,15 +341,13 @@ def derive_legacy_scores(analysis: dict) -> dict:
     difficulty = 3.0 if actionable else (5.0 if reduces_friction else 7.0)
     time_cost = 2.0 if actionable else (5.0 if reduces_friction else 7.0)
 
-    if "recommendation_bucket" not in analysis:
-        if actionable:
-            analysis["recommendation_bucket"] = "test_this_week"
-        elif reduces_friction:
-            analysis["recommendation_bucket"] = "build_later"
-        elif reference:
-            analysis["recommendation_bucket"] = "archive"
-        else:
-            analysis["recommendation_bucket"] = "ignore"
+    if analysis.get("recommendation_bucket") not in VALID_BUCKETS:
+        # No valid bucket from the model/agent: derive from answers that were
+        # actually given. Missing answers are unknown, not False; leave the
+        # bucket unset when there is nothing to go on (refine_bucket decides).
+        derived = derive_bucket_from_answers(analysis)
+        if derived:
+            analysis["recommendation_bucket"] = derived
 
     worth_score = 8.0 if actionable else (6.5 if reduces_friction else (4.0 if reference else 1.5))
     effort_score = 2.0 if actionable else (5.0 if reduces_friction else 7.0)
