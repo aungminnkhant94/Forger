@@ -99,7 +99,7 @@ def test_scrape_article_nature_article_prefers_crossref_over_challenge(monkeypat
     from forger.scrapers import doi_metadata
 
     payload = json.loads(
-        (FIXTURES.parent / "doi_metadata" / "nature_s41567_026_03465_3_crossref.json").read_text(
+        (FIXTURES.parent / "doi_metadata" / "nature_with_abstract_crossref.json").read_text(
             encoding="utf-8"
         )
     )
@@ -112,7 +112,7 @@ def test_scrape_article_nature_article_prefers_crossref_over_challenge(monkeypat
 
     monkeypatch.setattr(doi_metadata, "assert_safe_fetch_url", lambda u: u)
     monkeypatch.setattr(doi_metadata.requests, "get", fake_get)
-    result = scrape_article("https://www.nature.com/articles/s41567-026-03465-3")
+    result = scrape_article("https://www.nature.com/articles/s41586-020-2649-2")
     assert result["success"] is True
     assert result["source"] == "crossref-doi-metadata"
 

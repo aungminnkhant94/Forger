@@ -266,6 +266,11 @@ def scrape_doi_metadata(url: str, timeout: int = DEFAULT_TIMEOUT) -> dict:
     publisher = (message.get("publisher") or "").strip() or None
     resolved_doi = (message.get("DOI") or doi).strip()
 
+    # Nature: title+journal+DOI alone is not content. Require a real abstract.
+    if resolved_doi.lower().startswith("10.1038/") and not abstract:
+        LOGGER.warning("Crossref has no abstract for Nature DOI %s; refusing", doi)
+        return _error_result("Crossref has no abstract for Nature DOI", title=title)
+
     text = _build_text(
         title=title,
         abstract=abstract,

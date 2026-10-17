@@ -29,7 +29,7 @@ def test_nature_article_doi_extraction():
     assert not is_nature_article_url("https://www.nature.com/subjects/catalysis")
 
 
-def test_scrape_doi_metadata_nature_fixture(monkeypatch):
+def test_nature_crossref_without_abstract_is_refused(monkeypatch):
     payload = json.loads(
         (DOI_FIX / "nature_s41567_026_03465_3_crossref.json").read_text(encoding="utf-8")
     )
@@ -44,17 +44,13 @@ def test_scrape_doi_metadata_nature_fixture(monkeypatch):
     monkeypatch.setattr(doi_metadata, "assert_safe_fetch_url", lambda u: u)
     monkeypatch.setattr(doi_metadata.requests, "get", fake_get)
     out = scrape_doi_metadata("https://www.nature.com/articles/s41567-026-03465-3")
-    assert out["success"] is True
-    assert "spin fractionalization" in (out["title"] or "").lower() or "CuGeO" in (out["title"] or "")
-    assert out["source"] == "crossref-doi-metadata"
-    assert len(out["text"] or "") > 200
+    assert out["success"] is False
+    assert "no abstract" in out["error"].lower()
 
 
-def test_nature_challenge_html_recovers_via_crossref(monkeypatch):
+def _crossref_then_challenge(monkeypatch, fixture):
     html = (CHALLENGE / "nature_client_challenge.html").read_text(encoding="utf-8")
-    payload = json.loads(
-        (DOI_FIX / "nature_s41567_026_03465_3_crossref.json").read_text(encoding="utf-8")
-    )
+    payload = json.loads((DOI_FIX / fixture).read_text(encoding="utf-8"))
 
     class Resp:
         content = html.encode("utf-8")
@@ -66,31 +62,43 @@ def test_nature_challenge_html_recovers_via_crossref(monkeypatch):
         def raise_for_status(self):
             return None
 
-    # Prefer-Crossref path hits first for Nature articles — that is the fix.
-    # Also cover challenge recovery when prefer-path is skipped: force HTML first
-    # by making the initial Crossref call fail once then succeed… simpler: just
-    # exercise scrape_url with Crossref mocked and HTML unused.
-    def fake_crossref_get(url, headers=None, timeout=None):
-        if "api.crossref.org" in url:
-            resp = MagicMock()
-            resp.raise_for_status = MagicMock()
-            resp.json.return_value = payload
-            return resp
-        raise requests.exceptions.HTTPError("nope")
+    def fake_get(url, headers=None, timeout=None):
+        resp = MagicMock()
+        resp.raise_for_status = MagicMock()
+        resp.json.return_value = payload
+        return resp
 
     monkeypatch.setattr(doi_metadata, "assert_safe_fetch_url", lambda u: u)
     monkeypatch.setattr(article_scraper, "assert_safe_fetch_url", lambda u: u)
-    monkeypatch.setattr(doi_metadata.requests, "get", fake_crossref_get)
-    monkeypatch.setattr(
-        article_scraper, "_fetch_url", lambda *a, **k: (_ for _ in ()).throw(
-            AssertionError("HTML fetch should not run when Crossref succeeds first")
-        ),
-    )
+    monkeypatch.setattr(doi_metadata.requests, "get", fake_get)
+    monkeypatch.setattr(article_scraper, "_fetch_url", lambda *a, **k: Resp())
 
-    out = scrape_url("https://www.nature.com/articles/s41567-026-03465-3")
+
+def test_nature_article_with_abstract_saves(monkeypatch):
+    _crossref_then_challenge(monkeypatch, "nature_with_abstract_crossref.json")
+    out = scrape_url("https://www.nature.com/articles/s41586-020-2649-2")
     assert isinstance(out, Saved)
     assert out.via == "crossref-doi-metadata"
-    assert "Nature Physics" in out.title or "spin" in out.title.lower() or "CuGeO" in out.title
+    assert "abstract unavailable" not in out.text
+
+
+def test_nature_article_title_only_is_refused_not_saved(monkeypatch):
+    _crossref_then_challenge(monkeypatch, "nature_s41567_026_03465_3_crossref.json")
+    out = scrape_url("https://www.nature.com/articles/s41567-026-03465-3")
+    assert not isinstance(out, Saved)
+    assert out.reason == RefuseReason.CHALLENGE
+
+
+def test_title_only_nature_hits_scrape_failed_no_bookmark(monkeypatch):
+    import forger.bookmark_workflow as bw
+
+    _crossref_then_challenge(monkeypatch, "nature_s41567_026_03465_3_crossref.json")
+    monkeypatch.setattr(bw, "check_duplicate", lambda url: None)
+    ok, msg, bookmark, analysis = bw.process_bookmark_url(
+        "https://www.nature.com/articles/s41567-026-03465-3", analyze=True
+    )
+    assert ok is False and bookmark is None and analysis is None
+    assert msg.startswith("SCRAPE_FAILED")
 
 
 def test_nature_subject_page_still_refuses_challenge(monkeypatch):

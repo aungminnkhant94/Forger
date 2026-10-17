@@ -163,20 +163,26 @@ CASES = [
         reason=RefuseReason.CHALLENGE,
     ),
     Case(
-        "Nature article challenge recovers via Crossref",
-        "https://www.nature.com/articles/s41567-026-03465-3",
-        lambda mp: (
-            mp.setattr(
-                doi_metadata.requests,
-                "get",
-                _json_get(
-                    doi_metadata,
-                    {"api.crossref.org/works/": "doi_metadata/nature_s41567_026_03465_3_crossref.json"},
-                ),
-            ),
+        "Nature article with Crossref abstract saves",
+        "https://www.nature.com/articles/s41586-020-2649-2",
+        lambda mp: mp.setattr(
+            doi_metadata.requests, "get",
+            _json_get(doi_metadata, {"api.crossref.org/works/": "doi_metadata/nature_with_abstract_crossref.json"}),
         ),
         saved=True,
-        title_has="CuGeO3",
+    ),
+    Case(
+        "Nature title+journal+DOI-only Crossref is refused",
+        "https://www.nature.com/articles/s41567-026-03465-3",
+        lambda mp: (
+            _html(mp, "challenge", "nature_client_challenge.html"),
+            mp.setattr(
+                doi_metadata.requests, "get",
+                _json_get(doi_metadata, {"api.crossref.org/works/": "doi_metadata/nature_s41567_026_03465_3_crossref.json"}),
+            ),
+        ),
+        saved=False,
+        reason=RefuseReason.CHALLENGE,
     ),
     Case(
         "PR#22 normal article still saves",
