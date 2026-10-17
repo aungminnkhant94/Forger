@@ -10,6 +10,8 @@ Add a note like *"I'm saving this for my deployment project"* to tell your agent
 
 https://github.com/user-attachments/assets/0d871d04-daa7-4756-930d-220259fbcd4f
 
+One link goes in — the agent reads it, scores it against your profile, and the dashboard files it: **Test This Week**, **Build Later**, **Archive**, or a confident **Ignore**. Made with the [`/brag`](https://github.com/latent-spaces/brag) skill.
+
 ## Decide what to do with each link
 
 - **Try this week** — something you can act on now.
