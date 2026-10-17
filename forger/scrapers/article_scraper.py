@@ -29,6 +29,7 @@ from forger.scrapers.doi_metadata import (
     is_acs_doi_url,
     scrape_doi_metadata,
 )
+from forger.scrapers.hacker_news import is_hn_item_url, scrape_hn_item
 from forger.scrapers.pubchem import is_pubchem_compound_url, scrape_pubchem_compound
 
 LOGGER = logging.getLogger(__name__)
@@ -253,6 +254,11 @@ def scrape_article(url: str, timeout: int = DEFAULT_TIMEOUT) -> dict:
             'source': None,
             'error': f'Unsafe URL blocked: {e}',
         }
+
+    # HN item HTML is often HTTP 419 from datacenter IPs; use Firebase API.
+    # Do not fall back to HTML — the Firebase miss is the real answer.
+    if is_hn_item_url(url):
+        return scrape_hn_item(url, timeout=timeout)
 
     # PubChem compound pages are JS-heavy / bot-challenged; use PUG REST first.
     if is_pubchem_compound_url(url):

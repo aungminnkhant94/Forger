@@ -19,7 +19,7 @@ import requests
 import forger.bookmark_workflow as bw
 from forger.scrape_quality import prose_without_urls
 from forger.scrape_result import Refused, RefuseReason, Saved, scrape_url
-from forger.scrapers import article_scraper, doi_metadata, pubchem, x_scraper
+from forger.scrapers import article_scraper, doi_metadata, hacker_news, pubchem, x_scraper
 from forger.url_safety import UnsafeURLError
 
 FIX = Path(__file__).parent / "fixtures"
@@ -35,7 +35,7 @@ def _noop(*_a, **_k):
 
 def _offline(monkeypatch):
     """Block every real network path the scrapers could take."""
-    for mod in (x_scraper, article_scraper, doi_metadata, pubchem):
+    for mod in (x_scraper, article_scraper, doi_metadata, hacker_news, pubchem):
         monkeypatch.setattr(mod, "assert_safe_fetch_url", _noop, raising=False)
     monkeypatch.setattr(x_scraper, "load_cookies", lambda: None)
     monkeypatch.setattr(x_scraper.shutil, "which", lambda _name: None)
@@ -54,6 +54,7 @@ def _offline(monkeypatch):
     monkeypatch.setattr(article_scraper, "_fetch_url", no_html)
     monkeypatch.setattr(doi_metadata.requests, "get", no_html)
     monkeypatch.setattr(pubchem.requests, "get", no_html)
+    monkeypatch.setattr(hacker_news.requests, "get", no_html)
 
 
 def _x_api(monkeypatch, *, syndication=None, oembed=None, fxtwitter=None):
@@ -209,6 +210,21 @@ CASES = [
         saved=True,
         title_has="Caffeine",
         text_has=["C8H10N4O2"],
+    ),
+    Case(
+        "HN Ask item via Firebase (no HTML 419)",
+        "https://news.ycombinator.com/item?id=50128412",
+        lambda mp: (
+            mp.setattr(hacker_news, "assert_safe_fetch_url", lambda u: u),
+            mp.setattr(
+                hacker_news.requests,
+                "get",
+                _json_get(hacker_news, {"/item/50128412.json": "hacker_news/item_ask_hn.json"}),
+            ),
+        ),
+        saved=True,
+        title_has="most useful thing AI",
+        text_has=["running toilet"],
     ),
     Case(
         "network failure is refused, never stubbed",
