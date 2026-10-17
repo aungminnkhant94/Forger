@@ -30,9 +30,13 @@ _URL_IN_TEXT_RE = re.compile(r"https?://\S+", re.IGNORECASE)
 # pass the >200 char bar; treat those pages as unusable scrapes.
 
 # Source-level markers that never appear in a real article body.
+# Note: bare "cdn-cgi/challenge-platform" is too broad — Cloudflare injects
+# /cdn-cgi/challenge-platform/scripts/jsd/ (JS detection) on *successful*
+# pages (e.g. Substack). Only managed-challenge / orchestrate paths are walls.
 _CHALLENGE_HTML_MARKERS = (
     "_cf_chl_opt",
-    "cdn-cgi/challenge-platform",
+    "cdn-cgi/challenge-platform/h/",
+    "cdn-cgi/challenge-platform/orchestrate",
     "cf-browser-verification",
     "/_fs-ch-",  # Fastly / publisher Client Challenge asset prefix
 )
@@ -99,8 +103,10 @@ def _normalize_title(title: str | None) -> str:
 def is_bot_challenge_html(html: str | None) -> bool:
     """True when raw HTML is a bot-wall / captcha interstitial, not the page.
 
-    Matches Cloudflare challenge-platform markers and publisher Client
-    Challenge pages (e.g. Nature ``/_fs-ch-…`` + title Client Challenge).
+    Matches Cloudflare managed-challenge / orchestrate paths and publisher
+    Client Challenge pages (e.g. Nature ``/_fs-ch-…`` + title Client Challenge).
+    Passive ``/cdn-cgi/challenge-platform/scripts/jsd/`` on otherwise-good
+    pages (Substack et al.) is *not* a challenge.
     """
     if not html:
         return False
