@@ -15,7 +15,7 @@ from forger.models import Bookmark, AnalysisResult, ScoringInputs
 from forger.tagging import clean_tags
 from forger.bucketing import refine_bucket
 from forger.analysis_cleanup import clean_analysis_text
-from forger.scrapers import fetch_x_content_sync
+from forger.scrape_result import Refused, scrape_url
 from forger.storage import (
     load_bookmarks,
     load_analysis_results,
@@ -78,60 +78,23 @@ def find_similar_duplicate(
 
 
 def scrape_and_create_bookmark(url: str) -> Optional[Bookmark]:
-    """Scrape URL and create bookmark.
+    """Scrape URL and create bookmark, or None when the scrape is refused.
 
-    Returns None when scraping fails or the body is empty/thin so we never
-    save junk stubs (``Article from …``) that poison DUPLICATE_TOPIC checks.
+    All scraping goes through ``forger.scrape_result.scrape_url``; only a
+    ``Saved`` outcome (usable text, URL-free title) can become a bookmark.
     """
-    url_lower = url.lower()
-    if "x.com/" in url_lower or "twitter.com/" in url_lower:
-        source = "x"
-        try:
-            scraped = fetch_x_content_sync(url)
-        except Exception as e:
-            LOGGER.warning(f"X scraping failed: {e}")
-            return None
-        if not scraped or not scraped.get("success"):
-            LOGGER.warning("X scrape returned no usable content for %s", url)
-            return None
-        body = (scraped.get("text") or "").strip()
-        title_guess = scraped.get("title")
-        if not is_usable_scrape_text(body, source="x", title=title_guess):
-            LOGGER.warning("X scrape body empty/thin for %s", url)
-            return None
-        author = scraped.get("author", "unknown")
-        title = title_guess or (body[:80] + "..." if len(body) > 80 else body)
-        note = f"Auto-captured from X. Author: @{author}"
-        scraped_via = scraped.get("source") or "playwright"
+    outcome = scrape_url(url)
+    if isinstance(outcome, Refused):
+        return None
+    source = outcome.source
+    body = outcome.text
+    title = outcome.title
+    if source == "x":
+        note = f"Auto-captured from X. Author: @{outcome.author or 'unknown'}"
+        scraped_via = outcome.via or "playwright"
     else:
-        source = "article"
-        scraped = None
-        try:
-            from forger.scrapers.article_scraper import scrape_article
-
-            scraped = scrape_article(url)
-        except Exception as e:
-            LOGGER.warning(f"Article scraping failed: {e}")
-            return None
-        if not scraped or not scraped.get("success"):
-            LOGGER.warning(
-                "Article scrape failed for %s: %s",
-                url,
-                (scraped or {}).get("error") or "unknown",
-            )
-            return None
-        body = (scraped.get("text") or "").strip()
-        title_guess = scraped.get("title")
-        if not is_usable_scrape_text(body, source="article", title=title_guess):
-            LOGGER.warning(
-                "Article scrape body empty/thin/challenge for %s",
-                url,
-            )
-            return None
-        title = title_guess or f"Article from {url.split('/')[2]}"
-        author = scraped.get("author")
-        note = f"Auto-captured article. Author: {author}" if author else "Auto-captured from URL"
-        scraped_via = scraped.get("source")
+        note = f"Auto-captured article. Author: {outcome.author}" if outcome.author else "Auto-captured from URL"
+        scraped_via = outcome.via
 
     bookmark_id = stable_bookmark_id(url, body)
     timestamp = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
