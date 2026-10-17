@@ -1,6 +1,7 @@
 """Fetch DOI paper metadata via Crossref when publisher HTML is blocked.
 
-ACS/JACS pages (pubs.acs.org) often return HTTP 403 to plain scrapers.
+ACS/JACS pages (pubs.acs.org) often return HTTP 403 to plain scrapers;
+Nature article HTML is often a Client Challenge interstitial.
 Crossref still exposes title, abstract, authors, and journal for the DOI,
 which is enough to bookmark without a paywalled PDF.
 """
@@ -37,6 +38,20 @@ _ACS_DOI_PATH_RE = re.compile(
     re.IGNORECASE,
 )
 
+
+_NATURE_HOSTS = frozenset(
+    {
+        "nature.com",
+        "www.nature.com",
+    }
+)
+
+# Nature journal articles: /articles/s41567-026-03465-3 → 10.1038/s41567-026-03465-3
+_NATURE_ARTICLE_PATH_RE = re.compile(
+    r"^/articles/(?P<id>s\d{4,5}-\d{2,4}-\d{4,6}-[0-9a-z]+)/?$",
+    re.IGNORECASE,
+)
+
 # Generic doi.org / dx.doi.org
 _DOI_ORG_PATH_RE = re.compile(
     r"^/(?P<doi>10\.\d{4,9}/[^\s?#]+)",
@@ -65,8 +80,20 @@ def is_acs_doi_url(url: str) -> bool:
     return bool(_ACS_DOI_PATH_RE.match(parts.path or ""))
 
 
+def is_nature_article_url(url: str) -> bool:
+    """True when *url* is a Nature journal article page (DOI-bearing)."""
+    try:
+        parts = urlsplit((url or "").strip())
+    except ValueError:
+        return False
+    host = (parts.hostname or "").lower().rstrip(".")
+    if host not in _NATURE_HOSTS:
+        return False
+    return bool(_NATURE_ARTICLE_PATH_RE.match(parts.path or ""))
+
+
 def extract_doi_from_url(url: str) -> str | None:
-    """Pull a DOI string from ACS, doi.org, or other DOI-bearing URLs."""
+    """Pull a DOI string from ACS, Nature articles, doi.org, or other DOI URLs."""
     raw = (url or "").strip()
     if not raw:
         return None
@@ -82,6 +109,11 @@ def extract_doi_from_url(url: str) -> str | None:
         match = _ACS_DOI_PATH_RE.match(path)
         if match:
             return _normalize_doi(match.group("doi"))
+
+    if host in _NATURE_HOSTS:
+        match = _NATURE_ARTICLE_PATH_RE.match(path)
+        if match:
+            return _normalize_doi(f"10.1038/{match.group('id')}")
 
     if host in {"doi.org", "www.doi.org", "dx.doi.org"}:
         match = _DOI_ORG_PATH_RE.match(path)
@@ -233,6 +265,11 @@ def scrape_doi_metadata(url: str, timeout: int = DEFAULT_TIMEOUT) -> dict:
     journal = _WS_RE.sub(" ", (containers[0] if containers else "")).strip() or None
     publisher = (message.get("publisher") or "").strip() or None
     resolved_doi = (message.get("DOI") or doi).strip()
+
+    # Nature: title+journal+DOI alone is not content. Require a real abstract.
+    if resolved_doi.lower().startswith("10.1038/") and not abstract:
+        LOGGER.warning("Crossref has no abstract for Nature DOI %s; refusing", doi)
+        return _error_result("Crossref has no abstract for Nature DOI", title=title)
 
     text = _build_text(
         title=title,

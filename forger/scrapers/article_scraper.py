@@ -27,6 +27,7 @@ from forger.scrape_quality import (
 from forger.scrapers.doi_metadata import (
     extract_doi_from_url,
     is_acs_doi_url,
+    is_nature_article_url,
     scrape_doi_metadata,
 )
 from forger.scrapers.hacker_news import is_hn_item_url, scrape_hn_item
@@ -219,6 +220,28 @@ def _challenge_failure(url: str, *, title=None, text=None, detail: str = "bot ch
     }
 
 
+def _challenge_or_doi_recovery(
+    url: str,
+    *,
+    title=None,
+    text=None,
+    detail: str = "bot challenge",
+    timeout: int = DEFAULT_TIMEOUT,
+) -> dict:
+    """Refuse challenge HTML, but try Crossref when the URL carries a DOI."""
+    if extract_doi_from_url(url):
+        doi_meta = scrape_doi_metadata(url, timeout=timeout)
+        if doi_meta.get("success"):
+            LOGGER.info("Recovered from challenge via DOI metadata for %s", url)
+            return doi_meta
+        LOGGER.warning(
+            "DOI recovery after challenge failed for %s (%s)",
+            url,
+            doi_meta.get("error") or "unknown",
+        )
+    return _challenge_failure(url, title=title, text=text, detail=detail)
+
+
 def scrape_article(url: str, timeout: int = DEFAULT_TIMEOUT) -> dict:
     """
     Scrape article content using requests + BeautifulSoup.
@@ -271,8 +294,8 @@ def scrape_article(url: str, timeout: int = DEFAULT_TIMEOUT) -> dict:
             pubchem.get("error") or "unknown",
         )
 
-    # ACS/JACS DOI pages often return HTTP 403 to scrapers; prefer Crossref metadata.
-    if is_acs_doi_url(url):
+    # ACS/JACS 403 and Nature Client Challenge: prefer Crossref metadata first.
+    if is_acs_doi_url(url) or is_nature_article_url(url):
         doi_meta = scrape_doi_metadata(url, timeout=timeout)
         if doi_meta.get("success"):
             return doi_meta
@@ -290,7 +313,9 @@ def scrape_article(url: str, timeout: int = DEFAULT_TIMEOUT) -> dict:
         # Cloudflare advertises challenges via cf-mitigated; Nature/Fastly and
         # others serve HTTP 200 Client Challenge HTML that still looks "long".
         if is_bot_challenge_headers(getattr(response, "headers", None)):
-            return _challenge_failure(url, detail="cf-mitigated: challenge")
+            return _challenge_or_doi_recovery(
+                url, detail="cf-mitigated: challenge", timeout=timeout
+            )
         if is_bot_challenge_html(html):
             # Prefer title from HTML for logging; do not save the body.
             rough_title = None
@@ -300,10 +325,11 @@ def scrape_article(url: str, timeout: int = DEFAULT_TIMEOUT) -> dict:
                     rough_title = rough_soup.find("title").get_text().strip()
             except Exception:
                 rough_title = None
-            return _challenge_failure(
+            return _challenge_or_doi_recovery(
                 url,
                 title=rough_title,
                 detail="challenge HTML markers",
+                timeout=timeout,
             )
 
         soup = BeautifulSoup(html, 'html.parser')
@@ -366,11 +392,12 @@ def scrape_article(url: str, timeout: int = DEFAULT_TIMEOUT) -> dict:
         # Challenge pages can clear HTML markers after script stripping but
         # still leave interstitial titles / enable-JS copy — refuse those too.
         if is_bot_challenge_content(title=title, text=text, html=html):
-            return _challenge_failure(
+            return _challenge_or_doi_recovery(
                 url,
                 title=title,
                 text=text,
                 detail="challenge title/body",
+                timeout=timeout,
             )
 
         # Check if we got meaningful content
