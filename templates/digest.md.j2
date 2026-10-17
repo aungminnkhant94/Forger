@@ -22,7 +22,7 @@
 | Build Later | **{{ stats.build_later }}** 📚 |
 | Archive | **{{ stats.archive }}** |
 | Ignore | **{{ stats.ignore }}** 🗑️ |
-| Avg Worth Score | **{{ "%.1f"|format(stats.avg_worth_score) }}** / 10 |
+| Avg Worth Score | **{{ "%.1f"|format(stats.avg_worth_score) }}** / 10{% if stats.avg_excluded_ignore %} (excludes {{ stats.avg_excluded_ignore }} ignored){% endif %} |
 | Avg Priority Score | **{{ "%.1f"|format(stats.avg_priority_score) }}** / 10 |
 
 {% if stats.top_sources %}

@@ -97,6 +97,8 @@ def print_console_summary(digest: WeeklyDigest) -> None:
     if digest.stats.avg_worth_score > 0:
         print(f"\n   Avg worth score:   {digest.stats.avg_worth_score:.1f}/10")
         print(f"   Avg priority:      {digest.stats.avg_priority_score:.1f}/10")
+        if digest.stats.avg_excluded_ignore:
+            print(f"   (averages exclude {digest.stats.avg_excluded_ignore} ignored)")
 
     if digest.insights:
         print("\n💡 INSIGHTS")

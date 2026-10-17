@@ -169,6 +169,8 @@ class TelegramFormatter:
             prio = cls.escape_markdown(f"{digest.stats.avg_priority_score:.1f}")
             lines.append(f"• Avg worth: {worth}/10")
             lines.append(f"• Avg priority: {prio}/10")
+            if digest.stats.avg_excluded_ignore:
+                lines.append(cls.escape_markdown(f"  (excludes {digest.stats.avg_excluded_ignore} ignored)"))
 
         if digest.stats.top_sources:
             lines.append("")
