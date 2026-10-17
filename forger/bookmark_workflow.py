@@ -13,7 +13,7 @@ from forger.similarity import check_duplicate_topic
 from forger.git_auto import git_auto_push
 from forger.models import Bookmark, AnalysisResult, ScoringInputs
 from forger.tagging import clean_tags
-from forger.bucketing import refine_bucket
+from forger.bucketing import VALID_BUCKETS, refine_bucket
 from forger.analysis_cleanup import clean_analysis_text
 from forger.scrape_result import Refused, scrape_url
 from forger.storage import (
@@ -175,7 +175,6 @@ def _build_pending_result(bookmark: Bookmark) -> AnalysisResult:
     )
 
 
-VALID_BUCKETS = {"test_this_week", "build_later", "archive", "ignore"}
 
 
 def resolve_pending_analysis(bookmark_id: str, analysis_dict: dict) -> Tuple[bool, str, Optional[AnalysisResult]]:

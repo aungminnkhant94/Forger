@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+import logging
+
 from forger.models import AnalysisResult, Bookmark
+
+LOGGER = logging.getLogger(__name__)
 
 HIGH_SIGNAL_TAGS = {
     'agents', 'multi-agent', 'automation', 'ai-tools', 'llm',
@@ -14,59 +18,59 @@ FORCE_UPGRADE_KEYWORDS: set[str] = set()
 MINIMUM_BUILD_LATER: set[str] = set()
 
 
+VALID_BUCKETS = frozenset({"test_this_week", "build_later", "archive", "ignore"})
+
+
+def _derive_bucket(raw: dict) -> str | None:
+    """Bucket from the binary answers. Only keys that are present count;
+    a missing key is unknown, never False. Returns None if nothing to go on."""
+    if raw.get("actionable_this_week") is True:
+        return "test_this_week"
+    if raw.get("reduces_friction") is True:
+        return "build_later"
+    if raw.get("reference_material") is True:
+        return "archive"
+    answered = [k for k in ("actionable_this_week", "reduces_friction", "reference_material") if k in raw]
+    if len(answered) == 3:  # all three explicitly False
+        return "ignore"
+    return None
+
+
 def refine_bucket(bookmark: Bookmark, analysis: AnalysisResult) -> str:
+    """Return the final bucket.
+
+    1. A valid bucket chosen by the agent / model wins. The only override is
+       the user-configured keyword guardrails (FORCE_UPGRADE_KEYWORDS /
+       MINIMUM_BUILD_LATER, empty by default), and it is logged.
+    2. Derived bucketing from the binary answers applies only when no valid
+       bucket was given; missing answers are not treated as False.
+    """
     bucket = analysis.recommendation_bucket
-    tags = set(bookmark.tags or [])
-    worth = float(analysis.worth_score or 0)
-    priority = float(analysis.priority_score or 0)
     text = f"{bookmark.title} {bookmark.text} {analysis.summary} {analysis.recommendation_reason}".lower()
-
-    # Do not force ignore from substrings like "duplicate". The bucket the
-    # agent wrote is the product; page text often mentions those words
-    # without meaning the bookmark itself is a duplicate.
-
-    has_high_signal = bool(tags & HIGH_SIGNAL_TAGS)
     has_force_upgrade = any(kw in text for kw in FORCE_UPGRADE_KEYWORDS)
     has_minimum_bl = any(kw in text for kw in MINIMUM_BUILD_LATER)
 
-    # Binary answers take precedence only when the model/agent actually
-    # provided them. Missing keys are not treated as False.
-    raw_analysis = analysis.to_dict()
-    if 'actionable_this_week' in raw_analysis or 'reduces_friction' in raw_analysis or 'reference_material' in raw_analysis:
-        actionable = raw_analysis.get('actionable_this_week', False)
-        reduces_friction = raw_analysis.get('reduces_friction', False)
-        reference = raw_analysis.get('reference_material', False)
-        
-        # Override based on binary answers + force-upgrade keywords
-        if actionable or has_force_upgrade:
-            return 'test_this_week'
-        if reduces_friction or has_minimum_bl:
-            return 'build_later'
-        if reference:
-            return 'archive'
-        return 'ignore'
+    if bucket in VALID_BUCKETS:
+        final = bucket
+        if has_force_upgrade and bucket != "test_this_week":
+            final = "test_this_week"
+        elif has_minimum_bl and bucket in {"archive", "ignore"}:
+            final = "build_later"
+        if final != bucket:
+            LOGGER.warning(
+                "Bucket override for %s: %s -> %s (user keyword guardrail in bucketing.py)",
+                bookmark.id, bucket, final,
+            )
+        return final
 
-    # LEGACY: Fallback to old rules if binary answers not present
-    # RULE 1: Force upgrade high-signal content from archive/ignore
-    if bucket in {'archive', 'ignore'} and has_force_upgrade:
-        return 'test_this_week' if has_high_signal or worth >= 6 else 'build_later'
-
-    # RULE 2: Infrastructure/coding tools should never be archived
-    if bucket == 'archive' and has_minimum_bl:
-        return 'build_later'
-
-    # RULE 3: Worth-based overrides (existing)
-    if bucket in {'archive', 'ignore'} and worth >= 8 and has_high_signal:
-        return 'test_this_week' if priority >= 5 else 'build_later'
-
-    if bucket == 'archive' and worth >= 7 and has_high_signal:
-        return 'build_later'
-
-    if bucket == 'ignore' and worth >= 6:
-        return 'build_later'
-
-    # RULE 4: Demote low-priority test_this_week
-    if bucket == 'test_this_week' and priority < 4 and worth < 7:
-        return 'build_later'
-
-    return bucket
+    derived = _derive_bucket(analysis.to_dict())
+    if has_force_upgrade:
+        derived = "test_this_week"
+    elif has_minimum_bl and derived in {None, "archive", "ignore"}:
+        derived = "build_later"
+    final = derived or "archive"
+    LOGGER.info(
+        "No valid bucket for %s (got %r); derived %s from binary answers",
+        bookmark.id, bucket, final,
+    )
+    return final
