@@ -68,12 +68,15 @@ def test_challenge_title_and_body_refuse_usable_text():
     )
 
 
-def test_scrape_article_refuses_nature_challenge(monkeypatch):
+def test_scrape_article_refuses_nature_challenge_without_doi(monkeypatch):
+    """Nature subject / non-article pages have no DOI — challenge still refuses."""
     html = _read("nature_client_challenge.html")
 
     class Resp:
         text = html
         headers = {}
+        content = html.encode("utf-8")
+        encoding = "utf-8"
 
         def raise_for_status(self):
             return None
@@ -82,10 +85,36 @@ def test_scrape_article_refuses_nature_challenge(monkeypatch):
         "forger.scrapers.article_scraper._fetch_url",
         lambda url, headers, timeout: Resp(),
     )
-    result = scrape_article("https://www.nature.com/articles/s41567-026-03465-3")
+    result = scrape_article("https://www.nature.com/subjects/catalysis")
     assert result["success"] is False
     assert "challenge" in (result["error"] or "").lower()
     assert result["title"] == "Client Challenge"
+
+
+def test_scrape_article_nature_article_prefers_crossref_over_challenge(monkeypatch):
+    """DOI-bearing Nature article URLs recover via Crossref (see test_nature_doi_scrape)."""
+    import json
+    from unittest.mock import MagicMock
+
+    from forger.scrapers import doi_metadata
+
+    payload = json.loads(
+        (FIXTURES.parent / "doi_metadata" / "nature_s41567_026_03465_3_crossref.json").read_text(
+            encoding="utf-8"
+        )
+    )
+
+    def fake_get(url, headers=None, timeout=None):
+        resp = MagicMock()
+        resp.raise_for_status = MagicMock()
+        resp.json.return_value = payload
+        return resp
+
+    monkeypatch.setattr(doi_metadata, "assert_safe_fetch_url", lambda u: u)
+    monkeypatch.setattr(doi_metadata.requests, "get", fake_get)
+    result = scrape_article("https://www.nature.com/articles/s41567-026-03465-3")
+    assert result["success"] is True
+    assert result["source"] == "crossref-doi-metadata"
 
 
 def test_scrape_article_refuses_cloudflare_challenge(monkeypatch):
