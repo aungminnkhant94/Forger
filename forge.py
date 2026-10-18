@@ -213,14 +213,19 @@ def cmd_stats(args: argparse.Namespace) -> int:
     
     # Average scores
     if analyses:
-        avg_worth = sum(a.worth_score for a in analyses) / len(analyses)
-        avg_priority = sum(a.priority_score for a in analyses) / len(analyses)
-        avg_effort = sum(a.effort_score for a in analyses) / len(analyses)
+        from forger.digest import scored_analyses
+        kept = scored_analyses(analyses) or []
+        n = len(kept) or 1
+        avg_worth = sum(a.worth_score for a in kept) / n
+        avg_priority = sum(a.priority_score for a in kept) / n
+        avg_effort = sum(a.effort_score for a in kept) / n
         
         print(color("\n⭐ Average Scores", Colors.BOLD))
         print(f"  Worth:    {avg_worth:.1f}/10")
         print(f"  Priority: {avg_priority:.1f}/10")
         print(f"  Effort:   {avg_effort:.1f}/10")
+        if len(analyses) - len(kept):
+            print(f"  (excludes {len(analyses) - len(kept)} ignored)")
     
     # Top tags
     tag_counts = {}

@@ -88,6 +88,9 @@ class WeeklyStats:
     ignore: int = 0
     avg_worth_score: float = 0.0
     avg_priority_score: float = 0.0
+    # Ignore-bucket items are left out of the averages (they are not shown in
+    # the digest either); this is how many were left out.
+    avg_excluded_ignore: int = 0
     top_sources: list[tuple[str, int]] = field(default_factory=list)
     top_authors: list[tuple[str, int]] = field(default_factory=list)
 
@@ -169,6 +172,19 @@ def extract_action_items(analysis: AnalysisResult) -> list[str]:
     return actions[:3]  # Limit to top 3 actions per item
 
 
+def scored_analyses(analyses: list[AnalysisResult]) -> list[AnalysisResult]:
+    """Analyses that count toward average scores: everything except the
+    'ignore' bucket. Ignored items (thin posts, off-topic) are already hidden
+    from the digest lists; letting their ~1-2 worth drag the average down
+    makes the week look worse than what you actually kept."""
+    return [a for a in analyses if a.recommendation_bucket != 'ignore']
+
+
+def average_worth(analyses: list[AnalysisResult]) -> float:
+    kept = scored_analyses(analyses)
+    return sum(a.worth_score for a in kept) / len(kept) if kept else 0.0
+
+
 def calculate_stats(bookmarks: list[Bookmark], analyses: list[AnalysisResult]) -> WeeklyStats:
     """Calculate statistics for the week."""
     # Count by bucket
@@ -178,8 +194,10 @@ def calculate_stats(bookmarks: list[Bookmark], analyses: list[AnalysisResult]) -
     ignore = sum(1 for a in analyses if a.recommendation_bucket == 'ignore')
     
     # Calculate averages
-    worth_scores = [a.worth_score for a in analyses]
-    priority_scores = [a.priority_score for a in analyses]
+    # Calculate averages (ignore bucket excluded; see scored_analyses)
+    kept = scored_analyses(analyses)
+    worth_scores = [a.worth_score for a in kept]
+    priority_scores = [a.priority_score for a in kept]
     
     # Source and author counts
     source_counter = Counter(b.source for b in bookmarks if b.source)
@@ -194,6 +212,7 @@ def calculate_stats(bookmarks: list[Bookmark], analyses: list[AnalysisResult]) -
         ignore=ignore,
         avg_worth_score=sum(worth_scores) / len(worth_scores) if worth_scores else 0,
         avg_priority_score=sum(priority_scores) / len(priority_scores) if priority_scores else 0,
+        avg_excluded_ignore=len(analyses) - len(kept),
         top_sources=source_counter.most_common(5),
         top_authors=author_counter.most_common(5),
     )
@@ -232,11 +251,9 @@ def analyze_trends(
     }
     
     # Scoring trends
-    current_scores = [a.worth_score for a in current_analyses]
-    all_scores = [a.worth_score for a in all_analyses]
-    
-    avg_current = sum(current_scores) / len(current_scores) if current_scores else 0
-    avg_all = sum(all_scores) / len(all_scores) if all_scores else 0
+    # Same rule as the stats averages: ignore bucket excluded.
+    avg_current = average_worth(current_analyses)
+    avg_all = average_worth(all_analyses)
     
     return {
         'topic_distribution': topic_distribution,
@@ -265,7 +282,9 @@ def generate_insights(digest: WeeklyDigest) -> list[str]:
         insights.append(f"📚 Your 'build later' backlog has {stats.build_later} items. Consider scheduling time to review.")
     
     # Quality insight
-    if stats.avg_worth_score > 8:
+    if stats.analyzed - stats.avg_excluded_ignore <= 0:
+        pass  # nothing kept this week; no quality claim
+    elif stats.avg_worth_score > 8:
         insights.append(f"🎯 This week's bookmarks are high quality (avg worth: {stats.avg_worth_score:.1f}/10).")
     elif stats.avg_worth_score < 5:
         insights.append(f"💡 Bookmark quality is lower this week (avg worth: {stats.avg_worth_score:.1f}/10). Consider being more selective.")
