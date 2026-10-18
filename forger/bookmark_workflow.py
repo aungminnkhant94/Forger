@@ -17,6 +17,8 @@ from forger.bucketing import VALID_BUCKETS, refine_bucket
 from forger.analysis_cleanup import clean_analysis_text
 from forger.scrape_result import Refused, scrape_url
 from forger.storage import (
+    data_lock,
+    invalidate_cache,
     load_bookmarks,
     load_analysis_results,
     merge_bookmarks,
@@ -211,8 +213,11 @@ def resolve_pending_analysis(bookmark_id: str, analysis_dict: dict) -> Tuple[boo
     analysis = clean_analysis_text(bookmark, analysis)
 
     bookmark.tags = clean_tags(analysis_dict.get("tags"), bookmark.title, bookmark.text, bookmark.url, bookmark.note)
-    save_bookmarks(merge_bookmarks(load_bookmarks(), [bookmark]))
-    upsert_analysis_results(load_analysis_results(), [analysis])
+    # Re-read and write under the data lock (see process_bookmark_url).
+    with data_lock():
+        invalidate_cache()
+        save_bookmarks(merge_bookmarks(load_bookmarks(), [bookmark]))
+        upsert_analysis_results(load_analysis_results(), [analysis])
 
     try:
         _sync_dashboard()
@@ -230,6 +235,7 @@ def _sync_dashboard() -> None:
 
 
 def _verify_ingestion_invariants(before_bookmarks: list[Bookmark], before_analyses: list[AnalysisResult], bookmark: Bookmark) -> tuple[list[Bookmark], list[AnalysisResult]]:
+    invalidate_cache()
     after_bookmarks = load_bookmarks()
     after_analyses = load_analysis_results()
 
@@ -352,21 +358,20 @@ def process_bookmark_url(
         bookmark.tags = []
         analysis = _build_pending_result(bookmark)
 
-    before_bookmarks = load_bookmarks()
-    before_analyses = load_analysis_results()
+    # Legacy / odd identity on replace: drop the old row so replace does not
+    # leave two bookmarks for the same URL.
+    drop_ids = {existing.id} if (existing and replace and existing.id != bookmark.id) else set()
 
-    if existing and replace and existing.id != bookmark.id:
-        # Legacy / odd identity: drop the old row so replace does not leave
-        # two bookmarks for the same URL.
-        before_bookmarks = [b for b in before_bookmarks if b.id != existing.id]
-        before_analyses = [a for a in before_analyses if a.bookmark_id != existing.id]
-
-    merged_bookmarks = merge_bookmarks(before_bookmarks, [bookmark])
-    save_bookmarks(merged_bookmarks)
-    LOGGER.info(f"Saved bookmark: {bookmark.id}")
-
-    upsert_analysis_results(before_analyses, [analysis])
-    LOGGER.info(f"Saved analysis: {analysis.bookmark_id}")
+    # Read-merge-write under the cross-process data lock so a concurrent
+    # `forge add` cannot overwrite this bookmark with a stale list.
+    with data_lock():
+        invalidate_cache()  # another process may have written since we started
+        before_bookmarks = [b for b in load_bookmarks() if b.id not in drop_ids]
+        before_analyses = [a for a in load_analysis_results() if a.bookmark_id not in drop_ids]
+        save_bookmarks(merge_bookmarks(before_bookmarks, [bookmark]))
+        LOGGER.info(f"Saved bookmark: {bookmark.id}")
+        upsert_analysis_results(before_analyses, [analysis])
+        LOGGER.info(f"Saved analysis: {analysis.bookmark_id}")
 
     try:
         _verify_ingestion_invariants(before_bookmarks, before_analyses, bookmark)

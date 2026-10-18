@@ -3,6 +3,9 @@ from __future__ import annotations
 import json
 import os
 import tempfile
+import threading
+import time
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -14,6 +17,83 @@ from forger.utils import ensure_parent, utc_now_iso
 
 _STORAGE_BACKEND_ENV = "FORGER_STORAGE_BACKEND"
 _STATS_PATH = DATA_DIR / "stats_summary.json"
+
+# One lock file guards every read-modify-write of the shared data files
+# (bookmarks_raw.json, analysis_results.json, seen_bookmarks.json,
+# stats_summary.json). Without it two `forge add` processes both read N
+# bookmarks, each writes N+1, and the slower write drops the other's id.
+LOCK_PATH = DATA_DIR / ".forger.lock"
+LOCK_TIMEOUT_SECONDS = 60.0
+
+_thread_lock = threading.RLock()
+_lock_depth = 0
+_lock_handle = None
+
+
+def _os_lock(handle, timeout: float) -> None:
+    """Exclusive lock on *handle*: fcntl on POSIX, msvcrt on Windows."""
+    deadline = time.monotonic() + timeout
+    try:
+        import fcntl
+    except ImportError:  # Windows
+        import msvcrt
+
+        while True:
+            try:
+                handle.seek(0)
+                msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+                return
+            except OSError:
+                if time.monotonic() >= deadline:
+                    raise TimeoutError(f"Timed out waiting for {LOCK_PATH}")
+                time.sleep(0.05)
+    while True:
+        try:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            return
+        except BlockingIOError:
+            if time.monotonic() >= deadline:
+                raise TimeoutError(f"Timed out waiting for {LOCK_PATH}")
+            time.sleep(0.02)
+
+
+def _os_unlock(handle) -> None:
+    try:
+        import fcntl
+    except ImportError:
+        import msvcrt
+
+        handle.seek(0)
+        msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+        return
+    fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+
+
+@contextmanager
+def data_lock(timeout: float | None = None):
+    """Hold the cross-process data lock. Re-entrant within one process."""
+    global _lock_depth, _lock_handle
+    with _thread_lock:
+        if _lock_depth == 0:
+            ensure_parent(LOCK_PATH)
+            handle = open(LOCK_PATH, "a+b")
+            try:
+                _os_lock(handle, LOCK_TIMEOUT_SECONDS if timeout is None else timeout)
+            except BaseException:
+                handle.close()
+                raise
+            _lock_handle = handle
+        _lock_depth += 1
+        try:
+            yield
+        finally:
+            _lock_depth -= 1
+            if _lock_depth == 0:
+                handle, _lock_handle = _lock_handle, None
+                try:
+                    _os_unlock(handle)
+                finally:
+                    handle.close()
 
 
 def get_storage_backend() -> str:
@@ -31,8 +111,11 @@ def _sqlite_storage():
     return storage_sqlite
 
 
-def load_json(path: Path, default: Any) -> Any:
-    """Load JSON with caching support."""
+def load_json(path: Path, default: Any, *, fresh: bool = False) -> Any:
+    """Load JSON with caching support. ``fresh`` skips the in-process cache
+    (required inside data_lock, where another process may have written)."""
+    if fresh:
+        invalidate_path(path)
 
     def _load() -> Any:
         if not path.exists():
@@ -111,13 +194,18 @@ def _sync_sqlite_json_mirrors() -> None:
 
 def refresh_stats_summary() -> None:
     """Regenerate stats_summary.json from the active source of truth."""
+    with data_lock():
+        _refresh_stats_summary_locked()
+
+
+def _refresh_stats_summary_locked() -> None:
     if using_sqlite_backend():
         sqlite = _sqlite_storage()
         bookmarks = sqlite.load_bookmarks()
         analyses = sqlite.load_analysis_results()
     else:
-        bookmarks = load_bookmarks(path=BOOKMARKS_RAW_PATH)
-        analyses = load_analysis_results(path=ANALYSIS_RESULTS_PATH)
+        bookmarks = load_bookmarks(path=BOOKMARKS_RAW_PATH, fresh=True)
+        analyses = load_analysis_results(path=ANALYSIS_RESULTS_PATH, fresh=True)
 
     buckets: dict[str, int] = {}
     for analysis in analyses:
@@ -150,17 +238,24 @@ def refresh_stats_summary() -> None:
     write_json(_STATS_PATH, stats)
 
 
-def load_bookmarks(path: Path | None = None) -> list[Bookmark]:
+def load_bookmarks(path: Path | None = None, *, fresh: bool = False) -> list[Bookmark]:
     if using_sqlite_backend() and path is None:
         return _sqlite_storage().load_bookmarks()
 
     source_path = path or BOOKMARKS_RAW_PATH
-    raw_items = load_json(source_path, default=[])
+    raw_items = load_json(source_path, default=[], fresh=fresh)
     bookmarks = [Bookmark.from_dict(item) for item in raw_items if isinstance(item, dict)]
     return [bookmark for bookmark in bookmarks if bookmark.id and bookmark.url]
 
 
 def save_bookmarks(bookmarks: Iterable[Bookmark], path: Path | None = None) -> None:
+    """Overwrite the bookmark list. Prefer add_bookmarks() for adding: it
+    re-reads under the lock so concurrent writers cannot drop rows."""
+    with data_lock():
+        _save_bookmarks_locked(bookmarks, path)
+
+
+def _save_bookmarks_locked(bookmarks: Iterable[Bookmark], path: Path | None = None) -> None:
     if using_sqlite_backend() and path is None:
         _sqlite_storage().save_bookmarks(bookmarks)
         _sync_sqlite_json_mirrors()
@@ -171,6 +266,18 @@ def save_bookmarks(bookmarks: Iterable[Bookmark], path: Path | None = None) -> N
     write_json(target_path, [bookmark.to_dict() for bookmark in bookmarks])
     if target_path == BOOKMARKS_RAW_PATH:
         refresh_stats_summary()
+
+
+def add_bookmarks(incoming: Iterable[Bookmark], drop_ids: Iterable[str] = ()) -> list[Bookmark]:
+    """Atomically merge *incoming* into the stored bookmarks (optionally
+    removing *drop_ids*). Read, merge and write all happen under data_lock."""
+    incoming = list(incoming)
+    drop = set(drop_ids)
+    with data_lock():
+        current = [b for b in load_bookmarks(fresh=True) if b.id not in drop]
+        merged = merge_bookmarks(current, incoming)
+        _save_bookmarks_locked(merged)
+        return merged
 
 
 def merge_bookmarks(existing: Iterable[Bookmark], incoming: Iterable[Bookmark]) -> list[Bookmark]:
@@ -184,16 +291,21 @@ def merge_bookmarks(existing: Iterable[Bookmark], incoming: Iterable[Bookmark]) 
     )
 
 
-def load_analysis_results(path: Path | None = None) -> list[AnalysisResult]:
+def load_analysis_results(path: Path | None = None, *, fresh: bool = False) -> list[AnalysisResult]:
     if using_sqlite_backend() and path is None:
         return _sqlite_storage().load_analysis_results()
 
     source_path = path or ANALYSIS_RESULTS_PATH
-    raw_items = load_json(source_path, default=[])
+    raw_items = load_json(source_path, default=[], fresh=fresh)
     return [AnalysisResult.from_dict(item) for item in raw_items if isinstance(item, dict) and item.get("bookmark_id")]
 
 
 def save_analysis_results(results: Iterable[AnalysisResult], path: Path | None = None) -> None:
+    with data_lock():
+        _save_analysis_results_locked(results, path)
+
+
+def _save_analysis_results_locked(results: Iterable[AnalysisResult], path: Path | None = None) -> None:
     if using_sqlite_backend() and path is None:
         _sqlite_storage().save_analysis_results(results)
         _sync_sqlite_json_mirrors()
@@ -219,8 +331,19 @@ def upsert_analysis_results(
     return ordered
 
 
-def _load_seen_payload(path: Path = SEEN_BOOKMARKS_PATH) -> dict[str, Any]:
-    payload = load_json(path, default={"bookmark_ids": [], "analyzed_bookmark_ids": []})
+def add_analysis_results(
+    incoming: Iterable[AnalysisResult], drop_ids: Iterable[str] = ()
+) -> list[AnalysisResult]:
+    """Atomically upsert *incoming* analyses (read+merge+write under lock)."""
+    incoming = list(incoming)
+    drop = set(drop_ids)
+    with data_lock():
+        current = [a for a in load_analysis_results(fresh=True) if a.bookmark_id not in drop]
+        return upsert_analysis_results(current, incoming)
+
+
+def _load_seen_payload(path: Path = SEEN_BOOKMARKS_PATH, *, fresh: bool = False) -> dict[str, Any]:
+    payload = load_json(path, default={"bookmark_ids": [], "analyzed_bookmark_ids": []}, fresh=fresh)
     if not isinstance(payload, dict):
         return {"bookmark_ids": [], "analyzed_bookmark_ids": []}
     payload.setdefault("bookmark_ids", [])
@@ -245,10 +368,11 @@ def save_known_bookmark_ids(bookmark_ids: Iterable[str], path: Path | None = Non
         return
 
     target_path = path or SEEN_BOOKMARKS_PATH
-    payload = _load_seen_payload(target_path)
-    payload["bookmark_ids"] = sorted({str(item).strip() for item in bookmark_ids if str(item).strip()})
-    payload["updated_at"] = utc_now_iso()
-    write_json(target_path, payload)
+    with data_lock():
+        payload = _load_seen_payload(target_path, fresh=True)
+        payload["bookmark_ids"] = sorted({str(item).strip() for item in bookmark_ids if str(item).strip()})
+        payload["updated_at"] = utc_now_iso()
+        write_json(target_path, payload)
 
 
 def load_seen_bookmark_ids(path: Path | None = None) -> set[str]:
@@ -268,10 +392,33 @@ def save_seen_bookmark_ids(bookmark_ids: Iterable[str], path: Path | None = None
         return
 
     target_path = path or SEEN_BOOKMARKS_PATH
-    payload = _load_seen_payload(target_path)
-    payload["analyzed_bookmark_ids"] = sorted({str(item).strip() for item in bookmark_ids if str(item).strip()})
-    payload["updated_at"] = utc_now_iso()
-    write_json(target_path, payload)
+    with data_lock():
+        payload = _load_seen_payload(target_path, fresh=True)
+        payload["analyzed_bookmark_ids"] = sorted({str(item).strip() for item in bookmark_ids if str(item).strip()})
+        payload["updated_at"] = utc_now_iso()
+        write_json(target_path, payload)
+
+
+def add_known_bookmark_ids(bookmark_ids: Iterable[str]) -> None:
+    """Union *bookmark_ids* into the known set under the lock."""
+    with data_lock():
+        save_known_bookmark_ids(load_known_bookmark_ids_fresh() | set(bookmark_ids))
+
+
+def add_seen_bookmark_ids(bookmark_ids: Iterable[str]) -> None:
+    """Union *bookmark_ids* into the analyzed set under the lock."""
+    with data_lock():
+        save_seen_bookmark_ids(load_seen_bookmark_ids_fresh() | set(bookmark_ids))
+
+
+def load_known_bookmark_ids_fresh() -> set[str]:
+    invalidate_path(SEEN_BOOKMARKS_PATH)
+    return load_known_bookmark_ids()
+
+
+def load_seen_bookmark_ids_fresh() -> set[str]:
+    invalidate_path(SEEN_BOOKMARKS_PATH)
+    return load_seen_bookmark_ids()
 
 
 def bootstrap_sqlite_from_json() -> None:
