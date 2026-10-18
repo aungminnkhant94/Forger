@@ -12,6 +12,10 @@ from forger.storage import (
     load_bookmarks,
     load_known_bookmark_ids,
     load_seen_bookmark_ids,
+    add_analysis_results,
+    add_bookmarks,
+    add_known_bookmark_ids,
+    add_seen_bookmark_ids,
     merge_bookmarks,
     save_bookmarks,
     save_known_bookmark_ids,
@@ -397,10 +401,8 @@ def ingest_telegram_bookmark_message(message: str, settings: Settings) -> tuple[
     
     bookmark = bookmark_from_parsed_message(parsed)
 
-    existing_bookmarks = load_bookmarks()
-    merged_bookmarks = merge_bookmarks(existing_bookmarks, [bookmark])
-    save_bookmarks(merged_bookmarks)
-    save_known_bookmark_ids(load_known_bookmark_ids() | {bookmark.id})
+    add_bookmarks([bookmark])
+    add_known_bookmark_ids({bookmark.id})
     
     # Auto-sync dashboard data
     try:
@@ -445,9 +447,8 @@ def ingest_telegram_bookmark_message(message: str, settings: Settings) -> tuple[
         next_action="Run analysis to update scores",
     )
     
-    existing_results = load_analysis_results()
-    upsert_analysis_results(existing_results, [result])
-    save_seen_bookmark_ids(load_seen_bookmark_ids() | {bookmark.id})
+    add_analysis_results([result])
+    add_seen_bookmark_ids({bookmark.id})
 
     confirmation = {
         "status": "pending_llm",

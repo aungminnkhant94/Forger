@@ -15,6 +15,7 @@ import json
 import logging
 import os
 import shutil
+import tempfile
 from pathlib import Path
 
 LOGGER = logging.getLogger(__name__)
@@ -46,15 +47,33 @@ def publish_dashboard_enabled(explicit: bool | None = None) -> bool:
     return os.getenv("FORGER_PUBLISH_DASHBOARD", "").strip().lower() in _TRUTHY
 
 
+def _atomic_replace(dst: Path, write) -> None:
+    """Write via a temp file in the same dir + os.replace, so a concurrent
+    reader or a second sync never sees a half-written dashboard file."""
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=dst.parent, prefix=f".{dst.name}.", suffix=".tmp")
+    os.close(fd)
+    try:
+        write(Path(tmp))
+        os.replace(tmp, dst)
+    finally:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+
+
 def _write_json(path: Path, payload: object) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    text = json.dumps(payload, indent=2, ensure_ascii=False) + "\n"
+    _atomic_replace(path, lambda tmp: tmp.write_text(text, encoding="utf-8"))
+
+
+def _atomic_copy(src: Path, dst: Path) -> None:
+    _atomic_replace(dst, lambda tmp: shutil.copy2(src, tmp))
 
 
 def _copy_or_empty(src: Path, dst: Path, *, publish: bool) -> None:
     dst.parent.mkdir(parents=True, exist_ok=True)
     if publish and src.exists():
-        shutil.copy2(src, dst)
+        _atomic_copy(src, dst)
         return
     # Default / missing source: empty array so the dashboard loads cleanly
     # without personal data.
@@ -81,8 +100,7 @@ def sync_dashboard_data(*, publish: bool | None = None) -> bool:
             (_ANALYSIS_SRC, _LIB_ANALYSIS),
         ):
             if src.exists():
-                dst.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(src, dst)
+                _atomic_copy(src, dst)
             else:
                 _write_json(dst, [])
     except Exception as exc:
