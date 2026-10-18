@@ -88,7 +88,7 @@ export function BookmarkList({ bookmarks }: BookmarkListProps) {
         const err = await res.json();
         alert(`Delete failed: ${err.error || 'unknown error'}`);
       }
-    } catch (e) {
+    } catch {
       alert(`Delete failed: API unreachable. Is the delete server running?`);
     }
   };
