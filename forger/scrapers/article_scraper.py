@@ -242,6 +242,52 @@ def _challenge_or_doi_recovery(
     return _challenge_failure(url, title=title, text=text, detail=detail)
 
 
+
+_WECHAT_HOSTS = {"mp.weixin.qq.com"}
+_WECHAT_MSG_TITLE_RE = re.compile(r"var\s+msg_title\s*=\s*(['\"])(.*?)\1", re.S)
+# WeChat's anti-crawl page ("环境异常 ... 完成验证后即可继续访问") is HTTP 200.
+_WECHAT_VERIFY_MARKERS = ("环境异常", "完成验证后即可继续访问", "wappoc_appmsgcaptcha", "secitptpage/verify")
+
+
+def _is_wechat_url(url: str) -> bool:
+    from urllib.parse import urlparse
+
+    return (urlparse(url).hostname or "").lower() in _WECHAT_HOSTS
+
+
+def _scrape_wechat(url: str, html: str, soup: BeautifulSoup) -> dict:
+    """WeChat articles: <title> is empty (set by JS) and #js_content is styled
+    hidden until JS runs. Read the body from #js_content and the title from
+    og:title / msg_title. Missing/thin body or a verify page is a refusal."""
+    fail = {"success": False, "title": None, "text": None, "author": None, "source": None}
+    if any(m in html for m in _WECHAT_VERIFY_MARKERS):
+        return _challenge_failure(url, detail="wechat verify page")
+    title = None
+    og = soup.find("meta", attrs={"property": "og:title"})
+    if og and (og.get("content") or "").strip():
+        title = og["content"].strip()
+    else:
+        m = _WECHAT_MSG_TITLE_RE.search(html)
+        if m and m.group(2).strip():
+            title = m.group(2).strip()
+    content = soup.select_one("#js_content")
+    text = None
+    if content:
+        for tag in content(["script", "style"]):
+            tag.decompose()
+        lines = [ln.strip() for ln in content.get_text(separator="\n").split("\n") if ln.strip()]
+        text = "\n".join(lines)[:MAX_TEXT_LENGTH]
+    if not title or not text or len(text) <= 200:
+        LOGGER.warning("WeChat article missing title or #js_content body: %s", url)
+        return {**fail, "title": title, "text": text, "error": "Insufficient content extracted"}
+    author = None
+    am = soup.find("meta", attrs={"name": "author"})
+    if am:
+        author = (am.get("content") or "").strip() or None
+    return {"success": True, "title": title, "text": text, "author": author,
+            "source": "requests+bs4:wechat", "error": None}
+
+
 def scrape_article(url: str, timeout: int = DEFAULT_TIMEOUT) -> dict:
     """
     Scrape article content using requests + BeautifulSoup.
@@ -333,7 +379,9 @@ def scrape_article(url: str, timeout: int = DEFAULT_TIMEOUT) -> dict:
             )
 
         soup = BeautifulSoup(html, 'html.parser')
-        
+        if _is_wechat_url(url):
+            return _scrape_wechat(url, html, soup)
+
         # Extract title
         title = None
         try:
