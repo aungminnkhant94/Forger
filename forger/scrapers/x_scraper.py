@@ -246,7 +246,7 @@ def _extract_quoted_tweet(payload: dict | None) -> tuple[str | None, str | None]
         return None, None
 
     candidates: list[dict] = []
-    for key in ("quoted_tweet", "quote", "quoted_status"):
+    for key in ("quoted_tweet", "quote", "quoted_status", "qrt"):
         node = payload.get(key)
         if isinstance(node, dict):
             candidates.append(node)
@@ -278,6 +278,27 @@ def _extract_quoted_tweet(payload: dict | None) -> tuple[str | None, str | None]
             author = qt.get("user_screen_name").strip().lstrip("@") or None
         return author, text
     return None, None
+
+
+# Truncated long posts ("note tweets"): X serves the first ~280 chars and
+# ends on " … https://t.co/x" (show more). A real link on its own line after
+# a colon/newline (pointer post) is not truncation.
+_TRUNC_TCO_RE = re.compile(r"[^\s\n]\s+https?://t\.co/\w+\s*$")
+_TRUNCATION_MIN_CHARS = 240
+_POINTER_MAX_PROSE = 400
+_API_CLIENT_UA = "Forger/1.0 (+https://rollo-forge.vercel.app)"
+
+
+def looks_truncated(text: str | None) -> bool:
+    """Heuristic: X preview text cut at the length limit."""
+    body = (text or "").rstrip()
+    if not body:
+        return False
+    if body.endswith(("\u2026", "...")):
+        return len(body) >= _TRUNCATION_MIN_CHARS - 40
+    if _TRUNC_TCO_RE.search(body) and "\n" not in body[-40:]:
+        return len(body) >= _TRUNCATION_MIN_CHARS
+    return False
 
 
 def _format_with_quote(outer_text: str, quote_author: str | None, quote_text: str) -> str:
@@ -557,10 +578,13 @@ class XScraper:
         return self._error_result("X content extraction blocked - manual review needed")
 
     def _fetch_with_public_apis(self, url: str) -> dict:
-        """Try syndication → oEmbed → fxtwitter without any X cookies.
+        """Try syndication → oEmbed → fxtwitter → vxtwitter without X cookies.
 
-        Thin link-only successes do not short-circuit the chain — fxtwitter
-        often carries the full X Articles body that syndication only previews.
+        Thin link-only, preview-only and *truncated* results do not
+        short-circuit the chain. Syndication returns only the ~280-char
+        preview of long posts (``note_tweet``), so once any layer signals
+        truncation, a later layer must be clearly longer to win; otherwise the
+        longest result seen is kept.
         """
         parts = extract_status_parts(url)
         if not parts:
@@ -568,10 +592,12 @@ class XScraper:
         user, status_id = parts
 
         thin_fallback = None
+        truncated_len = 0  # length of the longest text known to be cut off
         for name, fetcher in (
             ("syndication", lambda: self._fetch_with_syndication(status_id, user)),
             ("oembed", lambda: self._fetch_with_oembed(url, user)),
             ("fxtwitter", lambda: self._fetch_with_fxtwitter(status_id, user)),
+            ("vxtwitter", lambda: self._fetch_with_vxtwitter(status_id, user)),
         ):
             try:
                 result = fetcher()
@@ -581,21 +607,25 @@ class XScraper:
             if not result.get("success"):
                 LOGGER.info("%s unavailable: %s", name, result.get("error"))
                 continue
-            # Preview-only X Articles are usable but incomplete — keep
-            # trying fxtwitter which often has full content.blocks.
+            text_len = len((result.get("text") or "").strip())
+            # Compare the post's own text (quotes excluded): a later layer that
+            # is no longer than a known-truncated post is the same preview
+            # (e.g. fxtwitter without note-tweet data).
+            outer_len = result.get("outer_len", text_len)
+            if truncated_len and outer_len <= truncated_len + 20:
+                result = dict(result, truncated=True)
+            if result.get("truncated"):
+                truncated_len = max(truncated_len, outer_len)
             preview_only = result.get("article_enrichment") == "preview"
-            if not is_thin_x_result(result) and not preview_only:
-                LOGGER.info("Fetched via %s (%s chars)", name, len(result.get("text") or ""))
-                out = dict(result)
-                out.pop("article_enrichment", None)
-                out.pop("quote_enrichment", None)
-                out.pop("outbound_urls", None)
-                return out
+            if not is_thin_x_result(result) and not preview_only and not result.get("truncated"):
+                LOGGER.info("Fetched via %s (%s chars)", name, text_len)
+                return self._finish_public(result)
             LOGGER.info(
-                "%s returned thin/preview content (%s chars, enrichment=%s); trying next source",
+                "%s returned thin/preview/truncated content (%s chars, enrichment=%s, truncated=%s); trying next source",
                 name,
-                len(result.get("text") or ""),
+                text_len,
                 result.get("article_enrichment"),
+                bool(result.get("truncated")),
             )
             thin_fallback = self._better_thin_fallback(thin_fallback, result)
 
@@ -606,22 +636,76 @@ class XScraper:
                     "Thin X post enriched via outbound link (%s chars)",
                     len(enriched.get("text") or ""),
                 )
-                out = dict(enriched)
-                out.pop("article_enrichment", None)
-                out.pop("quote_enrichment", None)
-                out.pop("outbound_urls", None)
-                return out
-            # Keep a usable preview even if outbound follow failed.
+                return self._finish_public(enriched)
+            # Keep a usable preview / truncated post even if nothing better.
             if thin_fallback.get("success") and not is_thin_x_result(thin_fallback):
-                out = dict(thin_fallback)
-                out.pop("article_enrichment", None)
-                out.pop("quote_enrichment", None)
-                out.pop("outbound_urls", None)
-                return out
+                if thin_fallback.get("truncated"):
+                    LOGGER.warning(
+                        "Only truncated text available for %s (%s chars)",
+                        url,
+                        len(thin_fallback.get("text") or ""),
+                    )
+                return self._finish_public(thin_fallback)
             return enriched
         return self._error_result("Public X APIs returned no usable content")
 
-    def _http_get_json(self, api_url: str) -> Optional[dict]:
+    def _finish_public(self, result: dict) -> dict:
+        out = self._enrich_pointer_post(dict(result))
+        for key in ("article_enrichment", "quote_enrichment", "outbound_urls", "truncated", "outer_len"):
+            out.pop(key, None)
+        return out
+
+    def _enrich_pointer_post(self, result: dict) -> dict:
+        """When a post is mostly a pointer to an outbound article/tutorial
+        (short prose that ends on a non-X link), append the linked page's text
+        under the X text. If the link cannot be scraped, keep the X text."""
+        text = (result.get("text") or "").strip()
+        outer = text.split("\n\nQuoting @", 1)[0].split("\n\nQuoted post:", 1)[0].rstrip()
+        if not outer or len(prose_without_urls(outer)) > _POINTER_MAX_PROSE:
+            return result
+        tail_urls = _urls_from_text(outer[-300:])
+        if not tail_urls or not outer.endswith(tail_urls[-1].rstrip()):
+            return result
+        candidates = [tail_urls[-1]] + [u for u in (result.get("outbound_urls") or []) if u != tail_urls[-1]]
+        try:
+            from forger.scrapers.article_scraper import scrape_article
+        except ImportError:
+            return result
+        for raw in candidates[:3]:
+            try:
+                try:
+                    resolved = resolve_redirect_url(raw)
+                except UnsafeURLError:
+                    continue
+                except Exception:
+                    resolved = raw
+                    try:
+                        assert_safe_fetch_url(resolved)
+                    except UnsafeURLError:
+                        continue
+                if _is_x_status_url(resolved) or _is_x_hosted_url(resolved):
+                    continue
+                scraped = scrape_article(resolved)
+                if not scraped or not scraped.get("success"):
+                    LOGGER.info("Pointer link scrape failed for %s: %s", resolved, (scraped or {}).get("error"))
+                    continue
+                body = (scraped.get("text") or "").strip()
+                if is_link_only_text(body) or len(body) < 200:
+                    continue
+                title = (scraped.get("title") or "").strip()
+                header = f"Linked article: {title}\n{resolved}" if title else f"Linked article: {resolved}"
+                out = dict(result)
+                out["text"] = f"{text}\n\n{header}\n\n{body}"[:_MAX_ENRICH_TEXT]
+                src = out.get("source") or "x"
+                out["source"] = f"{src}+link" if "+link" not in src else src
+                out["outbound_resolved"] = resolved
+                LOGGER.info("Pointer X post: appended %s chars from %s", len(body), resolved)
+                return out
+            except Exception as e:
+                LOGGER.warning("Pointer link error for %s: %s", raw, e)
+        return result
+
+    def _http_get_json(self, api_url: str, user_agent: Optional[str] = None) -> Optional[dict]:
         """GET *api_url* as JSON after url_safety check. None on failure."""
         try:
             assert_safe_fetch_url(api_url)
@@ -631,7 +715,7 @@ class XScraper:
         req = urllib.request.Request(
             api_url,
             headers={
-                "User-Agent": self.user_agent,
+                "User-Agent": user_agent or self.user_agent,
                 "Accept": "application/json",
             },
         )
@@ -664,6 +748,11 @@ class XScraper:
         text = (data.get("text") or data.get("full_text") or "").strip()
         if not text:
             return self._error_result("syndication no text")
+        # Syndication only returns the 280-char preview of long posts; a
+        # ``note_tweet`` key (id only) means the full text lives elsewhere.
+        quoted = data.get("quoted_tweet") if isinstance(data.get("quoted_tweet"), dict) else {}
+        truncated = bool(data.get("note_tweet")) or bool(quoted.get("note_tweet")) or looks_truncated(text)
+        outer_len = len(text)
 
         q_author, q_text = _extract_quoted_tweet(data)
         if q_text:
@@ -687,6 +776,9 @@ class XScraper:
             "error": None,
             "source": "syndication",
         }
+        if truncated:
+            result["truncated"] = True
+        result["outer_len"] = outer_len
         if q_text:
             result["quote_enrichment"] = True
         result = self._merge_x_article(result, data.get("article") if isinstance(data.get("article"), dict) else None)
@@ -721,6 +813,8 @@ class XScraper:
             "error": None,
             "source": "oembed",
         }
+        if looks_truncated(text):
+            result["truncated"] = True
         return self._attach_outbound_urls(result, _urls_from_text(text))
 
     def _fetch_with_fxtwitter(self, status_id: str, user: Optional[str]) -> dict:
@@ -738,6 +832,9 @@ class XScraper:
         text = (tweet.get("text") or tweet.get("full_text") or "").strip()
         if not text:
             return self._error_result("fxtwitter no text")
+        # fxtwitter returns full note-tweet text when is_note_tweet is true.
+        truncated = not tweet.get("is_note_tweet") and looks_truncated(text)
+        outer_len = len(text)
 
         q_author, q_text = _extract_quoted_tweet(data)
         if not q_text:
@@ -760,6 +857,9 @@ class XScraper:
             "error": None,
             "source": "fxtwitter",
         }
+        if truncated:
+            result["truncated"] = True
+        result["outer_len"] = outer_len
         if q_text:
             result["quote_enrichment"] = True
         article = tweet.get("article") if isinstance(tweet.get("article"), dict) else None
@@ -770,6 +870,41 @@ class XScraper:
             _extract_entity_urls(tweet),
             _urls_from_text(text),
         )
+
+    def _fetch_with_vxtwitter(self, status_id: str, user: Optional[str]) -> dict:
+        """vxtwitter public JSON mirror; often has full long-post text when
+        fxtwitter only has the preview."""
+        path_user = user or "i"
+        api_url = f"https://api.vxtwitter.com/{urllib.parse.quote(path_user)}/status/{urllib.parse.quote(status_id)}"
+        # vxtwitter 403s browser user agents; it serves API clients.
+        data = self._http_get_json(api_url, user_agent=_API_CLIENT_UA)
+        if not data:
+            return self._error_result("vxtwitter empty")
+        text = (data.get("text") or "").strip()
+        if not text:
+            return self._error_result("vxtwitter no text")
+        truncated = looks_truncated(text)
+        outer_len = len(text)
+        q_author, q_text = _extract_quoted_tweet(data)
+        if q_text:
+            text = _format_with_quote(text, q_author, q_text)
+        author = (data.get("user_screen_name") or user or "").lstrip("@") or None
+        result = {
+            "success": True,
+            "text": text,
+            "author": author,
+            "title": self._generate_title(text),
+            "error": None,
+            "source": "vxtwitter",
+        }
+        if truncated:
+            result["truncated"] = True
+        result["outer_len"] = outer_len
+        if q_text:
+            result["quote_enrichment"] = True
+        article = data.get("article") if isinstance(data.get("article"), dict) else None
+        result = self._merge_x_article(result, article)
+        return self._attach_outbound_urls(result, _urls_from_text(text))
 
     async def _fetch_with_playwright(self, url: str, cookies: Optional[list] = None) -> dict:
         """Playwright with stealth; call only when cookies are available."""

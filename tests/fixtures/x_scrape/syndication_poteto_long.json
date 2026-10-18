@@ -1,0 +1,180 @@
+{
+ "__typename": "Tweet",
+ "favorite_count": 6497,
+ "lang": "en",
+ "possibly_sensitive": false,
+ "created_at": "2026-10-16T16:32:04.000Z",
+ "display_text_range": [
+  0,
+  278
+ ],
+ "entities": {
+  "media": [
+   {
+    "display_url": "pic.x.com/ah9dbKnrWy",
+    "expanded_url": "https://x.com/poteto/status/2111133080526495985/photo/1",
+    "indices": [
+     279,
+     302
+    ],
+    "url": "https://t.co/ah9dbKnrWy"
+   }
+  ],
+  "user_mentions": [
+   {
+    "id_str": "2085838061347217408",
+    "indices": [
+     81,
+     85
+    ],
+    "name": "Grok Bot",
+    "screen_name": "bot"
+   }
+  ]
+ },
+ "id_str": "2111133080526495985",
+ "text": "how do you trust your agents' work more? copy this post/link and give it to your @bot or agent!\n\n1. codebase improvements: this is just good software engineering - better architecture, stronger types and invariants, clear boundaries. agents love to copy what exists and take the https://t.co/ah9dbKnrWy",
+ "user": {
+  "id_str": "2832427459",
+  "name": "lauren",
+  "screen_name": "poteto",
+  "is_blue_verified": true,
+  "profile_image_shape": "Circle",
+  "verified": false,
+  "profile_image_url_https": "https://pbs.twimg.com/profile_images/2093473719830315008/oo09g1Ov_normal.jpg"
+ },
+ "edit_control": {
+  "edit_tweet_ids": [
+   "2111133080526495985"
+  ],
+  "editable_until_msecs": "1792171924000",
+  "edits_remaining": "5",
+  "is_edit_eligible": true
+ },
+ "mediaDetails": [
+  {
+   "display_url": "pic.x.com/ah9dbKnrWy",
+   "expanded_url": "https://x.com/poteto/status/2111133080526495985/photo/1",
+   "ext_media_availability": {
+    "status": "Available"
+   },
+   "indices": [
+    279,
+    302
+   ],
+   "media_url_https": "https://pbs.twimg.com/media/HUw_sHsboAARf-5.jpg",
+   "original_info": {
+    "focus_rects": [
+     {
+      "h": 610,
+      "w": 1090,
+      "x": 0,
+      "y": 0
+     },
+     {
+      "h": 819,
+      "w": 819,
+      "x": 136,
+      "y": 0
+     },
+     {
+      "h": 819,
+      "w": 718,
+      "x": 186,
+      "y": 0
+     },
+     {
+      "h": 819,
+      "w": 410,
+      "x": 340,
+      "y": 0
+     },
+     {
+      "h": 819,
+      "w": 1090,
+      "x": 0,
+      "y": 0
+     }
+    ],
+    "height": 819,
+    "width": 1090
+   },
+   "sizes": {
+    "large": {
+     "h": 819,
+     "resize": "fit",
+     "w": 1090
+    },
+    "medium": {
+     "h": 819,
+     "resize": "fit",
+     "w": 1090
+    },
+    "small": {
+     "h": 511,
+     "resize": "fit",
+     "w": 680
+    },
+    "thumb": {
+     "h": 150,
+     "resize": "crop",
+     "w": 150
+    }
+   },
+   "type": "photo",
+   "url": "https://t.co/ah9dbKnrWy"
+  }
+ ],
+ "photos": [
+  {
+   "backgroundColor": {
+    "red": 204,
+    "green": 214,
+    "blue": 221
+   },
+   "cropCandidates": [
+    {
+     "h": 610,
+     "w": 1090,
+     "x": 0,
+     "y": 0
+    },
+    {
+     "h": 819,
+     "w": 819,
+     "x": 136,
+     "y": 0
+    },
+    {
+     "h": 819,
+     "w": 718,
+     "x": 186,
+     "y": 0
+    },
+    {
+     "h": 819,
+     "w": 410,
+     "x": 340,
+     "y": 0
+    },
+    {
+     "h": 819,
+     "w": 1090,
+     "x": 0,
+     "y": 0
+    }
+   ],
+   "expandedUrl": "https://x.com/poteto/status/2111133080526495985/photo/1",
+   "url": "https://pbs.twimg.com/media/HUw_sHsboAARf-5.jpg",
+   "width": 1090,
+   "height": 819
+  }
+ ],
+ "conversation_count": 571,
+ "news_action_type": "conversation",
+ "isEdited": false,
+ "isStaleEdit": false,
+ "note_tweet": {
+  "id": "Tm90ZVR3ZWV0UmVzdWx0czoyMTExMTMzMDgwMzM3NzUyMDY2"
+ }
+}
