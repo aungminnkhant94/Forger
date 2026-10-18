@@ -39,7 +39,7 @@ export function NotesSync() {
           localStorage.setItem('forger_bookmarks', JSON.stringify(data));
           alert('Notes imported! Refresh to see changes.');
           window.location.reload();
-        } catch (err) {
+        } catch {
           alert('Invalid JSON file');
         }
       };
