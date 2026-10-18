@@ -1,0 +1,314 @@
+{
+ "__typename": "Tweet",
+ "favorite_count": 23220,
+ "lang": "en",
+ "possibly_sensitive": false,
+ "created_at": "2026-10-13T15:02:07.000Z",
+ "display_text_range": [
+  0,
+  271
+ ],
+ "entities": {
+  "urls": [
+   {
+    "display_url": "felixrieseberg.com/how-to-be-more…",
+    "expanded_url": "https://felixrieseberg.com/how-to-be-more-ambitious-a-tutorial-for-humans-with-models/",
+    "indices": [
+     248,
+     271
+    ],
+    "url": "https://t.co/vNPPs5FWm8"
+   }
+  ]
+ },
+ "id_str": "2110023283169247623",
+ "text": "Hi, I'm Felix. I'm an eng lead working on Claude. I love watching people take flight and do things they never thought possible.\n\nWe often describe that as \"being more ambitious\" when using AI, which is tricky advice to follow. I wrote a tutorial:\n\nhttps://t.co/vNPPs5FWm8",
+ "user": {
+  "id_str": "28576494",
+  "name": "Felix Rieseberg",
+  "screen_name": "felixrieseberg",
+  "is_blue_verified": true,
+  "profile_image_shape": "Circle",
+  "verified": false,
+  "profile_image_url_https": "https://pbs.twimg.com/profile_images/1544558915819487233/qMrauBqx_normal.jpg"
+ },
+ "edit_control": {
+  "edit_tweet_ids": [
+   "2110023283169247623"
+  ],
+  "editable_until_msecs": "1791907327000",
+  "edits_remaining": "5",
+  "is_edit_eligible": true
+ },
+ "conversation_count": 374,
+ "news_action_type": "conversation",
+ "card": {
+  "card_platform": {
+   "platform": {
+    "audience": {
+     "name": "production"
+    },
+    "device": {
+     "name": "iPhone",
+     "version": "13"
+    }
+   }
+  },
+  "name": "summary_large_image",
+  "url": "https://t.co/vNPPs5FWm8",
+  "binding_values": {
+   "photo_image_full_size_large": {
+    "image_value": {
+     "height": 419,
+     "url": "https://pbs.twimg.com/card_img/2110021573575139328/4FzH8lRE?format=jpg&name=800x419",
+     "width": 800
+    },
+    "type": "IMAGE"
+   },
+   "thumbnail_image": {
+    "image_value": {
+     "height": 150,
+     "url": "https://pbs.twimg.com/card_img/2110021573575139328/4FzH8lRE?format=jpg&name=280x150",
+     "width": 214
+    },
+    "type": "IMAGE"
+   },
+   "description": {
+    "string_value": "“We’re not ambitious enough” is easy to post and hard to follow. Here’s a practical tutorial, with prompts.",
+    "type": "STRING"
+   },
+   "domain": {
+    "string_value": "felixrieseberg.com",
+    "type": "STRING"
+   },
+   "thumbnail_image_large": {
+    "image_value": {
+     "height": 294,
+     "url": "https://pbs.twimg.com/card_img/2110021573575139328/4FzH8lRE?format=jpg&name=420x420_1",
+     "width": 420
+    },
+    "type": "IMAGE"
+   },
+   "summary_photo_image_small": {
+    "image_value": {
+     "height": 202,
+     "url": "https://pbs.twimg.com/card_img/2110021573575139328/4FzH8lRE?format=jpg&name=386x202",
+     "width": 386
+    },
+    "type": "IMAGE"
+   },
+   "thumbnail_image_original": {
+    "image_value": {
+     "height": 841,
+     "url": "https://pbs.twimg.com/card_img/2110021573575139328/4FzH8lRE?format=jpg&name=orig",
+     "width": 1200
+    },
+    "type": "IMAGE"
+   },
+   "site": {
+    "scribe_key": "publisher_id",
+    "type": "USER",
+    "user_value": {
+     "id_str": "28576494",
+     "path": []
+    }
+   },
+   "photo_image_full_size_small": {
+    "image_value": {
+     "height": 202,
+     "url": "https://pbs.twimg.com/card_img/2110021573575139328/4FzH8lRE?format=jpg&name=386x202",
+     "width": 386
+    },
+    "type": "IMAGE"
+   },
+   "summary_photo_image_large": {
+    "image_value": {
+     "height": 419,
+     "url": "https://pbs.twimg.com/card_img/2110021573575139328/4FzH8lRE?format=jpg&name=800x419",
+     "width": 800
+    },
+    "type": "IMAGE"
+   },
+   "thumbnail_image_small": {
+    "image_value": {
+     "height": 70,
+     "url": "https://pbs.twimg.com/card_img/2110021573575139328/4FzH8lRE?format=jpg&name=100x100",
+     "width": 100
+    },
+    "type": "IMAGE"
+   },
+   "creator": {
+    "type": "USER",
+    "user_value": {
+     "id_str": "28576494",
+     "path": []
+    }
+   },
+   "thumbnail_image_x_large": {
+    "image_value": {
+     "height": 841,
+     "url": "https://pbs.twimg.com/card_img/2110021573575139328/4FzH8lRE?format=png&name=2048x2048_2_exp",
+     "width": 1200
+    },
+    "type": "IMAGE"
+   },
+   "photo_image_full_size_original": {
+    "image_value": {
+     "height": 841,
+     "url": "https://pbs.twimg.com/card_img/2110021573575139328/4FzH8lRE?format=jpg&name=orig",
+     "width": 1200
+    },
+    "type": "IMAGE"
+   },
+   "vanity_url": {
+    "scribe_key": "vanity_url",
+    "string_value": "felixrieseberg.com",
+    "type": "STRING"
+   },
+   "photo_image_full_size": {
+    "image_value": {
+     "height": 314,
+     "url": "https://pbs.twimg.com/card_img/2110021573575139328/4FzH8lRE?format=jpg&name=600x314",
+     "width": 600
+    },
+    "type": "IMAGE"
+   },
+   "thumbnail_image_color": {
+    "image_color_value": {
+     "palette": [
+      {
+       "percentage": 68.71,
+       "rgb": {
+        "blue": 61,
+        "green": 69,
+        "red": 78
+       }
+      },
+      {
+       "percentage": 30.99,
+       "rgb": {
+        "blue": 178,
+        "green": 196,
+        "red": 209
+       }
+      },
+      {
+       "percentage": 0.3,
+       "rgb": {
+        "blue": 47,
+        "green": 51,
+        "red": 58
+       }
+      }
+     ]
+    },
+    "type": "IMAGE_COLOR"
+   },
+   "title": {
+    "string_value": "How to be more ambitious: A tutorial for humans with models",
+    "type": "STRING"
+   },
+   "summary_photo_image_color": {
+    "image_color_value": {
+     "palette": [
+      {
+       "percentage": 68.71,
+       "rgb": {
+        "blue": 61,
+        "green": 69,
+        "red": 78
+       }
+      },
+      {
+       "percentage": 30.99,
+       "rgb": {
+        "blue": 178,
+        "green": 196,
+        "red": 209
+       }
+      },
+      {
+       "percentage": 0.3,
+       "rgb": {
+        "blue": 47,
+        "green": 51,
+        "red": 58
+       }
+      }
+     ]
+    },
+    "type": "IMAGE_COLOR"
+   },
+   "summary_photo_image_x_large": {
+    "image_value": {
+     "height": 841,
+     "url": "https://pbs.twimg.com/card_img/2110021573575139328/4FzH8lRE?format=png&name=2048x2048_2_exp",
+     "width": 1200
+    },
+    "type": "IMAGE"
+   },
+   "summary_photo_image": {
+    "image_value": {
+     "height": 314,
+     "url": "https://pbs.twimg.com/card_img/2110021573575139328/4FzH8lRE?format=jpg&name=600x314",
+     "width": 600
+    },
+    "type": "IMAGE"
+   },
+   "photo_image_full_size_color": {
+    "image_color_value": {
+     "palette": [
+      {
+       "percentage": 68.71,
+       "rgb": {
+        "blue": 61,
+        "green": 69,
+        "red": 78
+       }
+      },
+      {
+       "percentage": 30.99,
+       "rgb": {
+        "blue": 178,
+        "green": 196,
+        "red": 209
+       }
+      },
+      {
+       "percentage": 0.3,
+       "rgb": {
+        "blue": 47,
+        "green": 51,
+        "red": 58
+       }
+      }
+     ]
+    },
+    "type": "IMAGE_COLOR"
+   },
+   "photo_image_full_size_x_large": {
+    "image_value": {
+     "height": 841,
+     "url": "https://pbs.twimg.com/card_img/2110021573575139328/4FzH8lRE?format=png&name=2048x2048_2_exp",
+     "width": 1200
+    },
+    "type": "IMAGE"
+   },
+   "card_url": {
+    "scribe_key": "card_url",
+    "string_value": "https://t.co/vNPPs5FWm8",
+    "type": "STRING"
+   },
+   "summary_photo_image_original": {
+    "image_value": {
+     "height": 841,
+     "url": "https://pbs.twimg.com/card_img/2110021573575139328/4FzH8lRE?format=jpg&name=orig",
+     "width": 1200
+    },
+    "type": "IMAGE"
+   }
+  }
+ },
+ "isEdited": false,
+ "isStaleEdit": false
+}
