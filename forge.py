@@ -182,8 +182,11 @@ def cmd_add(args: argparse.Namespace) -> int:
 # ============================================================================
 def cmd_stats(args: argparse.Namespace) -> int:
     """Show dashboard statistics."""
+    from forger.models import is_pending_analysis
+
     bookmarks = load_bookmarks()
-    analyses = load_analysis_results()
+    # Agent-mode placeholders await `forge resolve`; they are not analyses.
+    analyses = [a for a in load_analysis_results() if not is_pending_analysis(a)]
     
     print_header("Forger Statistics")
     
@@ -407,8 +410,11 @@ def run_health_check() -> int:
     """Execute health check and return exit code."""
     print_header("Forger Health Check")
     
+    from forger.models import is_pending_analysis
+
     bookmarks = load_bookmarks()
-    analyses = load_analysis_results()
+    # Agent-mode placeholders await `forge resolve`; they are not analyses.
+    analyses = [a for a in load_analysis_results() if not is_pending_analysis(a)]
     
     issues = []
     warnings = []

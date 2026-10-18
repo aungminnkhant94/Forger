@@ -11,7 +11,7 @@ from forger.relates_to import validate_relates_to
 from forger.scrape_quality import is_usable_scrape_text
 from forger.similarity import check_duplicate_topic
 from forger.git_auto import git_auto_push
-from forger.models import Bookmark, AnalysisResult, ScoringInputs
+from forger.models import Bookmark, AnalysisResult, ScoringInputs, PENDING_AGENT_SOURCE
 from forger.tagging import clean_tags
 from forger.bucketing import VALID_BUCKETS, refine_bucket
 from forger.analysis_cleanup import clean_analysis_text
@@ -171,7 +171,7 @@ def _build_pending_result(bookmark: Bookmark) -> AnalysisResult:
         effort_score=0.0,
         priority_score=0.0,
         recommendation_bucket="archive",
-        analysis_source="pending_agent",
+        analysis_source=PENDING_AGENT_SOURCE,
         analyzed_at=bookmark.bookmarked_at,
         title=bookmark.title,
     )

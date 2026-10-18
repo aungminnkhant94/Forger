@@ -179,3 +179,12 @@ class AnalysisResult:
             if payload.get(key) is None:
                 payload.pop(key, None)
         return payload
+
+
+# analysis_source of the placeholder agent mode writes until `forge resolve`.
+PENDING_AGENT_SOURCE = "pending_agent"
+
+
+def is_pending_analysis(analysis: "AnalysisResult") -> bool:
+    """True for the agent-mode placeholder, which is not a real analysis."""
+    return getattr(analysis, "analysis_source", None) == PENDING_AGENT_SOURCE
