@@ -144,8 +144,12 @@ def cmd_add(args: argparse.Namespace) -> int:
         )
         print()
         print(f"  Title:    {bookmark.title[:60]}..." if bookmark.title and len(bookmark.title) > 60 else f"  Title:    {bookmark.title}")
-        print(f"  Bucket:   {color(analysis.recommendation_bucket, Colors.YELLOW)}")
-        print(f"  Priority: {analysis.priority_score:.1f}")
+        from forger.models import is_pending_analysis
+        if is_pending_analysis(analysis):
+            print(f"  Bucket:   {color('pending analysis', Colors.YELLOW)}")
+        else:
+            print(f"  Bucket:   {color(analysis.recommendation_bucket, Colors.YELLOW)}")
+            print(f"  Priority: {analysis.priority_score:.1f}")
         print(f"  Tags:     {', '.join(bookmark.tags[:5])}")
         print()
         print(message)

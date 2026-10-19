@@ -47,3 +47,19 @@ def test_digest_analyzed_excludes_placeholder():
     assert stats.analyzed == 1
     assert stats.archive == 0
     assert stats.avg_worth_score == 7.0
+
+
+def test_agent_add_prints_pending_not_bucket(capsys, tmp_path, monkeypatch):
+    from forger import bookmark_workflow as bw
+
+    bms, _ = _data()
+    bm = bms[1]
+    pending = _build_pending_result(bm)
+    msg = "✓ Saved: t\n✓ Analysis: pending (run forge resolve)\n✓ Saved locally"
+    monkeypatch.setattr(forge, "DATA_DIR", tmp_path)
+    with patch.object(bw, "process_bookmark_url", return_value=(True, msg, bm, pending)):
+        forge.cmd_add(argparse.Namespace(url="https://e.com/b", note=None, agent=True, replace=False))
+    out = capsys.readouterr().out
+    assert "pending analysis" in out
+    assert "Priority: 0.0" not in out and "Bucket:   archive" not in out
+
