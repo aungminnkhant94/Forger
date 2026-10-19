@@ -179,3 +179,12 @@ class AnalysisResult:
             if payload.get(key) is None:
                 payload.pop(key, None)
         return payload
+
+
+def display_title(bookmark: "Bookmark", analysis: "AnalysisResult | None" = None) -> str:
+    """Title to show: the agent/API analysis title when present, else the
+    scraped page title (which stays stored on the bookmark), else text."""
+    agent_title = (getattr(analysis, "title", None) or "").strip() if analysis is not None else ""
+    if agent_title and getattr(analysis, "analysis_source", None) != "pending_agent":
+        return agent_title
+    return bookmark.title or (bookmark.text or "")[:80]

@@ -81,7 +81,10 @@ def _term_in(term: str, value: str) -> bool:
 
 def _fields(bookmark, analysis) -> list[tuple[str, str]]:
     out: list[tuple[str, str]] = [
-        ("title", normalize(getattr(bookmark, "title", None))),
+        ("title", normalize(" | ".join(filter(None, [
+            getattr(bookmark, "title", None),
+            getattr(analysis, "title", None) if analysis is not None else None,
+        ])))),
         ("text", normalize(getattr(bookmark, "text", None))),
         ("tag", " | ".join(normalize(t) for t in (getattr(bookmark, "tags", None) or []))),
     ]

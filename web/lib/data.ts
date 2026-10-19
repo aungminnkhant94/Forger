@@ -148,6 +148,7 @@ export function searchBookmarks(
   return allBookmarks.filter(bookmark => {
     return matchesSearchQuery(query, [
       bookmark.title,
+      bookmark.analysis?.title,
       bookmark.text,
       bookmark.author,
       bookmark.tags?.join(' '),
@@ -179,6 +180,7 @@ export function advancedSearch({
     results = results.filter(bookmark => {
       return matchesSearchQuery(query, [
         bookmark.title,
+        bookmark.analysis?.title,
         bookmark.text,
         bookmark.author,
         bookmark.tags?.join(' '),

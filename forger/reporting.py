@@ -5,7 +5,7 @@ from pathlib import Path
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from config.settings import LATEST_REPORT_PATH, REPORT_HISTORY_DIR, REPORT_TEMPLATE_PATH
-from forger.models import AnalysisResult, Bookmark
+from forger.models import AnalysisResult, Bookmark, display_title
 from forger.utils import ensure_parent, utc_now_iso
 
 
@@ -17,7 +17,7 @@ def _build_rows(bookmarks: list[Bookmark], analysis_map: dict[str, AnalysisResul
             {
                 "id": bookmark.id,
                 "url": bookmark.url,
-                "title": bookmark.title or bookmark.text[:80],
+                "title": display_title(bookmark, analysis),
                 "text": bookmark.text,
                 "note": bookmark.note or "",
                 "author": bookmark.author or "unknown",

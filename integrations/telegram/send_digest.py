@@ -28,6 +28,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from forger.models import display_title
 from forger.digest import DigestItem, WeeklyDigest, generate_weekly_digest
 
 
@@ -74,7 +75,7 @@ class TelegramFormatter:
 
     @classmethod
     def _bookmark_label(cls, item: DigestItem, max_len: int) -> str:
-        raw = item.bookmark.title or item.bookmark.text or item.bookmark.note or item.bookmark.url or "Untitled"
+        raw = display_title(item.bookmark, item.analysis) or item.bookmark.text or item.bookmark.note or item.bookmark.url or "Untitled"
         return cls.truncate(raw, max_len)
 
     @classmethod
