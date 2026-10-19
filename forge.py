@@ -532,14 +532,20 @@ def cmd_search(args: argparse.Namespace) -> int:
     
     if not results:
         print(f"\nNo results found for \"{args.query}\"")
-        print("\nTry searching for:")
-        # Suggest some tags
-        all_tags = set()
+        # Suggest only the user's own tags that share a word with the query.
+        from forger.search import query_terms, term_stem
+        stems = {term_stem(t) for t in query_terms(args.query) if len(t) >= 3}
+        counts: dict[str, int] = {}
         for b in bookmarks:
-            all_tags.update(b.tags)
-        common_tags = [t for t in all_tags if t != "general"][:5]
-        for tag in common_tags:
-            print(f"  • {tag}")
+            for tag in b.tags or []:
+                words = tag.replace("-", " ").split()
+                if tag != "general" and any(term_stem(w).startswith(s) or s.startswith(term_stem(w)) for w in words for s in stems if len(term_stem(w)) >= 3):
+                    counts[tag] = counts.get(tag, 0) + 1
+        related = sorted(counts, key=lambda t: (-counts[t], t))[:5]
+        if related:
+            print("\nRelated tags in your forge:")
+            for tag in related:
+                print(f"  • {tag}")
         return 0
     
     print(f"\nFound {len(results)} result(s):\n")
