@@ -41,6 +41,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from forger.storage import load_bookmarks, load_analysis_results
+from forger.models import display_title
 from forger.search import search_bookmarks
 from forger.digest import generate_weekly_digest
 from config.settings import DATA_DIR, REPORTS_DIR, BASE_DIR
@@ -243,8 +244,9 @@ def cmd_stats(args: argparse.Namespace) -> int:
     if bookmarks:
         recent = sorted(bookmarks, key=lambda b: b.bookmarked_at or "", reverse=True)[:5]
         print(color("\n🕐 Recent Bookmarks", Colors.BOLD))
+        amap = {a.bookmark_id: a for a in analyses}
         for b in recent:
-            title = b.title or b.text[:50]
+            title = display_title(b, amap.get(b.id))
             if len(title) > 50:
                 title = title[:47] + "..."
             date = b.bookmarked_at[:10] if b.bookmarked_at else "Unknown"
@@ -545,7 +547,7 @@ def cmd_search(args: argparse.Namespace) -> int:
     print(f"\nFound {len(results)} result(s):\n")
     
     for i, (score, b, a, matches) in enumerate(results[:args.limit], 1):
-        title = b.title or b.text[:60]
+        title = display_title(b, a)
         if len(title) > 60:
             title = title[:57] + "..."
         

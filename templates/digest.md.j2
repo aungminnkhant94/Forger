@@ -38,7 +38,7 @@
 ## ⚡ Test This Week ({{ test_this_week|length }} items)
 
 {% for item in test_this_week %}
-### {{ loop.index }}. {{ item.bookmark.title or item.bookmark.text[:60] + "..." }}
+### {{ loop.index }}. {{ display_title(item.bookmark, item.analysis) }}
 
 **Source:** {{ item.bookmark.source }}{% if item.bookmark.author %} • @{{ item.bookmark.author }}{% endif %}
 
@@ -65,7 +65,7 @@
 Items parked in build_later:
 
 {% for item in build_later[:10] %}
-{{ loop.index }}. **{{ item.bookmark.title or item.bookmark.text[:60] + "..." }}**
+{{ loop.index }}. **{{ display_title(item.bookmark, item.analysis) }}**
    - Worth: {{ "%.1f"|format(item.analysis.worth_score) }} | Source: {{ item.bookmark.source }}
    - {{ item.analysis.summary[:100] }}{% if item.analysis.summary|length > 100 %}...{% endif %}
 {% endfor %}
@@ -101,7 +101,7 @@ Based on this week's bookmarks, here are your priority actions:
 {% if test_this_week %}
 ### Immediate (This Week)
 {% for item in test_this_week[:3] %}
-{{ loop.index }}. [{{ item.bookmark.title or item.bookmark.text[:50] + "..." }}]({{ item.bookmark.url }})
+{{ loop.index }}. [{{ display_title(item.bookmark, item.analysis) }}]({{ item.bookmark.url }})
 {% endfor %}
 {% endif %}
 

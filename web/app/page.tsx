@@ -21,6 +21,7 @@ export default function OverviewPage() {
       filtered = bookmarks.filter((bookmark: BookmarkWithAnalysis) =>
         matchesSearchQuery(searchQuery, [
           bookmark.title,
+          bookmark.analysis?.title,
           bookmark.text,
           bookmark.author,
           bookmark.analysis?.summary,
