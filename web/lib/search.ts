@@ -2,6 +2,7 @@
 // case-insensitive; '-', '_' and '/' act as spaces; every whitespace-separated
 // query word must appear somewhere in the fields (any order). A hyphen group with
 // a 1-char piece stays one phrase ("C-H" -> "c h") so it can't match everything.
+// A term also matches by its light stem ("bidding" -> "bid"); see searchTermStem.
 
 export function normalizeSearchText(text: string | null | undefined): string {
   if (!text) return '';
@@ -22,6 +23,23 @@ export function searchQueryTerms(query: string): string[] {
   return terms;
 }
 
+const SUFFIXES = ['ies', 'ing', 'ers', 'er', 'ed', 'es', 's'];
+
+export function searchTermStem(term: string): string {
+  if (term.includes(' ') || term.endsWith('ss')) return term;
+  for (const suf of SUFFIXES) {
+    if (term.endsWith(suf) && term.length - suf.length >= 3) {
+      let stem = term.slice(0, -suf.length);
+      if (suf === 'ies') return stem + 'y';
+      if (stem.length >= 4 && stem[stem.length - 1] === stem[stem.length - 2] && !'aeiouls'.includes(stem[stem.length - 1])) {
+        stem = stem.slice(0, -1);
+      }
+      return stem;
+    }
+  }
+  return term;
+}
+
 export function matchesSearchQuery(
   query: string,
   fields: Array<string | null | undefined>,
@@ -29,5 +47,5 @@ export function matchesSearchQuery(
   const terms = searchQueryTerms(query);
   if (terms.length === 0) return true;
   const haystack = fields.map(normalizeSearchText).filter(Boolean).join(' | ');
-  return terms.every(term => haystack.includes(term));
+  return terms.every(term => haystack.includes(term) || haystack.includes(searchTermStem(term)));
 }
