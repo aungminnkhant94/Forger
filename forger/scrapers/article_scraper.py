@@ -37,6 +37,8 @@ LOGGER = logging.getLogger(__name__)
 
 DEFAULT_TIMEOUT = 15  # seconds
 MAX_TEXT_LENGTH = 5000
+# A container needs this much text to count as the article (same bar as saving).
+_MIN_CONTAINER_CHARS = 200
 
 
 # Charset names that requests uses when Content-Type omits charset for text/*.
@@ -394,16 +396,27 @@ def scrape_article(url: str, timeout: int = DEFAULT_TIMEOUT) -> dict:
         
         # Extract main content
         # Try common article containers
+        # Skip tiny matches (promo cards are often <article> too): take the
+        # first container with real text, else the largest one found.
         article = None
+        largest, largest_len = None, 0
         for selector in ['article', 'main', '[role="main"]', '.article-content', '.post-content', '.entry-content', '#content']:
             try:
-                article = soup.select_one(selector)
+                for candidate in soup.select(selector):
+                    size = len(candidate.get_text(" ", strip=True))
+                    if size >= _MIN_CONTAINER_CHARS:
+                        article = candidate
+                        break
+                    if size > largest_len:
+                        largest, largest_len = candidate, size
                 if article:
                     LOGGER.debug(f"Found article container: {selector}")
                     break
             except Exception as e:
                 LOGGER.debug(f"Selector {selector} failed: {e}")
                 continue
+        if not article:
+            article = largest
         
         # Fallback to body if no article container
         if not article:
