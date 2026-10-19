@@ -11,7 +11,7 @@ from forger.relates_to import validate_relates_to
 from forger.scrape_quality import is_usable_scrape_text
 from forger.similarity import check_duplicate_topic
 from forger.git_auto import git_auto_push
-from forger.models import Bookmark, AnalysisResult, ScoringInputs
+from forger.models import Bookmark, AnalysisResult, ScoringInputs, PENDING_AGENT_SOURCE, is_pending_analysis
 from forger.tagging import clean_tags
 from forger.bucketing import VALID_BUCKETS, refine_bucket
 from forger.analysis_cleanup import clean_analysis_text
@@ -171,7 +171,7 @@ def _build_pending_result(bookmark: Bookmark) -> AnalysisResult:
         effort_score=0.0,
         priority_score=0.0,
         recommendation_bucket="archive",
-        analysis_source="pending_agent",
+        analysis_source=PENDING_AGENT_SOURCE,
         analyzed_at=bookmark.bookmarked_at,
         title=bookmark.title,
     )
@@ -391,9 +391,11 @@ def process_bookmark_url(
     if len(why) > 120:
         why = why[:117] + "..."
     verb = "Replaced" if (existing and replace) else "Saved"
-    if push_success:
-        message = f"✓ {verb}: {bookmark.title}\n✓ Bucket: {analysis.recommendation_bucket}\n✓ Priority: {analysis.priority_score}\n✓ Why: {why}\n✓ Pushed to GitHub"
+    where = "✓ Pushed to GitHub" if push_success else "✓ Saved locally"
+    if is_pending_analysis(analysis):
+        # Agent mode: no analysis yet, so no bucket or priority to report.
+        message = f"✓ {verb}: {bookmark.title}\n✓ Analysis: pending (run forge resolve)\n{where}"
     else:
-        message = f"✓ {verb}: {bookmark.title}\n✓ Bucket: {analysis.recommendation_bucket}\n✓ Priority: {analysis.priority_score}\n✓ Why: {why}\n✓ Saved locally"
+        message = f"✓ {verb}: {bookmark.title}\n✓ Bucket: {analysis.recommendation_bucket}\n✓ Priority: {analysis.priority_score}\n✓ Why: {why}\n{where}"
     
     return True, message, bookmark, analysis

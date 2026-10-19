@@ -189,10 +189,19 @@ class AnalysisResult:
         return payload
 
 
+# analysis_source of the placeholder agent mode writes until `forge resolve`.
+PENDING_AGENT_SOURCE = "pending_agent"
+
+
+def is_pending_analysis(analysis: "AnalysisResult") -> bool:
+    """True for the agent-mode placeholder, which is not a real analysis."""
+    return getattr(analysis, "analysis_source", None) == PENDING_AGENT_SOURCE
+
+
 def display_title(bookmark: "Bookmark", analysis: "AnalysisResult | None" = None) -> str:
     """Title to show: the agent/API analysis title when present, else the
     scraped page title (which stays stored on the bookmark), else text."""
     agent_title = (getattr(analysis, "title", None) or "").strip() if analysis is not None else ""
-    if agent_title and getattr(analysis, "analysis_source", None) != "pending_agent":
+    if agent_title and not is_pending_analysis(analysis):
         return agent_title
     return bookmark.title or (bookmark.text or "")[:80]

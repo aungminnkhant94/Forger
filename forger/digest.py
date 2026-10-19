@@ -187,6 +187,10 @@ def average_worth(analyses: list[AnalysisResult]) -> float:
 
 def calculate_stats(bookmarks: list[Bookmark], analyses: list[AnalysisResult]) -> WeeklyStats:
     """Calculate statistics for the week."""
+    from forger.models import is_pending_analysis
+
+    # Agent-mode placeholders await `forge resolve`; they are not analyses.
+    analyses = [a for a in analyses if not is_pending_analysis(a)]
     # Count by bucket
     test_this_week = sum(1 for a in analyses if a.recommendation_bucket == 'test_this_week')
     build_later = sum(1 for a in analyses if a.recommendation_bucket == 'build_later')
