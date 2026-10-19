@@ -572,6 +572,40 @@ def cmd_search(args: argparse.Namespace) -> int:
 # ============================================================================
 # COMMAND: export
 # ============================================================================
+def cmd_retag(args: argparse.Namespace) -> int:
+    """Remove tags that old substring matching invented. Dry-run unless --apply."""
+    from forger.storage import data_lock, invalidate_cache, save_bookmarks
+    from forger.tagging import retag
+
+    print_header("Retag Bookmarks" + ("" if args.apply else " (dry run)"))
+    with data_lock():
+        invalidate_cache()
+        bookmarks = load_bookmarks(fresh=True)
+        changed = 0
+        for b in bookmarks:
+            new = retag(b.tags, b.title, b.text, b.url, b.note)
+            if new != list(b.tags or []):
+                changed += 1
+                removed = [t for t in b.tags if t not in new]
+                print(f"  {b.id}  {(b.title or '')[:50]}")
+                print(f"    before: {', '.join(b.tags)}")
+                print(f"    after:  {', '.join(new) or '(none)'}   (removed: {', '.join(removed)})")
+                b.tags = new
+        print(f"\n{changed} of {len(bookmarks)} bookmarks would change." if not args.apply
+              else f"\n{changed} of {len(bookmarks)} bookmarks updated.")
+        if args.apply and changed:
+            save_bookmarks(bookmarks)
+    if args.apply and changed:
+        try:
+            from forger.dashboard_sync import sync_dashboard_data
+            sync_dashboard_data()
+        except Exception as e:  # dashboard sync is best effort
+            print_warning(f"Dashboard sync failed: {e}")
+    elif changed:
+        print_info("Run again with --apply to write these changes.")
+    return 0
+
+
 def cmd_export(args: argparse.Namespace) -> int:
     """Export data to various formats."""
     bookmarks = load_bookmarks()
@@ -878,6 +912,10 @@ For more help on a command:
     export_parser.add_argument("--format", choices=["json", "csv", "markdown"], default="json", help="Export format")
     export_parser.add_argument("-o", "--output", default="-", help="Output file (use - for stdout)")
     export_parser.set_defaults(func=cmd_export)
+
+    retag_parser = subparsers.add_parser("retag", help="Remove tags invented by old substring matching (dry run unless --apply)")
+    retag_parser.add_argument("--apply", action="store_true", help="Write the changes (default: show them only)")
+    retag_parser.set_defaults(func=cmd_retag)
     
     # sync
     sync_parser = subparsers.add_parser("sync", help="Sync data to web dashboard")

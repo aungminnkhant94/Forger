@@ -25,8 +25,8 @@ def test_clean_tags_prefers_analysis_tags_without_junk_padding():
         "https://example.com/doi/10.1021/example",
         "A methods paper on ester synthesis",
     )
-    assert got[:2] == ["catalysis", "organic-synthesis"]
-    assert "research" in got  # from TAG_RULES keyword "paper"/"methods"? "paper" in text
+    # Analysis tags win outright; inference only fills an empty list.
+    assert got == ["catalysis", "organic-synthesis"]
     # Must not invent ai-tools / generic-only fillers from the host
     assert "ai-tools" not in got
 
