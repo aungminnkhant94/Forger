@@ -22,6 +22,14 @@ def _optional_bool(payload: dict[str, Any], key: str) -> bool | None:
     return None
 
 
+def _optional_text(value: object) -> str | None:
+    """None/blank -> None. str(None) once wrote the literal \"None\"; read it as None too."""
+    if value is None:
+        return None
+    text = str(value).strip()
+    return None if not text or text.lower() in {"none", "null"} else text
+
+
 @dataclass(slots=True)
 class Bookmark:
     id: str
@@ -140,9 +148,9 @@ class AnalysisResult:
             recommendation_bucket=str(payload.get("recommendation_bucket", "archive")).strip(),
             analysis_source=str(payload.get("analysis_source", "fallback")).strip(),
             analyzed_at=str(payload.get("analyzed_at", "")).strip(),
-            confidence=str(payload.get("confidence", "")).strip() or None,
-            difficulty_reason=str(payload.get("difficulty_reason", "")).strip() or None,
-            next_action=str(payload.get("next_action", "")).strip() or None,
+            confidence=_optional_text(payload.get("confidence")),
+            difficulty_reason=_optional_text(payload.get("difficulty_reason")),
+            next_action=_optional_text(payload.get("next_action")),
             title=str(payload.get("title", "")).strip() or None,
             relates_to=str(payload.get("relates_to", "")).strip() or None,
             tags=normalize_tags(payload.get("tags", []) or []),
@@ -188,3 +196,12 @@ PENDING_AGENT_SOURCE = "pending_agent"
 def is_pending_analysis(analysis: "AnalysisResult") -> bool:
     """True for the agent-mode placeholder, which is not a real analysis."""
     return getattr(analysis, "analysis_source", None) == PENDING_AGENT_SOURCE
+
+
+def display_title(bookmark: "Bookmark", analysis: "AnalysisResult | None" = None) -> str:
+    """Title to show: the agent/API analysis title when present, else the
+    scraped page title (which stays stored on the bookmark), else text."""
+    agent_title = (getattr(analysis, "title", None) or "").strip() if analysis is not None else ""
+    if agent_title and not is_pending_analysis(analysis):
+        return agent_title
+    return bookmark.title or (bookmark.text or "")[:80]

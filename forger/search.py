@@ -9,6 +9,8 @@ Rules:
 - Short hyphen groups with a 1-char piece (``C-H``) stay one phrase term.
 - A single-word query behaves exactly as before: substring match per field.
   No new fields are searched (insights are not widened).
+- Light word forms: a term also matches by its stem (``bidding`` -> ``bid``
+  matches "bids"; ``agencies`` -> ``agency``). See term_stem.
 """
 from __future__ import annotations
 
@@ -55,9 +57,34 @@ def query_terms(query: str) -> list[str]:
     return terms
 
 
+_SUFFIXES = ("ies", "ing", "ers", "er", "ed", "es", "s")
+
+
+def term_stem(term: str) -> str:
+    """Crude stem for matching word forms; phrases and short words unchanged."""
+    if " " in term or term.endswith("ss"):
+        return term
+    for suf in _SUFFIXES:
+        if term.endswith(suf) and len(term) - len(suf) >= 3:
+            stem = term[: -len(suf)]
+            if suf == "ies":
+                return stem + "y"
+            if len(stem) >= 4 and stem[-1] == stem[-2] and stem[-1] not in "aeiouls":
+                stem = stem[:-1]  # bidd -> bid, runn -> run
+            return stem
+    return term
+
+
+def _term_in(term: str, value: str) -> bool:
+    return term in value or term_stem(term) in value
+
+
 def _fields(bookmark, analysis) -> list[tuple[str, str]]:
     out: list[tuple[str, str]] = [
-        ("title", normalize(getattr(bookmark, "title", None))),
+        ("title", normalize(" | ".join(filter(None, [
+            getattr(bookmark, "title", None),
+            getattr(analysis, "title", None) if analysis is not None else None,
+        ])))),
         ("text", normalize(getattr(bookmark, "text", None))),
         ("tag", " | ".join(normalize(t) for t in (getattr(bookmark, "tags", None) or []))),
     ]
@@ -79,7 +106,7 @@ def score_bookmark(query: str, bookmark, analysis=None) -> tuple[int, list[str]]
     fields = _fields(bookmark, analysis)
 
     # Gate: every term must appear in at least one field.
-    if not all(any(t in value for _, value in fields) for t in terms):
+    if not all(any(_term_in(t, value) for _, value in fields) for t in terms):
         return 0, []
 
     score = 0
@@ -88,11 +115,11 @@ def score_bookmark(query: str, bookmark, analysis=None) -> tuple[int, list[str]]
         if not value:
             continue
         weight = FIELD_WEIGHTS[name]
-        if phrase in value:
+        if phrase in value or (len(terms) == 1 and _term_in(terms[0], value)):
             score += weight
             matches.append(name)
         elif len(terms) > 1:
-            hit = sum(1 for t in terms if t in value)
+            hit = sum(1 for t in terms if _term_in(t, value))
             if hit:
                 # Partial credit, proportional to words found in this field.
                 score += max(1, weight * hit // (2 * len(terms)))

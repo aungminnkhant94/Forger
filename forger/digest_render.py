@@ -7,11 +7,13 @@ from jinja2 import Environment, FileSystemLoader
 
 from config.settings import REPORTS_DIR, TEMPLATES_DIR
 from forger.digest import WeeklyDigest
+from forger.models import display_title
 
 
 def render_html_digest(digest: WeeklyDigest) -> str:
     """Render digest as HTML."""
     env = Environment(loader=FileSystemLoader(TEMPLATES_DIR), autoescape=True)
+    env.globals["display_title"] = display_title
     template = env.get_template("digest.html.j2")
 
     week_start_str = digest.week_start.strftime("%b %d")
@@ -33,6 +35,7 @@ def render_html_digest(digest: WeeklyDigest) -> str:
 def render_markdown_digest(digest: WeeklyDigest) -> str:
     """Render digest as Markdown."""
     env = Environment(loader=FileSystemLoader(TEMPLATES_DIR), autoescape=True)
+    env.globals["display_title"] = display_title
     template = env.get_template("digest.md.j2")
 
     week_start_str = digest.week_start.strftime("%b %d")
@@ -108,7 +111,7 @@ def print_console_summary(digest: WeeklyDigest) -> None:
     if digest.test_this_week:
         print("\n⚡ TOP PRIORITY ITEMS")
         for i, item in enumerate(digest.test_this_week[:3], 1):
-            title = item.bookmark.title or item.bookmark.text[:50] + "..."
+            title = display_title(item.bookmark, item.analysis)
             print(f"   {i}. {title}")
             print(f"      Worth: {item.analysis.worth_score:.1f} | Priority: {item.analysis.priority_score:.1f}")
             if item.action_items:

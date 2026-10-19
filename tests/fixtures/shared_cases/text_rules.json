@@ -188,5 +188,51 @@
       "ellipsis": "…",
       "expected": "Catalysis enables selective C-H…"
     }
+  ],
+  "search_term_stem": [
+    {
+      "input": "bidding",
+      "expected": "bid"
+    },
+    {
+      "input": "bids",
+      "expected": "bid"
+    },
+    {
+      "input": "reports",
+      "expected": "report"
+    },
+    {
+      "input": "reporting",
+      "expected": "report"
+    },
+    {
+      "input": "agencies",
+      "expected": "agency"
+    },
+    {
+      "input": "running",
+      "expected": "run"
+    },
+    {
+      "input": "ads",
+      "expected": "ads"
+    },
+    {
+      "input": "class",
+      "expected": "class"
+    },
+    {
+      "input": "c h",
+      "expected": "c h"
+    },
+    {
+      "input": "google",
+      "expected": "google"
+    },
+    {
+      "input": "called",
+      "expected": "call"
+    }
   ]
 }

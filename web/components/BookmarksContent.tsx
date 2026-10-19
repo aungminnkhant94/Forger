@@ -45,6 +45,7 @@ export function BookmarksContent({ allBookmarks, allTags, onRefresh, isRefreshin
         if (searchQuery.trim()) {
           if (!matchesSearchQuery(searchQuery, [
             bookmark.title,
+            bookmark.analysis?.title,
             bookmark.text,
             bookmark.author,
             bookmark.analysis?.summary,

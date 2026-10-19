@@ -371,7 +371,7 @@
             <div class="bookmark-card">
                 <div class="bookmark-header">
                     <a href="{{ item.bookmark.url }}" class="bookmark-title" target="_blank">
-                        {{ item.bookmark.title or item.bookmark.text[:80] + "..." }}
+                        {{ display_title(item.bookmark, item.analysis) }}
                     </a>
                 </div>
                 <div class="bookmark-meta">
@@ -420,7 +420,7 @@
             <div class="bookmark-card">
                 <div class="bookmark-header">
                     <a href="{{ item.bookmark.url }}" class="bookmark-title" target="_blank">
-                        {{ item.bookmark.title or item.bookmark.text[:80] + "..." }}
+                        {{ display_title(item.bookmark, item.analysis) }}
                     </a>
                 </div>
                 <div class="bookmark-summary">{{ item.analysis.summary[:150] }}{% if item.analysis.summary|length > 150 %}...{% endif %}</div>
