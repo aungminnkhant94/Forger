@@ -128,6 +128,19 @@ def _migrate_add_relates_to_column(db: sqlite3.Connection) -> None:
         db.commit()
 
 
+def _migrate_add_agent_tags_column(db: sqlite3.Connection) -> None:
+    """Add agent_tags column to bookmarks if missing (safe to re-run).
+
+    NULL means legacy / unknown SoT (retag leaves tags alone). A JSON array
+    (including []) is the analysis-chosen set recorded at resolve.
+    """
+    existing = {row[1] for row in db.execute("PRAGMA table_info(bookmarks)")}
+    if "agent_tags" not in existing:
+        db.execute("ALTER TABLE bookmarks ADD COLUMN agent_tags TEXT")
+        logger.info("Added column bookmarks.agent_tags")
+        db.commit()
+
+
 def init_db() -> None:
     """Create tables and indexes if they do not exist (idempotent).
 
@@ -143,6 +156,8 @@ def init_db() -> None:
         _migrate_add_title_column(db)
         # Migration: add relates_to column (2026-09-17)
         _migrate_add_relates_to_column(db)
+        # Migration: agent vs inferred tag SoT (trust P3)
+        _migrate_add_agent_tags_column(db)
         db.commit()
         logger.info("Database initialized at %s (schema v%d)", DB_PATH, SCHEMA_VERSION)
 
@@ -176,6 +191,7 @@ CREATE TABLE IF NOT EXISTS bookmarks (
     created_at      TEXT,
     bookmarked_at   TEXT,
     tags            TEXT NOT NULL DEFAULT '[]',
+    agent_tags      TEXT,
     raw_payload     TEXT NOT NULL DEFAULT '{}',
     created_db_at   TEXT NOT NULL DEFAULT (datetime('now')),
     updated_db_at   TEXT NOT NULL DEFAULT (datetime('now'))

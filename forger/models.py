@@ -63,10 +63,19 @@ class Bookmark:
     created_at: str | None = None
     bookmarked_at: str | None = None
     tags: list[str] = field(default_factory=list)
+    # Tags chosen by agent/API at resolve. None = legacy bookmark (no SoT);
+    # retag treats missing as agent-owned so old libraries are not wiped.
+    # Empty list = analysis supplied no tags (inferred fillers may sit on tags).
+    agent_tags: list[str] | None = None
     raw_payload: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, payload: dict[str, Any]) -> "Bookmark":
+        agent_tags: list[str] | None
+        if "agent_tags" not in payload or payload.get("agent_tags") is None:
+            agent_tags = None
+        else:
+            agent_tags = normalize_tags(payload.get("agent_tags") or [])
         return cls(
             id=str(payload.get("id", "")).strip(),
             source=str(payload.get("source", "x")).strip() or "x",
@@ -78,11 +87,16 @@ class Bookmark:
             created_at=payload.get("created_at"),
             bookmarked_at=payload.get("bookmarked_at"),
             tags=normalize_tags(payload.get("tags", []) or []),
+            agent_tags=agent_tags,
             raw_payload=payload.get("raw_payload", {}) or {},
         )
 
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        payload = asdict(self)
+        # Omit missing SoT so legacy reloads stay "no agent_tags key".
+        if payload.get("agent_tags") is None:
+            payload.pop("agent_tags", None)
+        return payload
 
 
 @dataclass(slots=True)
