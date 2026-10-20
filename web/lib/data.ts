@@ -1,10 +1,12 @@
 import { matchesSearchQuery } from './search';
-import { hasTag, normalizeTag } from './tags';
+import { hasTag } from './tags';
 
 // Types
 export interface Bookmark {
   id: string;
   title: string;
+  /** SoT display string from forge sync (analysis title when finished). */
+  display_title?: string;
   source: string;
   url: string;
   text: string;
@@ -128,8 +130,9 @@ export function getBookmarksByBucket(
 }
 
 export function getAllTags(bookmarks: Bookmark[]): string[] {
+  // Tags are kebab-normalized by forge sync / export_dashboard_payloads.
   const tagSet = new Set<string>();
-  bookmarks.forEach(b => b.tags?.forEach(tag => { const t = normalizeTag(tag); if (t) tagSet.add(t); }));
+  bookmarks.forEach(b => b.tags?.forEach(tag => { if (tag) tagSet.add(tag); }));
   return Array.from(tagSet).sort();
 }
 

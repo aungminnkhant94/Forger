@@ -1,6 +1,7 @@
-// Word-boundary truncation for dashboard cards. Mirrors
-// forger.analysis_cleanup.truncate_at_word_boundary so bookmark summaries
-// never end mid-word (e.g. "catalys...").
+// Word-boundary truncation (mirrors forger.analysis_cleanup).
+// `forge sync` already truncates analysis.summary to CARD_SUMMARY_MAX_LENGTH
+// in Python; cards display the exported summary as-is. This module remains
+// for shared-cases parity (tests/fixtures/shared_cases/text_rules.json).
 
 export const CARD_SUMMARY_MAX_LENGTH = 280;
 
