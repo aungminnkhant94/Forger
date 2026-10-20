@@ -20,11 +20,31 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          pip install -r requirements-llm.txt
           pip install pytest pytest-asyncio pytest-cov
       - name: Run tests
         env:
           DEEPSEEK_API_KEY: test-key
         run: python -m pytest tests/ -q
+
+  agent-no-openai:
+    name: agent-no-openai
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install core deps without openai
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio pytest-cov
+          python -c "import importlib.util; assert importlib.util.find_spec('openai') is None, 'openai must not be installed'"
+      - name: Agent path without openai
+        env:
+          DEEPSEEK_API_KEY: test-key
+        run: python -m pytest tests/test_lazy_openai_import.py tests/test_agent_mode.py -q
 
   gitleaks:
     runs-on: ubuntu-24.04
