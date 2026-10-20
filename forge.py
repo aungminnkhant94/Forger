@@ -503,11 +503,23 @@ def run_health_check() -> int:
         "kimi": "KIMI_API_KEY",
         "custom": "LLM_API_KEY",
     }.get(provider)
+    import importlib.util
+    openai_installed = importlib.util.find_spec("openai") is not None
     if provider_key and os.getenv(provider_key):
-        print_success(f"{provider_key}: set (provider: {provider})")
+        if openai_installed:
+            print_success(f"{provider_key}: set (provider: {provider})")
+        else:
+            print_warning(
+                f"{provider_key}: set but openai package missing — "
+                "install openai for API scoring; agent mode (`forge add --agent`) still works"
+            )
+            warnings.append("openai package missing for API scoring")
     elif provider_key:
-        # Agent mode needs no key — informational, not a failure.
-        print_info(f"{provider_key}: not set — agent mode (`forge add --agent`) works without a key; set it for API scoring")
+        # Agent mode needs no key and no openai — informational, not a failure.
+        print_info(
+            f"{provider_key}: not set — agent mode (`forge add --agent`) works without a key "
+            "or openai; set the key (and install openai) for API scoring"
+        )
 
     for var in optional_vars:
         if os.getenv(var):

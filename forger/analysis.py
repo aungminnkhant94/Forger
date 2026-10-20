@@ -14,17 +14,9 @@ from pathlib import Path
 from typing import Optional
 
 from dotenv import load_dotenv
-from openai import (
-    APIConnectionError,
-    APIError,
-    APITimeoutError,
-    AuthenticationError,
-    OpenAI,
-    RateLimitError,
-)
 from tenacity import (
     retry,
-    retry_if_exception_type,
+    retry_if_exception,
     stop_after_attempt,
     wait_exponential,
 )
@@ -33,6 +25,16 @@ from tenacity import (
 load_dotenv()
 
 LOGGER = logging.getLogger(__name__)
+
+
+def _is_retryable_api_error(exc: BaseException) -> bool:
+    """True for transient OpenAI client errors; imports openai only when checking."""
+    try:
+        from openai import APIConnectionError, APITimeoutError, RateLimitError
+    except ImportError:
+        return False
+    return isinstance(exc, (APIConnectionError, APITimeoutError, RateLimitError))
+
 
 # --- LLM provider configuration ---------------------------------------------
 # ANALYSIS_PROVIDER selects the brain:
@@ -199,8 +201,19 @@ def _load_wiki_context(bookmark_text: str, title: str = "", url: str = "") -> st
         return ""
 
 
-def get_analysis_client() -> Optional[OpenAI]:
-    """Initialize the analysis client for the configured provider."""
+def get_analysis_client():
+    """Initialize the analysis client for the configured provider.
+
+    Imports openai only here (API mode). Agent mode never calls this.
+    """
+    try:
+        from openai import OpenAI
+    except ImportError as exc:
+        LOGGER.error(
+            "openai package is required for API scoring (pip install openai): %s",
+            exc,
+        )
+        return None
     cfg = _PROVIDER_CFGS.get(ANALYSIS_PROVIDER)
     if cfg is None:
         LOGGER.error(
@@ -233,12 +246,12 @@ def _analysis_model() -> str:
 
 
 @retry(
-    retry=retry_if_exception_type((APIConnectionError, APITimeoutError, RateLimitError)),
+    retry=retry_if_exception(_is_retryable_api_error),
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=1, min=2, max=30),
     reraise=True
 )
-def _call_analysis_api(client: OpenAI, prompt: str) -> Optional[str]:
+def _call_analysis_api(client, prompt: str) -> Optional[str]:
     """Make analysis API call with retry logic."""
     request = dict(
         model=_analysis_model(),
@@ -294,7 +307,7 @@ def _parse_json_response(content: str) -> Optional[dict]:
     return None
 
 
-def _repair_json_response(client: OpenAI, raw_content: str) -> Optional[dict]:
+def _repair_json_response(client, raw_content: str) -> Optional[dict]:
     """Ask Kimi to repair malformed JSON without changing meaning."""
     if not raw_content or not raw_content.strip():
         return None
@@ -381,6 +394,21 @@ def analyze_with_llm(text: str, title: str = "", url: str = "", user_note: str |
 
     Returns analysis dict or None if failed.
     """
+    try:
+        from openai import (
+            APIConnectionError,
+            APIError,
+            APITimeoutError,
+            AuthenticationError,
+            RateLimitError,
+        )
+    except ImportError as exc:
+        LOGGER.error(
+            "openai package is required for API scoring (pip install openai): %s",
+            exc,
+        )
+        return None
+
     client = get_analysis_client()
     if not client:
         LOGGER.error("Failed to initialize analysis client")

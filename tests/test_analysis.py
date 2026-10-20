@@ -26,7 +26,7 @@ class TestDeepSeekClient:
     """Tests for DeepSeek client initialization."""
 
     @patch.dict("os.environ", {"DEEPSEEK_API_KEY": "test-key"})
-    @patch("forger.analysis.OpenAI")
+    @patch("openai.OpenAI")
     def test_get_client_success(self, mock_openai):
         """Client created successfully with API key."""
         mock_client = MagicMock()
@@ -47,7 +47,7 @@ class TestDeepSeekClient:
         assert client is None
 
     @patch.dict("os.environ", {"DEEPSEEK_API_KEY": "test-key"})
-    @patch("forger.analysis.OpenAI")
+    @patch("openai.OpenAI")
     def test_client_configuration(self, mock_openai):
         """Client configured with correct settings."""
         get_analysis_client()
@@ -60,7 +60,7 @@ class TestDeepSeekClient:
 class TestCallDeepSeekAPI:
     """Tests for API calling with retries."""
 
-    @patch("forger.analysis.OpenAI")
+    @patch("openai.OpenAI")
     def test_successful_call(self, mock_openai_class):
         """Successful API call returns content."""
         mock_client = MagicMock()
@@ -74,7 +74,7 @@ class TestCallDeepSeekAPI:
         assert result == '{"result": "test"}'
         mock_client.chat.completions.create.assert_called_once()
 
-    @patch("forger.analysis.OpenAI")
+    @patch("openai.OpenAI")
     def test_api_uses_correct_model(self, mock_openai_class):
         """API call uses correct model and parameters."""
         mock_client = MagicMock()
@@ -91,7 +91,7 @@ class TestCallDeepSeekAPI:
         assert call_args.kwargs["max_tokens"] == 8000
         assert call_args.kwargs["response_format"] == {"type": "json_object"}
 
-    @patch("forger.analysis.OpenAI")
+    @patch("openai.OpenAI")
     def test_includes_system_prompt(self, mock_openai_class):
         """API call includes system prompt."""
         mock_client = MagicMock()
@@ -115,7 +115,7 @@ class TestAnalyzeWithDeepSeek:
 
     @patch.dict("os.environ", {"DEEPSEEK_API_KEY": "test-key"})
     @patch("forger.analysis._call_analysis_api")
-    @patch("forger.analysis.OpenAI")
+    @patch("openai.OpenAI")
     def test_successful_analysis(self, mock_openai, mock_call):
         """Successful analysis returns parsed result."""
         mock_response = {
@@ -149,7 +149,7 @@ class TestAnalyzeWithDeepSeek:
 
     @patch.dict("os.environ", {"DEEPSEEK_API_KEY": "test-key"})
     @patch("forger.analysis._call_analysis_api")
-    @patch("forger.analysis.OpenAI")
+    @patch("openai.OpenAI")
     def test_creates_scoring_inputs(self, mock_openai, mock_call):
         """Result includes scoring_inputs structure."""
         mock_response = {
@@ -173,7 +173,7 @@ class TestAnalyzeWithDeepSeek:
 
     @patch.dict("os.environ", {"DEEPSEEK_API_KEY": "test-key"})
     @patch("forger.analysis._call_analysis_api")
-    @patch("forger.analysis.OpenAI")
+    @patch("openai.OpenAI")
     def test_handles_bucket_field(self, mock_openai, mock_call):
         """Handles old 'bucket' field name."""
         mock_response = {
@@ -193,7 +193,7 @@ class TestAnalyzeWithDeepSeek:
         assert result is None
 
     @patch.dict("os.environ", {"DEEPSEEK_API_KEY": "test-key"})
-    @patch("forger.analysis.OpenAI")
+    @patch("openai.OpenAI")
     def test_handles_json_decode_error(self, mock_openai):
         """Handles invalid JSON response."""
         mock_client = MagicMock()
@@ -206,7 +206,7 @@ class TestAnalyzeWithDeepSeek:
         assert result is None
 
     @patch.dict("os.environ", {"DEEPSEEK_API_KEY": "test-key"})
-    @patch("forger.analysis.OpenAI")
+    @patch("openai.OpenAI")
     def test_handles_authentication_error(self, mock_openai):
         """Handles authentication error."""
         mock_client = MagicMock()
@@ -220,7 +220,7 @@ class TestAnalyzeWithDeepSeek:
 
     @patch.dict("os.environ", {"DEEPSEEK_API_KEY": "test-key"})
     @patch("forger.analysis._call_analysis_api")
-    @patch("forger.analysis.OpenAI")
+    @patch("openai.OpenAI")
     def test_handles_api_error(self, mock_openai, mock_call):
         """Handles general API error."""
         mock_call.side_effect = Exception("API error")
@@ -230,7 +230,7 @@ class TestAnalyzeWithDeepSeek:
         assert result is None
 
     @patch.dict("os.environ", {"DEEPSEEK_API_KEY": "test-key"})
-    @patch("forger.analysis.OpenAI")
+    @patch("openai.OpenAI")
     def test_truncates_long_text(self, mock_openai):
         """Long text is truncated to fit context limits."""
         mock_client = MagicMock()
