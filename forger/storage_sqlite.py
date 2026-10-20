@@ -49,6 +49,13 @@ def _bookmark_from_row(row: sqlite3.Row) -> Bookmark:
     # sqlite3.Row is subscriptable and iterable by column name
     d = dict(row)
     d["tags"] = _json_deserialize(d.get("tags", "[]")) or []
+    # NULL / missing column → omit key so Bookmark.from_dict keeps agent_tags=None
+    if "agent_tags" in d:
+        raw_agent = d.get("agent_tags")
+        if raw_agent is None:
+            d.pop("agent_tags", None)
+        else:
+            d["agent_tags"] = _json_deserialize(raw_agent) or []
     d["raw_payload"] = _json_deserialize(d.get("raw_payload", "{}")) or {}
     return Bookmark.from_dict(d)
 
@@ -57,6 +64,10 @@ def _bookmark_to_row(bm: Bookmark) -> dict[str, Any]:
     """Convert a Bookmark to a dict suitable for INSERT/REPLACE."""
     d = bm.to_dict()
     d["tags"] = _json_serialize(d.get("tags", []))
+    if "agent_tags" in d and d["agent_tags"] is not None:
+        d["agent_tags"] = _json_serialize(d["agent_tags"])
+    else:
+        d["agent_tags"] = None
     d["raw_payload"] = _json_serialize(d.get("raw_payload", {}))
     d["updated_db_at"] = utc_now_iso()
     return d
@@ -109,10 +120,10 @@ def save_bookmarks(bookmarks: Iterable[Bookmark]) -> None:
             """
             INSERT OR REPLACE INTO bookmarks
                 (id, source, url, text, title, note, author, created_at,
-                 bookmarked_at, tags, raw_payload, updated_db_at)
+                 bookmarked_at, tags, agent_tags, raw_payload, updated_db_at)
             VALUES
                 (:id, :source, :url, :text, :title, :note, :author, :created_at,
-                 :bookmarked_at, :tags, :raw_payload, :updated_db_at)
+                 :bookmarked_at, :tags, :agent_tags, :raw_payload, :updated_db_at)
             """,
             rows,
         )
@@ -357,10 +368,10 @@ def import_bookmarks_bulk(bookmarks: Iterable[Bookmark]) -> int:
             """
             INSERT OR REPLACE INTO bookmarks
                 (id, source, url, text, title, note, author, created_at,
-                 bookmarked_at, tags, raw_payload, updated_db_at)
+                 bookmarked_at, tags, agent_tags, raw_payload, updated_db_at)
             VALUES
                 (:id, :source, :url, :text, :title, :note, :author, :created_at,
-                 :bookmarked_at, :tags, :raw_payload, :updated_db_at)
+                 :bookmarked_at, :tags, :agent_tags, :raw_payload, :updated_db_at)
             """,
             rows,
         )

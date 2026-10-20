@@ -148,3 +148,4 @@ def test_resolve_writes_analysis_tags(monkeypatch):
     )
     assert ok, message
     assert stored["bookmark"].tags[:3] == ["catalysis", "organic-synthesis", "methods"]
+    assert stored["bookmark"].agent_tags == ["catalysis", "organic-synthesis", "methods"]

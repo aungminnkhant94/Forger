@@ -101,17 +101,50 @@ def _substring_rule_tags(*parts: str | None) -> set[str]:
     }
 
 
-def retag(tags: Iterable[str] | None, *parts: str | None) -> list[str]:
-    """Drop rule tags that only the old substring matching produced.
+def agent_owned_tags(analysis_tags: Iterable[object] | None) -> list[str]:
+    """Normalize analysis-chosen tags (drop the filler label "general")."""
+    return [t for t in normalize_tags(analysis_tags) if t != "general"]
 
-    Saved bookmarks do not record which tags came from the agent and which
-    from inference. A tag is removed only when (1) it is a TAG_RULES tag,
-    (2) the old substring matcher would have produced it from this text, and
-    (3) whole-word matching no longer does. A rule tag with no substring
-    evidence in the text was chosen by the agent, so it is kept, as is every
-    non-rule tag.
-    """
+
+def _retag_substring_leftovers(tags: Iterable[str] | None, *parts: str | None) -> list[str]:
+    """Drop rule tags that only the old substring matcher would invent."""
     current = normalize_tags(tags)
     supported = set(infer_tags(*parts, limit=len(TAG_RULES)))
     substring_only = _substring_rule_tags(*parts) - supported
     return [t for t in current if t not in substring_only]
+
+
+def retag(
+    tags: Iterable[str] | None,
+    *parts: str | None,
+    agent_tags: Iterable[str] | None = None,
+) -> list[str]:
+    """Refresh inferred tags; never strip agent-owned tags.
+
+    *agent_tags* is the SoT recorded at resolve/analyze:
+    - ``None`` (legacy / missing): treat every current tag as agent-owned —
+      return them unchanged. Safer for old libraries; semantic false friends
+      need an agent re-pick after resolve records ``agent_tags``.
+    - non-empty: keep those tags; drop any other ``TAG_RULES`` tag on the
+      bookmark (inferred junk), even when the body still keyword-matches
+      (e.g. agent kept ``#agents`` while body says "leavening agent", and
+      inferred-only ``#agents`` on a different bookmark is removed).
+    - empty list: analysis chose no tags, so ``tags`` are inferred-only —
+      apply the old substring→whole-word cleanup.
+    """
+    current = normalize_tags(tags)
+    if agent_tags is None:
+        return current
+    protected = normalize_tags(agent_tags)
+    if not protected:
+        return _retag_substring_leftovers(current, *parts)
+    out: list[str] = []
+    for tag in protected:
+        if tag not in out:
+            out.append(tag)
+    for tag in current:
+        if tag in protected or tag in RULE_TAGS:
+            continue
+        if tag not in out:
+            out.append(tag)
+    return out

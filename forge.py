@@ -606,7 +606,7 @@ def cmd_search(args: argparse.Namespace) -> int:
 # COMMAND: export
 # ============================================================================
 def cmd_retag(args: argparse.Namespace) -> int:
-    """Remove tags that old substring matching invented. Dry-run unless --apply."""
+    """Remove inferred junk tags; never strip agent_tags. Dry-run unless --apply."""
     from forger.storage import data_lock, invalidate_cache, save_bookmarks
     from forger.tagging import retag
 
@@ -616,7 +616,7 @@ def cmd_retag(args: argparse.Namespace) -> int:
         bookmarks = load_bookmarks(fresh=True)
         changed = 0
         for b in bookmarks:
-            new = retag(b.tags, b.title, b.text, b.url, b.note)
+            new = retag(b.tags, b.title, b.text, b.url, b.note, agent_tags=b.agent_tags)
             if new != list(b.tags or []):
                 changed += 1
                 removed = [t for t in b.tags if t not in new]

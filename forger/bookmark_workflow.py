@@ -11,7 +11,7 @@ from forger.scrape_quality import is_usable_scrape_text
 from forger.similarity import check_duplicate_topic
 from forger.git_auto import git_auto_push
 from forger.models import Bookmark, AnalysisResult, ScoringInputs, PENDING_AGENT_SOURCE, is_pending_analysis
-from forger.tagging import clean_tags
+from forger.tagging import agent_owned_tags, clean_tags
 from forger.bucketing import VALID_BUCKETS, refine_bucket
 from forger.analysis_cleanup import clean_analysis_text
 from forger.scrape_result import Refused, scrape_url
@@ -221,7 +221,8 @@ def resolve_pending_analysis(bookmark_id: str, analysis_dict: dict) -> Tuple[boo
     analysis.recommendation_bucket = refine_bucket(bookmark, analysis)
     analysis = clean_analysis_text(bookmark, analysis)
 
-    bookmark.tags = clean_tags(analysis_dict.get("tags"), bookmark.title, bookmark.text, bookmark.url, bookmark.note)
+    bookmark.agent_tags = agent_owned_tags(analysis_dict.get("tags"))
+    bookmark.tags = clean_tags(bookmark.agent_tags, bookmark.title, bookmark.text, bookmark.url, bookmark.note)
     # Re-read and write under the data lock (see process_bookmark_url).
     with data_lock():
         invalidate_cache()
@@ -360,8 +361,9 @@ def process_bookmark_url(
             user_note=bookmark.note if (note and note.strip()) else None
         )
 
-        # Update bookmark tags from the analysis
-        bookmark.tags = clean_tags(analysis_dict.get("tags"), bookmark.title, bookmark.text, bookmark.url, bookmark.note)
+        # Update bookmark tags from the analysis (agent_tags = analysis SoT)
+        bookmark.agent_tags = agent_owned_tags(analysis_dict.get("tags"))
+        bookmark.tags = clean_tags(bookmark.agent_tags, bookmark.title, bookmark.text, bookmark.url, bookmark.note)
         LOGGER.info(f"Final tags: {bookmark.tags}")
 
         analysis = _build_analysis_result(bookmark, analysis_dict)
