@@ -10,7 +10,7 @@ from forger.relates_to import validate_relates_to
 from forger.scrape_quality import is_usable_scrape_text
 from forger.similarity import check_duplicate_topic
 from forger.git_auto import git_auto_push
-from forger.models import Bookmark, AnalysisResult, ScoringInputs, PENDING_AGENT_SOURCE, is_pending_analysis
+from forger.models import Bookmark, AnalysisResult, ScoringInputs, PENDING_AGENT_SOURCE, is_pending_analysis, ingest_optional_analysis_text
 from forger.tagging import agent_owned_tags, clean_tags
 from forger.bucketing import VALID_BUCKETS, refine_bucket
 from forger.analysis_cleanup import clean_analysis_text
@@ -130,13 +130,14 @@ def scrape_and_create_bookmark(url: str) -> Optional[Bookmark]:
 
 
 def _build_analysis_result(bookmark: Bookmark, analysis_dict: dict) -> AnalysisResult:
+    """Shared analysis ingest for agent resolve and API scoring.
+
+    Optional free-text fields go through ``ingest_optional_analysis_text`` so
+    neither path can persist literal "None" / "null" / blank (#12, #47).
+    """
     # Bucket & scores come straight from the LLM (one brain; see ADR-0001).
     final_bucket = analysis_dict.get("recommendation_bucket", "archive")
-
-    relates_raw = analysis_dict.get("relates_to")
-    relates_to = None
-    if relates_raw is not None and str(relates_raw).strip():
-        relates_to = str(relates_raw).strip()
+    opt = ingest_optional_analysis_text(analysis_dict)
 
     result = AnalysisResult(
         bookmark_id=bookmark.id,
@@ -150,8 +151,11 @@ def _build_analysis_result(bookmark: Bookmark, analysis_dict: dict) -> AnalysisR
         recommendation_bucket=final_bucket,
         analysis_source=analysis_dict.get("analysis_source", "deepseek"),
         analyzed_at=bookmark.bookmarked_at,
-        title=analysis_dict.get("title") or bookmark.title,
-        relates_to=relates_to,
+        confidence=opt["confidence"],
+        difficulty_reason=opt["difficulty_reason"],
+        next_action=opt["next_action"],
+        title=opt["title"] or bookmark.title,
+        relates_to=opt["relates_to"],
         actionable_this_week=_bool_if_provided(analysis_dict, "actionable_this_week"),
         reduces_friction=_bool_if_provided(analysis_dict, "reduces_friction"),
         reference_material=_bool_if_provided(analysis_dict, "reference_material"),

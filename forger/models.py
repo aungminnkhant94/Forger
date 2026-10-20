@@ -30,6 +30,27 @@ def _optional_text(value: object) -> str | None:
     return None if not text or text.lower() in {"none", "null"} else text
 
 
+# Optional free-text on AnalysisResult. One SoT for resolve + API + from_dict
+# so neither path can persist str(None) / "None" / "null" again (#12, #47).
+OPTIONAL_ANALYSIS_TEXT_FIELDS = (
+    "confidence",
+    "difficulty_reason",
+    "next_action",
+    "relates_to",
+    "title",
+    "personalized_why",
+)
+
+
+def ingest_optional_analysis_text(payload: dict[str, Any]) -> dict[str, str | None]:
+    """Normalize optional analysis text fields via `_optional_text`.
+
+    Shared by `AnalysisResult.from_dict` (read) and `_build_analysis_result`
+    (agent resolve + API scoring write). Missing keys become None.
+    """
+    return {key: _optional_text(payload.get(key)) for key in OPTIONAL_ANALYSIS_TEXT_FIELDS}
+
+
 @dataclass(slots=True)
 class Bookmark:
     id: str
@@ -150,6 +171,7 @@ class AnalysisResult:
 
     @classmethod
     def from_dict(cls, payload: dict[str, Any]) -> "AnalysisResult":
+        opt = ingest_optional_analysis_text(payload)
         return cls(
             bookmark_id=str(payload.get("bookmark_id", "")).strip(),
             summary=str(payload.get("summary", "")).strip(),
@@ -162,17 +184,17 @@ class AnalysisResult:
             recommendation_bucket=str(payload.get("recommendation_bucket", "archive")).strip(),
             analysis_source=str(payload.get("analysis_source", "fallback")).strip(),
             analyzed_at=str(payload.get("analyzed_at", "")).strip(),
-            confidence=_optional_text(payload.get("confidence")),
-            difficulty_reason=_optional_text(payload.get("difficulty_reason")),
-            next_action=_optional_text(payload.get("next_action")),
-            title=str(payload.get("title", "")).strip() or None,
-            relates_to=str(payload.get("relates_to", "")).strip() or None,
+            confidence=opt["confidence"],
+            difficulty_reason=opt["difficulty_reason"],
+            next_action=opt["next_action"],
+            title=opt["title"],
+            relates_to=opt["relates_to"],
             tags=normalize_tags(payload.get("tags", []) or []),
             # Personalized scoring fields
             personalized_worth_score=payload.get("personalized_worth_score"),
             personalized_priority_score=payload.get("personalized_priority_score"),
             personalized_bucket=payload.get("personalized_bucket"),
-            personalized_why=payload.get("personalized_why"),
+            personalized_why=opt["personalized_why"],
             pinned=bool(payload.get("pinned", False)),
             pinned_reason=_optional_str(payload.get("pinned_reason")),
             decayed_at=_optional_str(payload.get("decayed_at")),
