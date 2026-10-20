@@ -515,7 +515,10 @@ Scoring notes:
         # Add metadata
         analysis["analysis_source"] = ANALYSIS_PROVIDER
         analysis["model"] = _analysis_model()
-        analysis["relates_to"] = str(analysis.get("relates_to", "") or "").strip()
+        from forger.models import _optional_text
+
+        # Real null for missing/string-null; shared SoT with resolve ingest.
+        analysis["relates_to"] = _optional_text(analysis.get("relates_to"))
 
         LOGGER.info(f"LLM analysis complete: {analysis.get('title', 'N/A')[:50]}...")
         return analysis
@@ -621,7 +624,14 @@ from forger.utils import utc_now_iso
 
 
 def _result_from_llm(bookmark: Bookmark, payload: dict) -> AnalysisResult:
-    """Build an AnalysisResult from the LLM payload; mark quarantine on failure."""
+    """Build an AnalysisResult from the LLM payload; mark quarantine on failure.
+
+    Optional text goes through ``ingest_optional_analysis_text`` (same SoT as
+    resolve / ``_build_analysis_result``).
+    """
+    from forger.models import ingest_optional_analysis_text
+
+    opt = ingest_optional_analysis_text(payload)
     if payload.get("analysis_source") == "llm_fallback" or "llm-failed" in payload.get("tags", []):
         return AnalysisResult(
             bookmark_id=bookmark.id,
@@ -635,8 +645,11 @@ def _result_from_llm(bookmark: Bookmark, payload: dict) -> AnalysisResult:
             recommendation_bucket="archive",
             analysis_source="llm_failed",
             analyzed_at=utc_now_iso(),
-            title=payload.get("title") or bookmark.title,
-            relates_to=payload.get("relates_to"),
+            confidence=opt["confidence"],
+            difficulty_reason=opt["difficulty_reason"],
+            next_action=opt["next_action"],
+            title=opt["title"] or bookmark.title,
+            relates_to=opt["relates_to"],
             tags=list(payload.get("tags", [])),
         )
 
@@ -652,8 +665,11 @@ def _result_from_llm(bookmark: Bookmark, payload: dict) -> AnalysisResult:
         recommendation_bucket=str(payload.get("recommendation_bucket", "archive")),
         analysis_source="llm",
         analyzed_at=utc_now_iso(),
-        title=payload.get("title") or bookmark.title,
-        relates_to=payload.get("relates_to"),
+        confidence=opt["confidence"],
+        difficulty_reason=opt["difficulty_reason"],
+        next_action=opt["next_action"],
+        title=opt["title"] or bookmark.title,
+        relates_to=opt["relates_to"],
         tags=list(payload.get("tags", [])),
     )
 
