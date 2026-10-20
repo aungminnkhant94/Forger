@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 import pytest
 import requests
 
+from forger.scrape_result import Refused, Saved
 from forger.scrapers import article_scraper, pubchem
 from forger.scrapers.pubchem import (
     is_pubchem_compound_url,
@@ -91,16 +92,15 @@ class TestScrapePubChemCompound:
             "https://pubchem.ncbi.nlm.nih.gov/compound/2519"
         )
 
-        assert result["success"] is True
-        assert result["source"] == "pubchem-pug-rest"
-        assert result["author"] == "PubChem"
-        assert result["error"] is None
-        assert "Caffeine" in result["title"]
-        assert "2519" in result["title"]
-        assert "C8H10N4O2" in result["text"]
-        assert "trimethylxanthine" in result["text"]
-        assert "ChEBI" in result["text"]
-        assert len(result["text"]) > 200
+        assert isinstance(result, Saved)
+        assert result.via == "pubchem-pug-rest"
+        assert result.author == "PubChem"
+        assert "Caffeine" in result.title
+        assert "2519" in result.title
+        assert "C8H10N4O2" in result.text
+        assert "trimethylxanthine" in result.text
+        assert "ChEBI" in result.text
+        assert len(result.text) > 200
 
     def test_caffeine_by_name_mocked(self, monkeypatch):
         props = _load("caffeine_properties.json")
@@ -111,9 +111,9 @@ class TestScrapePubChemCompound:
             "https://pubchem.ncbi.nlm.nih.gov/compound/Caffeine"
         )
 
-        assert result["success"] is True
-        assert "Caffeine" in result["title"]
-        assert "Molecular Formula: C8H10N4O2" in result["text"]
+        assert isinstance(result, Saved)
+        assert "Caffeine" in result.title
+        assert "Molecular Formula: C8H10N4O2" in result.text
 
     def test_properties_without_description_still_ok(self, monkeypatch):
         props = _load("caffeine_properties.json")
@@ -128,9 +128,9 @@ class TestScrapePubChemCompound:
         )
 
         # Property block alone should clear the >200 char bar for caffeine.
-        assert result["success"] is True
-        assert "C8H10N4O2" in result["text"]
-        assert "Description:" not in result["text"]
+        assert isinstance(result, Saved)
+        assert "C8H10N4O2" in result.text
+        assert "Description:" not in result.text
 
     def test_api_failure_returns_error(self, monkeypatch):
         monkeypatch.setattr(
@@ -143,8 +143,8 @@ class TestScrapePubChemCompound:
             "https://pubchem.ncbi.nlm.nih.gov/compound/999999999"
         )
 
-        assert result["success"] is False
-        assert "failed" in (result["error"] or "").lower()
+        assert isinstance(result, Refused)
+        assert "failed" in (result.detail or "").lower()
 
     def test_unsafe_url_blocked(self, monkeypatch):
         called = {"get": False}
@@ -157,8 +157,8 @@ class TestScrapePubChemCompound:
         # Not a pubchem host — parse fails before fetch; also covers safety on
         # scrape_pubchem_compound entry for blocked hosts when forced.
         result = scrape_pubchem_compound("http://127.0.0.1/compound/1")
-        assert result["success"] is False
-        assert "Unsafe URL" in (result["error"] or "")
+        assert isinstance(result, Refused)
+        assert "Unsafe URL" in (result.detail or "")
         assert called["get"] is False
 
 
