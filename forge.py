@@ -146,7 +146,7 @@ def cmd_add(args: argparse.Namespace) -> int:
         print()
         print(f"  Title:    {bookmark.title[:60]}..." if bookmark.title and len(bookmark.title) > 60 else f"  Title:    {bookmark.title}")
         from forger.models import is_pending_analysis
-        if is_pending_analysis(analysis):
+        if analysis is None or is_pending_analysis(analysis):
             print(f"  Bucket:   {color('pending analysis', Colors.YELLOW)}")
         else:
             print(f"  Bucket:   {color(analysis.recommendation_bucket, Colors.YELLOW)}")
@@ -187,11 +187,13 @@ def cmd_add(args: argparse.Namespace) -> int:
 # ============================================================================
 def cmd_stats(args: argparse.Namespace) -> int:
     """Show dashboard statistics."""
-    from forger.models import is_pending_analysis
+    from forger.models import finished_analyses, pending_content_ids
 
     bookmarks = load_bookmarks()
-    # Agent-mode placeholders await `forge resolve`; they are not analyses.
-    analyses = [a for a in load_analysis_results() if not is_pending_analysis(a)]
+    # Leftover pending_agent rows are not finished analyses.
+    analyses = finished_analyses(load_analysis_results())
+    # Pending is first-class: count content files, not fake AnalysisResult rows.
+    pending_n = len(pending_content_ids(DATA_DIR / "pending"))
     
     print_header("Forger Statistics")
     
@@ -199,7 +201,7 @@ def cmd_stats(args: argparse.Namespace) -> int:
     print(color("\n📊 Bookmark Counts", Colors.BOLD))
     print(f"  Total bookmarks:  {len(bookmarks)}")
     print(f"  With analysis:    {len(analyses)}")
-    print(f"  Pending analysis: {max(0, len(bookmarks) - len(analyses))}")
+    print(f"  Pending analysis: {pending_n}")
     
     # Bucket distribution
     bucket_counts = {}
@@ -416,21 +418,22 @@ def run_health_check() -> int:
     """Execute health check and return exit code."""
     print_header("Forger Health Check")
     
-    from forger.models import is_pending_analysis
+    from forger.models import finished_analyses, pending_content_ids
 
     bookmarks = load_bookmarks()
-    # Agent-mode placeholders await `forge resolve`; they are not analyses.
-    analyses = [a for a in load_analysis_results() if not is_pending_analysis(a)]
+    # Leftover pending_agent rows are not finished analyses.
+    analyses = finished_analyses(load_analysis_results())
+    pending_n = len(pending_content_ids(DATA_DIR / "pending"))
     
     issues = []
     warnings = []
     
-    # Check 1: Bookmark/Analysis parity
+    # Check 1: Bookmark/Analysis parity (pending = content files, not placeholders)
     print(color("\n1. Data Consistency", Colors.BOLD))
-    if len(bookmarks) == len(analyses):
+    if pending_n == 0 and len(bookmarks) == len(analyses):
         print_success(f"All bookmarks analyzed ({len(bookmarks)})")
     else:
-        diff = abs(len(bookmarks) - len(analyses))
+        diff = pending_n if pending_n else abs(len(bookmarks) - len(analyses))
         if diff <= 5:
             print_warning(f"{diff} bookmarks pending analysis")
             warnings.append(f"{diff} bookmarks without analysis")

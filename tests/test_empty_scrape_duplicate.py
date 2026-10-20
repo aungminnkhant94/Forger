@@ -186,7 +186,7 @@ def test_good_scrape_still_saves(monkeypatch):
     monkeypatch.setattr(bw, "load_analysis_results", lambda: [])
     monkeypatch.setattr(bw, "upsert_analysis_results", lambda *a, **k: None)
     monkeypatch.setattr(bw, "_sync_dashboard", lambda: None)
-    monkeypatch.setattr(bw, "_verify_ingestion_invariants", lambda *a: ([], []))
+    monkeypatch.setattr(bw, "_verify_ingestion_invariants", lambda *a, **k: ([], []))
     monkeypatch.setattr(bw, "git_auto_push", lambda title: False)
 
     body = _rich_text()
@@ -210,4 +210,4 @@ def test_good_scrape_still_saves(monkeypatch):
     assert bookmark.title == "Real Chemistry Paper"
     assert len(bookmark.text) > MIN_USABLE_ARTICLE_TEXT_CHARS
     assert stored.get("bookmarks")
-    assert analysis.analysis_source == "pending_agent"
+    assert analysis is None  # agent mode: no placeholder AnalysisResult

@@ -194,8 +194,32 @@ PENDING_AGENT_SOURCE = "pending_agent"
 
 
 def is_pending_analysis(analysis: "AnalysisResult") -> bool:
-    """True for the agent-mode placeholder, which is not a real analysis."""
+    """True for the leftover agent-mode placeholder (pre-pending-first-class).
+
+    New agent adds no longer write this row; keep the check so old libraries
+    that still have pending_agent analyses are not treated as finished.
+    """
     return getattr(analysis, "analysis_source", None) == PENDING_AGENT_SOURCE
+
+
+def finished_analyses(analyses: list["AnalysisResult"]) -> list["AnalysisResult"]:
+    """Analyses that count as done — ignores leftover pending_agent rows."""
+    return [a for a in analyses if not is_pending_analysis(a)]
+
+
+def pending_content_ids(pending_dir) -> set[str]:
+    """Bookmark ids with a ``*.content.md`` file under the pending dir."""
+    from pathlib import Path
+
+    root = Path(pending_dir)
+    if not root.is_dir():
+        return set()
+    suffix = ".content.md"
+    return {
+        path.name[: -len(suffix)]
+        for path in root.glob(f"*{suffix}")
+        if path.is_file() and path.name.endswith(suffix)
+    }
 
 
 def display_title(bookmark: "Bookmark", analysis: "AnalysisResult | None" = None) -> str:

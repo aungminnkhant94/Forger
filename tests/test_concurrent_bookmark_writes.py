@@ -75,7 +75,11 @@ def run_concurrent_adds(data_dir: Path):
     for p in procs:
         p.join(timeout=60)
     bookmark_ids = {b["id"] for b in json.loads((data_dir / "bookmarks_raw.json").read_text())}
-    analysis_ids = {a["bookmark_id"] for a in json.loads((data_dir / "analysis_results.json").read_text())}
+    analysis_path = data_dir / "analysis_results.json"
+    if analysis_path.exists():
+        analysis_ids = {a["bookmark_id"] for a in json.loads(analysis_path.read_text())}
+    else:
+        analysis_ids = set()
     return reported, bookmark_ids, analysis_ids
 
 
@@ -86,9 +90,9 @@ def test_concurrent_forge_add_loses_nothing(tmp_path):
     assert len(reported) == WORKERS * ROUNDS
     assert not failed, f"forge add reported failures: {failed[:3]}"
     lost_b = saved - bookmark_ids
-    lost_a = saved - analysis_ids
     assert not lost_b, f"{len(lost_b)} bookmark ids lost from bookmarks_raw.json"
-    assert not lost_a, f"{len(lost_a)} analyses lost from analysis_results.json"
+    # Agent mode writes bookmark only — no placeholder AnalysisResult.
+    assert analysis_ids == set(), f"unexpected analyses written: {analysis_ids}"
     assert len(bookmark_ids) == WORKERS * ROUNDS
     assert not list(tmp_path.glob(".*.tmp")), "temp files left behind"
 

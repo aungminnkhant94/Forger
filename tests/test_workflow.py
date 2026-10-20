@@ -24,7 +24,7 @@ def _patch_workflow(monkeypatch):
     monkeypatch.setattr(bw, "upsert_analysis_results", lambda existing, incoming: None)
     monkeypatch.setattr(bw, "_sync_dashboard", lambda: None)
     # invariant check reads real storage; meaningless under mocks
-    monkeypatch.setattr(bw, "_verify_ingestion_invariants", lambda *a: ([], []))
+    monkeypatch.setattr(bw, "_verify_ingestion_invariants", lambda *a, **k: ([], []))
 
 
 def test_workflow_public_surface():
@@ -38,8 +38,8 @@ def test_agent_mode_saves_pending(monkeypatch):
         "https://example.com/post", analyze=False
     )
     assert ok, message
-    assert analysis.analysis_source == "pending_agent"
-    assert analysis.recommendation_bucket == "archive"
+    assert analysis is None  # pending is content file, not a fake AnalysisResult
+    assert "pending" in message.lower()
 
 
 def test_note_is_stored_on_bookmark(monkeypatch):
@@ -82,7 +82,7 @@ def test_agent_mode_defers_tags_until_resolve(monkeypatch):
     monkeypatch.setattr(bw, "save_bookmarks", capture_save)
     monkeypatch.setattr(bw, "upsert_analysis_results", capture_upsert)
     monkeypatch.setattr(bw, "_sync_dashboard", lambda: None)
-    monkeypatch.setattr(bw, "_verify_ingestion_invariants", lambda *a: ([], []))
+    monkeypatch.setattr(bw, "_verify_ingestion_invariants", lambda *a, **k: ([], []))
     monkeypatch.setattr(bw, "git_auto_push", lambda title: False)
 
     ok, message, bookmark, analysis = bw.process_bookmark_url(
@@ -91,7 +91,8 @@ def test_agent_mode_defers_tags_until_resolve(monkeypatch):
     assert ok, message
     assert bookmark.tags == []
     assert saved["bookmarks"][0].tags == []
-    assert analysis.analysis_source == "pending_agent"
+    assert analysis is None
+    assert "analyses" not in saved  # no placeholder AnalysisResult written
 
 
 def test_scrape_creates_bookmark_with_empty_tags(monkeypatch):
