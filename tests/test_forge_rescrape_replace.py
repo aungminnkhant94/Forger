@@ -98,10 +98,15 @@ def test_replace_rescrapes_and_overwrites(monkeypatch):
         saved["analyses"] = list(incoming)
         return list(incoming)
 
+    def capture_clear(results):
+        saved["cleared"] = True
+        saved["cleared_analyses"] = list(results)
+
     monkeypatch.setattr(bw, "save_bookmarks", capture_save)
     monkeypatch.setattr(bw, "upsert_analysis_results", capture_upsert)
+    monkeypatch.setattr(bw, "save_analysis_results", capture_clear)
     monkeypatch.setattr(bw, "_sync_dashboard", lambda: None)
-    monkeypatch.setattr(bw, "_verify_ingestion_invariants", lambda *a: ([], []))
+    monkeypatch.setattr(bw, "_verify_ingestion_invariants", lambda *a, **k: ([], []))
     monkeypatch.setattr(bw, "git_auto_push", lambda title: False)
 
     ok, message, bookmark, analysis = bw.process_bookmark_url(
@@ -113,9 +118,11 @@ def test_replace_rescrapes_and_overwrites(monkeypatch):
     assert bookmark.text.startswith("Fresh rich")
     assert bookmark.created_at == existing.created_at  # preserved
     assert bookmark.raw_payload.get("replaced") is True
-    assert analysis.analysis_source == "pending_agent"
+    assert analysis is None  # agent replace: bookmark only, no placeholder
     assert saved["bookmarks"][0].title == "Fresh rich title"
-    assert saved["analyses"][0].analysis_source == "pending_agent"
+    assert saved.get("cleared") is True
+    assert saved["cleared_analyses"] == []
+    assert "analyses" not in saved  # upsert not called with a placeholder
 
 
 def test_replace_excludes_self_from_duplicate_topic(monkeypatch):
@@ -131,7 +138,7 @@ def test_replace_excludes_self_from_duplicate_topic(monkeypatch):
     monkeypatch.setattr(bw, "save_bookmarks", lambda bookmarks: None)
     monkeypatch.setattr(bw, "upsert_analysis_results", lambda *a, **k: None)
     monkeypatch.setattr(bw, "_sync_dashboard", lambda: None)
-    monkeypatch.setattr(bw, "_verify_ingestion_invariants", lambda *a: ([], []))
+    monkeypatch.setattr(bw, "_verify_ingestion_invariants", lambda *a, **k: ([], []))
     monkeypatch.setattr(bw, "git_auto_push", lambda title: False)
 
     ok, message, bookmark, analysis = bw.process_bookmark_url(
@@ -168,7 +175,7 @@ def test_replace_when_nothing_exists_adds_normally(monkeypatch):
     monkeypatch.setattr(bw, "save_bookmarks", lambda bookmarks: None)
     monkeypatch.setattr(bw, "upsert_analysis_results", lambda *a, **k: None)
     monkeypatch.setattr(bw, "_sync_dashboard", lambda: None)
-    monkeypatch.setattr(bw, "_verify_ingestion_invariants", lambda *a: ([], []))
+    monkeypatch.setattr(bw, "_verify_ingestion_invariants", lambda *a, **k: ([], []))
     monkeypatch.setattr(bw, "git_auto_push", lambda title: False)
 
     ok, message, bookmark, analysis = bw.process_bookmark_url(

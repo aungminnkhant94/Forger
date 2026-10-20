@@ -21,6 +21,7 @@ from forger.storage import (
     load_bookmarks,
     load_analysis_results,
     merge_bookmarks,
+    save_analysis_results,
     save_bookmarks,
     upsert_analysis_results,
 )
@@ -165,7 +166,10 @@ def _bool_if_provided(payload: dict, key: str) -> bool | None:
 
 
 def _build_pending_result(bookmark: Bookmark) -> AnalysisResult:
-    """Placeholder analysis for agent mode — resolved later by the agent."""
+    """Legacy pending_agent row shape (no longer written by agent add).
+
+    Kept so tests and migration readers can still recognize leftover rows.
+    """
     return AnalysisResult(
         bookmark_id=bookmark.id,
         summary="[PENDING ANALYSIS] " + bookmark.text[:180],
@@ -239,7 +243,13 @@ def _sync_dashboard() -> None:
         raise RuntimeError("Dashboard sync failed")
 
 
-def _verify_ingestion_invariants(before_bookmarks: list[Bookmark], before_analyses: list[AnalysisResult], bookmark: Bookmark) -> tuple[list[Bookmark], list[AnalysisResult]]:
+def _verify_ingestion_invariants(
+    before_bookmarks: list[Bookmark],
+    before_analyses: list[AnalysisResult],
+    bookmark: Bookmark,
+    *,
+    expect_analysis: bool = True,
+) -> tuple[list[Bookmark], list[AnalysisResult]]:
     invalidate_cache()
     after_bookmarks = load_bookmarks()
     after_analyses = load_analysis_results()
@@ -249,11 +259,11 @@ def _verify_ingestion_invariants(before_bookmarks: list[Bookmark], before_analys
 
     if bookmark.id not in bookmark_ids:
         raise IngestionInvariantError(f"Bookmark {bookmark.id} missing after save")
-    if bookmark.id not in analysis_ids:
+    if expect_analysis and bookmark.id not in analysis_ids:
         raise IngestionInvariantError(f"Analysis {bookmark.id} missing after save")
     if len(after_bookmarks) < len(before_bookmarks):
         raise IngestionInvariantError("Bookmark count dropped during ingestion")
-    if len(after_analyses) < len(before_analyses):
+    if expect_analysis and len(after_analyses) < len(before_analyses):
         raise IngestionInvariantError("Analysis count dropped during ingestion")
     if len(after_analyses) - len(after_bookmarks) > 0:
         LOGGER.warning(
@@ -287,9 +297,9 @@ def process_bookmark_url(
 
     Args:
         url: the bookmark URL
-        analyze: run LLM analysis now. When False (agent mode), a pending
-            placeholder analysis is stored; the calling agent writes its own
-            analysis later and resolves it via resolve_pending_analysis().
+        analyze: run LLM analysis now. When False (agent mode), only the
+            bookmark is stored (no AnalysisResult); the calling agent writes
+            content under data/pending/ and resolves via resolve_pending_analysis().
         note: the user's own words accompanying the URL (a URL+text message).
             Stored on the bookmark and passed to the analysis as the
             strongest signal of why they saved it.
@@ -358,10 +368,10 @@ def process_bookmark_url(
         analysis.recommendation_bucket = refine_bucket(bookmark, analysis)
         analysis = clean_analysis_text(bookmark, analysis)
     else:
-        # Agent mode: no API call — the calling agent analyzes and resolves.
-        # Keep tags empty until resolve writes real analysis tags.
+        # Agent mode: bookmark only — no fake AnalysisResult. Pending is the
+        # content file under data/pending/ (written by the CLI); resolve later.
         bookmark.tags = []
-        analysis = _build_pending_result(bookmark)
+        analysis = None
 
     # Legacy / odd identity on replace: drop the old row so replace does not
     # leave two bookmarks for the same URL.
@@ -375,11 +385,20 @@ def process_bookmark_url(
         before_analyses = [a for a in load_analysis_results() if a.bookmark_id not in drop_ids]
         save_bookmarks(merge_bookmarks(before_bookmarks, [bookmark]))
         LOGGER.info(f"Saved bookmark: {bookmark.id}")
-        upsert_analysis_results(before_analyses, [analysis])
-        LOGGER.info(f"Saved analysis: {analysis.bookmark_id}")
+        if analysis is not None:
+            upsert_analysis_results(before_analyses, [analysis])
+            LOGGER.info(f"Saved analysis: {analysis.bookmark_id}")
+        else:
+            # Drop any prior row for this id (replace, or leftover pending_agent).
+            kept = [a for a in before_analyses if a.bookmark_id != bookmark.id]
+            if len(kept) != len(before_analyses):
+                save_analysis_results(kept)
+                LOGGER.info(f"Cleared analysis for pending bookmark: {bookmark.id}")
 
     try:
-        _verify_ingestion_invariants(before_bookmarks, before_analyses, bookmark)
+        _verify_ingestion_invariants(
+            before_bookmarks, before_analyses, bookmark, expect_analysis=analysis is not None
+        )
     except IngestionInvariantError as exc:
         return False, f"Ingestion invariant failed: {exc}", bookmark, analysis
 
@@ -392,15 +411,15 @@ def process_bookmark_url(
 
     # Git auto-push (opt-in: FORGER_AUTO_GIT=1)
     push_success = git_auto_push(bookmark.title)
-    why = analysis.recommendation_reason or ""
-    if len(why) > 120:
-        why = why[:117] + "..."
     verb = "Replaced" if (existing and replace) else "Saved"
     where = "✓ Pushed to GitHub" if push_success else "✓ Saved locally"
-    if is_pending_analysis(analysis):
+    if analysis is None or is_pending_analysis(analysis):
         # Agent mode: no analysis yet, so no bucket or priority to report.
         message = f"✓ {verb}: {bookmark.title}\n✓ Analysis: pending (run forge resolve)\n{where}"
     else:
+        why = analysis.recommendation_reason or ""
+        if len(why) > 120:
+            why = why[:117] + "..."
         message = f"✓ {verb}: {bookmark.title}\n✓ Bucket: {analysis.recommendation_bucket}\n✓ Priority: {analysis.priority_score}\n✓ Why: {why}\n{where}"
     
     return True, message, bookmark, analysis
