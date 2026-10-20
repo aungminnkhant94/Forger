@@ -1,0 +1,6 @@
+# Optional — API-mode scoring only (OpenAI-compatible clients).
+# Agent mode (`forge add --agent`) does not need this.
+# Install: pip install -r requirements-llm.txt
+# Or from a checkout: pip install '.[llm]'
+
+openai==1.69.0

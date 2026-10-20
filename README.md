@@ -52,6 +52,7 @@ git clone https://github.com/aungminnkhant94/Forger.git
 cd Forger
 python3 -m venv .venv && source .venv/bin/activate   # Windows: py -3 -m venv .venv, then .venv\Scripts\activate
 pip install -r requirements.txt
+# Agent mode needs no openai; API scoring: pip install -r requirements-llm.txt  (or pip install '.[llm]')
 playwright install chromium                           # optional — JS-heavy pages, login-gated X posts
 cp profile.example.md profile.md                      # REQUIRED — edit it: this drives all scoring
 cp .env.example .env                                  # only for API-mode scoring — add ONE key (see table below)
