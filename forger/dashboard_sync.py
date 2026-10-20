@@ -4,6 +4,11 @@ The dashboard reads data at runtime from web/public/*.json (client fetch)
 and optionally from web/lib/*.json. `forge sync` and the bookmark workflow
 both call sync_dashboard_data().
 
+Export goes through Bookmark / AnalysisResult so tags are kebab-normalized,
+summaries are word-boundary truncated for cards, and each bookmark carries
+display_title (analysis title when finished, else scraped title). The
+dashboard can trust those fields instead of re-normalizing in TypeScript.
+
 Publishing real bookmarks into web/public/ is OPT-IN. Without
 FORGER_PUBLISH_DASHBOARD=1 or publish=True, public JSON is written as
 empty arrays so a default deploy cannot leak personal data. Local private
@@ -14,9 +19,12 @@ from __future__ import annotations
 import json
 import logging
 import os
-import shutil
 import tempfile
 from pathlib import Path
+from typing import Any
+
+from forger.analysis_cleanup import truncate_at_word_boundary
+from forger.models import AnalysisResult, Bookmark, display_title
 
 LOGGER = logging.getLogger(__name__)
 
@@ -34,6 +42,11 @@ _PUBLIC_BOOKMARKS = _PUBLIC_DIR / "data.json"
 _PUBLIC_ANALYSIS = _PUBLIC_DIR / "analysis.json"
 
 _TRUTHY = {"1", "true", "yes", "on"}
+
+# Match web/lib/truncate.ts CARD_SUMMARY_MAX_LENGTH + default ellipsis so the
+# exported summary is already card-ready (TS need not re-truncate).
+DASHBOARD_SUMMARY_MAX_LENGTH = 280
+DASHBOARD_SUMMARY_ELLIPSIS = "…"
 
 
 def publish_dashboard_enabled(explicit: bool | None = None) -> bool:
@@ -66,18 +79,53 @@ def _write_json(path: Path, payload: object) -> None:
     _atomic_replace(path, lambda tmp: tmp.write_text(text, encoding="utf-8"))
 
 
-def _atomic_copy(src: Path, dst: Path) -> None:
-    _atomic_replace(dst, lambda tmp: shutil.copy2(src, tmp))
+def _load_json_list(path: Path) -> list[Any]:
+    if not path.exists():
+        return []
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    return raw if isinstance(raw, list) else []
 
 
-def _copy_or_empty(src: Path, dst: Path, *, publish: bool) -> None:
-    dst.parent.mkdir(parents=True, exist_ok=True)
-    if publish and src.exists():
-        _atomic_copy(src, dst)
-        return
-    # Default / missing source: empty array so the dashboard loads cleanly
-    # without personal data.
-    _write_json(dst, [])
+def export_dashboard_payloads(
+    bookmarks_raw: list[Any] | None = None,
+    analysis_raw: list[Any] | None = None,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Normalize bookmarks + analysis for the dashboard via models.
+
+    Tags come back kebab-case (Bookmark/AnalysisResult.from_dict). Each
+    bookmark gains ``display_title``. Analysis summaries are truncated to
+    ``DASHBOARD_SUMMARY_MAX_LENGTH`` at a word boundary.
+    """
+    if bookmarks_raw is None:
+        bookmarks_raw = _load_json_list(_BOOKMARKS_SRC)
+    if analysis_raw is None:
+        analysis_raw = _load_json_list(_ANALYSIS_SRC)
+
+    bookmarks = [
+        Bookmark.from_dict(item) for item in bookmarks_raw if isinstance(item, dict)
+    ]
+    analyses = [
+        AnalysisResult.from_dict(item) for item in analysis_raw if isinstance(item, dict)
+    ]
+    by_id = {item.bookmark_id: item for item in analyses}
+
+    bookmark_payloads: list[dict[str, Any]] = []
+    for bookmark in bookmarks:
+        payload = bookmark.to_dict()
+        payload["display_title"] = display_title(bookmark, by_id.get(bookmark.id))
+        bookmark_payloads.append(payload)
+
+    analysis_payloads: list[dict[str, Any]] = []
+    for analysis in analyses:
+        payload = analysis.to_dict()
+        payload["summary"] = truncate_at_word_boundary(
+            str(payload.get("summary") or ""),
+            DASHBOARD_SUMMARY_MAX_LENGTH,
+            DASHBOARD_SUMMARY_ELLIPSIS,
+        )
+        analysis_payloads.append(payload)
+
+    return bookmark_payloads, analysis_payloads
 
 
 def sync_dashboard_data(*, publish: bool | None = None) -> bool:
@@ -92,27 +140,27 @@ def sync_dashboard_data(*, publish: bool | None = None) -> bool:
     """
     do_publish = publish_dashboard_enabled(publish)
     ok = True
+    has_source = _BOOKMARKS_SRC.exists() or _ANALYSIS_SRC.exists()
+    bookmarks: list[dict[str, Any]] = []
+    analyses: list[dict[str, Any]] = []
 
     try:
-        # web/lib: local/private mirror when sources exist; empty otherwise.
-        for src, dst in (
-            (_BOOKMARKS_SRC, _LIB_BOOKMARKS),
-            (_ANALYSIS_SRC, _LIB_ANALYSIS),
-        ):
-            if src.exists():
-                _atomic_copy(src, dst)
-            else:
-                _write_json(dst, [])
+        if has_source:
+            bookmarks, analyses = export_dashboard_payloads()
+        _write_json(_LIB_BOOKMARKS, bookmarks)
+        _write_json(_LIB_ANALYSIS, analyses)
     except Exception as exc:
         LOGGER.warning("Dashboard lib sync failed: %s", exc)
         ok = False
 
     try:
-        _copy_or_empty(_BOOKMARKS_SRC, _PUBLIC_BOOKMARKS, publish=do_publish)
-        _copy_or_empty(_ANALYSIS_SRC, _PUBLIC_ANALYSIS, publish=do_publish)
-        if do_publish:
+        if do_publish and has_source and ok:
+            _write_json(_PUBLIC_BOOKMARKS, bookmarks)
+            _write_json(_PUBLIC_ANALYSIS, analyses)
             LOGGER.info("Published real bookmark JSON to web/public/ (opt-in)")
         else:
+            _write_json(_PUBLIC_BOOKMARKS, [])
+            _write_json(_PUBLIC_ANALYSIS, [])
             LOGGER.info(
                 "web/public/ data.json+analysis.json left empty "
                 "(set FORGER_PUBLISH_DASHBOARD=1 or forge sync --publish to publish)"

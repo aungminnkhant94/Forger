@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import { ExternalLink, Calendar, User, Clock } from 'lucide-react';
 import { BookmarkWithAnalysis, getBookmarkAgeDays, getEffectiveBucket, getEffectivePriority, getReadingTime } from '@/lib/data';
-import { truncateAtWordBoundary } from '@/lib/truncate';
 
 interface BookmarkCardProps {
   bookmark: BookmarkWithAnalysis;
@@ -76,7 +75,7 @@ export function BookmarkCard({ bookmark }: BookmarkCardProps) {
       <div className="card-title-row">
         <h3 className="card-title">
           <Link href={bookmark.url} target="_blank" rel="noopener noreferrer">
-            {analysis?.title || bookmark.title}
+            {bookmark.display_title || analysis?.title || bookmark.title}
             <ExternalLink size={16} className="external-icon" />
           </Link>
         </h3>
@@ -84,7 +83,7 @@ export function BookmarkCard({ bookmark }: BookmarkCardProps) {
 
       {analysis?.summary && (
         <p className="card-summary">
-          {truncateAtWordBoundary(analysis.summary)}
+          {analysis.summary}
         </p>
       )}
 

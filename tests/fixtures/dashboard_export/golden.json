@@ -1,0 +1,55 @@
+{
+  "_comment": "Export shape after dashboard_sync.export_dashboard_payloads — tags kebab, summary card-truncated, display_title from models.",
+  "bookmarks_raw": [
+    {
+      "id": "bm_export_1",
+      "source": "article",
+      "url": "https://example.com/ml",
+      "text": "A long article about machine learning systems.",
+      "title": "Scraped Page Title",
+      "tags": ["Machine Learning", "#AI_Tools", "machine-learning"],
+      "bookmarked_at": "2026-10-01T00:00:00+00:00",
+      "created_at": "2026-10-01T00:00:00+00:00"
+    }
+  ],
+  "analysis_raw": [
+    {
+      "bookmark_id": "bm_export_1",
+      "summary": "Word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word end-token-should-not-appear",
+      "recommendation_reason": "Useful reference.",
+      "key_insights": ["insight"],
+      "scoring_inputs": {
+        "relevance": 8,
+        "practical_value": 7,
+        "actionability": 6,
+        "stage_fit": 7,
+        "novelty": 5,
+        "excitement": 6,
+        "difficulty": 4,
+        "time_cost": 3
+      },
+      "worth_score": 7.0,
+      "effort_score": 4.0,
+      "priority_score": 6.5,
+      "recommendation_bucket": "build_later",
+      "analysis_source": "agent",
+      "analyzed_at": "2026-10-01T01:00:00+00:00",
+      "title": "Agent Display Title",
+      "tags": ["Deep Learning", "general"]
+    }
+  ],
+  "expected_bookmark": {
+    "id": "bm_export_1",
+    "title": "Scraped Page Title",
+    "display_title": "Agent Display Title",
+    "tags": ["machine-learning", "ai-tools"]
+  },
+  "expected_analysis": {
+    "bookmark_id": "bm_export_1",
+    "title": "Agent Display Title",
+    "tags": ["deep-learning", "general"],
+    "summary_max_length": 280,
+    "summary_ellipsis": "…",
+    "summary_must_not_contain": "end-token-should-not-appear"
+  }
+}

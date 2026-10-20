@@ -1,12 +1,11 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { normalizeTag } from './tags';
-
 // Types (copied from data.ts to avoid import issues)
 export interface Bookmark {
   id: string;
   title: string;
+  display_title?: string;
   source: string;
   url: string;
   text: string;
@@ -138,10 +137,10 @@ export function useBookmarks(): UseBookmarksReturn {
           new Date(a.bookmarked_at).getTime()
       );
 
-      // Extract unique tags
+      // Tags already kebab-normalized by forge sync export.
       const tagSet = new Set<string>();
       bookmarksData.forEach((b: Bookmark) => {
-        b.tags?.forEach((tag: string) => { const t = normalizeTag(tag); if (t) tagSet.add(t); });
+        b.tags?.forEach((tag: string) => { if (tag) tagSet.add(tag); });
       });
       const uniqueTags = Array.from(tagSet).sort();
 

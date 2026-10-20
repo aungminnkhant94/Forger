@@ -4,7 +4,6 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { ExternalLink, Calendar, User, Edit2, Check, X, Trash2, Move, Clock } from 'lucide-react';
 import { BookmarkWithAnalysis, AnalysisResult, getBookmarkAgeDays, getEffectiveBucket, getEffectivePriority } from '@/lib/data';
-import { truncateAtWordBoundary } from '@/lib/truncate';
 
 interface EditableBookmarkCardProps {
   bookmark: BookmarkWithAnalysis;
@@ -126,7 +125,7 @@ export function EditableBookmarkCard({ bookmark, onUpdate, onDelete, onMove, isE
           {/* Title */}
           <h3 className="card-title">
             <Link href={bookmark.url} target="_blank" rel="noopener noreferrer">
-              {bookmark.analysis?.title || bookmark.title}
+              {bookmark.display_title || bookmark.analysis?.title || bookmark.title}
               <ExternalLink size={16} className="external-icon" />
             </Link>
           </h3>
@@ -176,7 +175,7 @@ export function EditableBookmarkCard({ bookmark, onUpdate, onDelete, onMove, isE
 
       {/* Summary */}
       {bookmark.analysis?.summary && (
-        <p className="card-summary">{truncateAtWordBoundary(bookmark.analysis.summary)}</p>
+        <p className="card-summary">{bookmark.analysis.summary}</p>
       )}
 
       {/* Personal Notes - Editable */}
