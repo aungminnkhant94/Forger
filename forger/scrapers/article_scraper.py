@@ -30,8 +30,10 @@ from forger.scrapers.doi_metadata import (
     is_nature_article_url,
     scrape_doi_metadata,
 )
+from forger.scrapers._legacy_dict import outcome_to_legacy_dict
 from forger.scrapers.hacker_news import is_hn_item_url, scrape_hn_item
 from forger.scrapers.pubchem import is_pubchem_compound_url, scrape_pubchem_compound
+from forger.scrape_result import Saved
 
 LOGGER = logging.getLogger(__name__)
 
@@ -290,7 +292,7 @@ def _scrape_wechat(url: str, html: str, soup: BeautifulSoup) -> dict:
             "source": "requests+bs4:wechat", "error": None}
 
 
-def scrape_article(url: str, timeout: int = DEFAULT_TIMEOUT) -> dict:
+def scrape_article(url: str, timeout: int = DEFAULT_TIMEOUT, *, skip_pubchem: bool = False) -> dict:
     """
     Scrape article content using requests + BeautifulSoup.
     Falls back to basic extraction if web_fetch fails.
@@ -332,14 +334,15 @@ def scrape_article(url: str, timeout: int = DEFAULT_TIMEOUT) -> dict:
         return scrape_hn_item(url, timeout=timeout)
 
     # PubChem compound pages are JS-heavy / bot-challenged; use PUG REST first.
-    if is_pubchem_compound_url(url):
+    # scrape_url may already have tried the typed adapter (skip_pubchem=True).
+    if is_pubchem_compound_url(url) and not skip_pubchem:
         pubchem = scrape_pubchem_compound(url, timeout=timeout)
-        if pubchem.get("success"):
-            return pubchem
+        if isinstance(pubchem, Saved):
+            return outcome_to_legacy_dict(pubchem)
         LOGGER.warning(
             "PubChem API scrape failed for %s (%s); falling back to HTML",
             url,
-            pubchem.get("error") or "unknown",
+            pubchem.detail or pubchem.reason.value,
         )
 
     # ACS/JACS 403 and Nature Client Challenge: prefer Crossref metadata first.

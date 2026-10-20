@@ -3,6 +3,10 @@
 Compound HTML pages are JS-heavy and often blocked by bot challenges, so
 requests+BeautifulSoup yields empty/thin scrapes. PUG REST returns title,
 description, and key properties as plain structured text.
+
+Returns :class:`~forger.scrape_result.ScrapeOutcome` (Saved | Refused) only.
+Callers that still need the old dict shape convert via
+``forger.scrapers._legacy_dict.outcome_to_legacy_dict``.
 """
 from __future__ import annotations
 
@@ -14,6 +18,7 @@ from urllib.parse import quote, unquote, urlsplit
 import requests
 from requests.exceptions import ConnectionError, HTTPError, RequestException, Timeout
 
+from forger.scrape_result import RefuseReason, Refused, Saved, ScrapeOutcome, Source
 from forger.url_safety import UnsafeURLError, assert_safe_fetch_url
 
 LOGGER = logging.getLogger(__name__)
@@ -24,6 +29,8 @@ DEFAULT_TIMEOUT = 15
 # Keep in sync with article_scraper / scrape_quality usable-text bar.
 MAX_TEXT_LENGTH = 5000
 MIN_TEXT_CHARS = 200
+
+_SOURCE: Source = "article"
 
 # Properties that read well as bookmark body text.
 _PROPERTY_TAGS = (
@@ -78,17 +85,6 @@ def parse_pubchem_compound_ref(url: str) -> tuple[str, str] | None:
     if raw.isdigit():
         return ("cid", raw)
     return ("name", raw)
-
-
-def _error_result(error: str, *, title: str | None = None, text: str | None = None) -> dict:
-    return {
-        "success": False,
-        "title": title,
-        "text": text,
-        "author": None,
-        "source": None,
-        "error": error,
-    }
 
 
 def _fetch_json(api_url: str, timeout: int) -> dict[str, Any] | None:
@@ -153,22 +149,22 @@ def _build_text(
     return text[:MAX_TEXT_LENGTH]
 
 
-def scrape_pubchem_compound(url: str, timeout: int = DEFAULT_TIMEOUT) -> dict:
+def scrape_pubchem_compound(url: str, timeout: int = DEFAULT_TIMEOUT) -> ScrapeOutcome:
     """
     Scrape a PubChem compound URL via PUG REST.
 
-    Returns the same dict shape as ``scrape_article``. On non-compound URLs
-    or hard failures, ``success`` is False so the caller can fall back to HTML.
+    Returns Saved or Refused. On non-compound URLs or hard failures, callers
+    (e.g. ``scrape_article``) may fall back to HTML.
     """
     try:
         assert_safe_fetch_url(url)
     except UnsafeURLError as e:
         LOGGER.error("Refusing unsafe PubChem URL %s: %s", url, e)
-        return _error_result(f"Unsafe URL blocked: {e}")
+        return Refused(_SOURCE, url, RefuseReason.FETCH_FAILED, f"Unsafe URL blocked: {e}")
 
     ref = parse_pubchem_compound_ref(url)
     if ref is None:
-        return _error_result("Not a PubChem compound URL")
+        return Refused(_SOURCE, url, RefuseReason.FETCH_FAILED, "Not a PubChem compound URL")
 
     kind, value = ref
     if kind == "cid":
@@ -182,11 +178,11 @@ def scrape_pubchem_compound(url: str, timeout: int = DEFAULT_TIMEOUT) -> dict:
     LOGGER.info("Fetching PubChem compound via PUG REST: %s", url)
     props_json = _fetch_json(props_url, timeout)
     if not props_json:
-        return _error_result("PubChem property lookup failed")
+        return Refused(_SOURCE, url, RefuseReason.FETCH_FAILED, "PubChem property lookup failed")
 
     properties_list = (props_json.get("PropertyTable") or {}).get("Properties") or []
     if not properties_list:
-        return _error_result("PubChem returned no compound properties")
+        return Refused(_SOURCE, url, RefuseReason.FETCH_FAILED, "PubChem returned no compound properties")
     props = properties_list[0]
 
     # Description is best-effort; properties alone can still clear the length bar.
@@ -205,20 +201,29 @@ def scrape_pubchem_compound(url: str, timeout: int = DEFAULT_TIMEOUT) -> dict:
         display_title = value
 
     text = _build_text(props, descriptions)
-    if not display_title or not text or len(text) <= MIN_TEXT_CHARS:
+    if not display_title:
+        return Refused(_SOURCE, url, RefuseReason.NO_TITLE)
+    if not text:
+        return Refused(_SOURCE, url, RefuseReason.EMPTY)
+    if len(text) <= MIN_TEXT_CHARS:
         LOGGER.warning("Insufficient PubChem content for %s", url)
-        return _error_result(
+        return Refused(
+            _SOURCE,
+            url,
+            RefuseReason.THIN,
             "Insufficient PubChem content extracted",
-            title=display_title or None,
-            text=text or None,
         )
 
     LOGGER.info("Successfully scraped PubChem compound: %s", display_title[:80])
-    return {
-        "success": True,
-        "title": display_title,
-        "text": text,
-        "author": "PubChem",
-        "source": "pubchem-pug-rest",
-        "error": None,
-    }
+    try:
+        return Saved(
+            source=_SOURCE,
+            url=url,
+            text=text,
+            title=display_title,
+            via="pubchem-pug-rest",
+            author="PubChem",
+        )
+    except ValueError as e:
+        LOGGER.warning("PubChem Saved rejected for %s: %s", url, e)
+        return Refused(_SOURCE, url, RefuseReason.THIN, str(e))

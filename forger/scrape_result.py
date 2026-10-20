@@ -126,14 +126,28 @@ def scrape_url(url: str) -> ScrapeOutcome:
             from forger.scrapers import x_scraper
 
             raw = x_scraper.fetch_x_content_sync(url)
+            outcome = classify(source, url, raw)
         else:
-            from forger.scrapers import article_scraper
+            # P5: PubChem adapter returns ScrapeOutcome directly (no success dict).
+            from forger.scrapers.pubchem import is_pubchem_compound_url, scrape_pubchem_compound
 
-            raw = article_scraper.scrape_article(url)
+            if is_pubchem_compound_url(url):
+                outcome = scrape_pubchem_compound(url)
+                if isinstance(outcome, Saved):
+                    return outcome
+                # PUG REST refused — HTML fallback without re-entering PubChem.
+                from forger.scrapers import article_scraper
+
+                raw = article_scraper.scrape_article(url, skip_pubchem=True)
+                outcome = classify(source, url, raw)
+            else:
+                from forger.scrapers import article_scraper
+
+                raw = article_scraper.scrape_article(url)
+                outcome = classify(source, url, raw)
     except Exception as e:  # scrapers wrap network libs; any raise is a failed fetch
         LOGGER.warning("Scrape raised for %s: %s", url, e)
         return Refused(source, url, RefuseReason.FETCH_FAILED, str(e))
-    outcome = classify(source, url, raw)
     if isinstance(outcome, Refused):
         LOGGER.warning("Refusing scrape for %s: %s %s", url, outcome.reason.value, outcome.detail)
     return outcome
