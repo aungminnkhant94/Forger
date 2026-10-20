@@ -6,7 +6,6 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional, Tuple
 
-from forger.analysis import analyze_bookmark
 from forger.relates_to import validate_relates_to
 from forger.scrape_quality import is_usable_scrape_text
 from forger.similarity import check_duplicate_topic
@@ -28,6 +27,12 @@ from forger.storage import (
 from forger.utils import _canonical_bookmark_identity, stable_bookmark_id
 
 LOGGER = logging.getLogger(__name__)
+
+
+def analyze_bookmark(*args, **kwargs):
+    """Lazy proxy so importing this module never pulls in openai."""
+    from forger.analysis import analyze_bookmark as _analyze_bookmark
+    return _analyze_bookmark(*args, **kwargs)
 
 
 class IngestionInvariantError(RuntimeError):
@@ -336,7 +341,7 @@ def process_bookmark_url(
         return False, f"DUPLICATE_TOPIC: {similar_message}", similar_existing, None
 
     if analyze:
-        # Run LLM analysis
+        # Run LLM analysis (analyze_bookmark is a lazy proxy; no openai until called)
         LOGGER.info(f"Running LLM analysis for: {bookmark.title[:50]}...")
         analysis_dict = analyze_bookmark(
             text=bookmark.text,
