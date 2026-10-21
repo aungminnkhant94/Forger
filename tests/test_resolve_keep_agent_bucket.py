@@ -4,8 +4,8 @@ from forger.analysis import derive_legacy_scores
 from tests.test_workflow import _make_bookmark
 
 RELATES = (
-    "Connects to the solver project because Monte Carlo rollouts are the "
-    "planned search method. Worth testing against the current baseline."
+    "Relevant to an ongoing search-algorithms project: Monte Carlo rollouts "
+    "are the planned method. Worth testing against the current baseline."
 )
 
 
@@ -31,7 +31,7 @@ def test_resolve_monte_carlo_keeps_test_this_week(monkeypatch):
     ok, message, analysis = bw.resolve_pending_analysis(
         pending.id,
         {
-            "summary": "Monte Carlo tree search walkthrough to try on the solver.",
+            "summary": "Monte Carlo tree search walkthrough to try next week.",
             "recommendation_bucket": "test_this_week",
             "reduces_friction": True,
             "relates_to": RELATES,

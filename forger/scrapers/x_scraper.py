@@ -286,7 +286,7 @@ def _extract_quoted_tweet(payload: dict | None) -> tuple[str | None, str | None]
 _TRUNC_TCO_RE = re.compile(r"[^\s\n]\s+https?://t\.co/\w+\s*$")
 _TRUNCATION_MIN_CHARS = 240
 _POINTER_MAX_PROSE = 400
-_API_CLIENT_UA = "Forger/1.0 (+https://rollo-forge.vercel.app)"
+_API_CLIENT_UA = "Forger/1.0 (+https://github.com/aungminnkhant94/Forger)"
 
 
 def looks_truncated(text: str | None) -> bool:

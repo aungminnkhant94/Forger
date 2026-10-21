@@ -62,7 +62,7 @@ def test_local_tz_is_iana_not_cst_abbreviation():
     # Regression: tzname() "CST" used to make ZoneInfo fail → UTC skew.
     assert isinstance(LOCAL_TZ, ZoneInfo)
     assert LOCAL_TZ.key != "CST"
-    # On this box /etc/timezone is Asia/Macau; FORGER_TZ may override in CI.
+    # Host tz comes from /etc/timezone; FORGER_TZ may override in CI.
     assert "/" in LOCAL_TZ.key or LOCAL_TZ.key == "UTC"
 
 
@@ -70,7 +70,7 @@ def test_parse_datetime_converts_z_into_local_wall_time():
     dt = parse_datetime("2026-10-10T00:00:00Z")
     assert dt is not None
     assert dt.tzinfo is None
-    # 00:00Z in Asia/Macau is 08:00 local; in UTC stays 00:00.
+    # 00:00Z converts to local wall time (08:00 at UTC+8); in UTC stays 00:00.
     expected = datetime(2026, 10, 10, 0, 0, 0, tzinfo=ZoneInfo("UTC")).astimezone(LOCAL_TZ).replace(
         tzinfo=None
     )

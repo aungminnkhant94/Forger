@@ -16,7 +16,7 @@ from collections import Counter
 from zoneinfo import ZoneInfo
 
 # Local timezone for digest windows. Configure with FORGER_TZ (any IANA
-# name, e.g. "Asia/Macau"). Defaults to the system timezone; falls back to UTC
+# name, e.g. "Europe/Berlin"). Defaults to the system timezone; falls back to UTC
 # when neither is resolvable (Windows without the tzdata package).
 #
 # Do NOT use datetime.tzname() abbreviations like "CST" — ZoneInfo rejects
