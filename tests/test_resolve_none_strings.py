@@ -55,14 +55,14 @@ def test_real_values_kept():
             base,
             confidence="high",
             next_action="Try it",
-            relates_to="Fits the Macau MSc plan. Worth a weekend spike.",
+            relates_to="Fits the current study plan. Worth a weekend spike.",
             title="Real title",
             personalized_why="Because profile says so",
         )
     )
     assert r.confidence == "high"
     assert r.next_action == "Try it"
-    assert r.relates_to.startswith("Fits the Macau")
+    assert r.relates_to.startswith("Fits the current")
     assert r.title == "Real title"
     assert r.personalized_why == "Because profile says so"
 

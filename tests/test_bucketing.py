@@ -74,7 +74,7 @@ def test_valid_agent_bucket_wins_over_conflicting_boolean():
 def test_monte_carlo_test_this_week_with_reduces_friction_only_is_kept():
     """Reported bug: test_this_week + reduces_friction=True, no
     actionable_this_week, came back as build_later."""
-    bookmark = _bookmark("Monte Carlo tree search notes for the solver.")
+    bookmark = _bookmark("Monte Carlo tree search notes.")
     analysis = _analysis("test_this_week", reduces_friction=True)
 
     assert "actionable_this_week" not in analysis.to_dict()
