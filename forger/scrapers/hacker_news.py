@@ -1,9 +1,10 @@
 """Fetch Hacker News item pages via the public Firebase API.
 
 ``news.ycombinator.com/item?id=…`` HTML often returns HTTP 419 to datacenter
-IPs. The Firebase HN API still exposes title, text, and the submitted URL.
-Stories with an outbound URL are followed through the normal article scraper;
-Ask HN / text posts and comments use the API body.
+IPs. The Firebase HN API still exposes title, text, kids, and the submitted
+URL. Bookmarking an HN *item* URL keeps the discussion as primary content;
+an outbound story URL may be summarized under the discussion but never
+replaces it.
 """
 from __future__ import annotations
 
@@ -25,6 +26,10 @@ FIREBASE_ITEM = "https://hacker-news.firebaseio.com/v0/item/{id}.json"
 DEFAULT_TIMEOUT = 15
 MAX_TEXT_LENGTH = 5000
 MIN_TEXT_CHARS = 200
+MAX_TOP_COMMENTS = 12
+MAX_REPLY_PER_TOP = 3
+# Leave room for a short Linked article block under the discussion.
+_LINKED_ARTICLE_BUDGET = 1200
 
 _HTML_TAG_RE = re.compile(r"<[^>]+>")
 _WS_RE = re.compile(r"\s+")
@@ -123,12 +128,105 @@ def _story_title_for_comment(item: dict[str, Any], timeout: int) -> str | None:
     return None
 
 
+def _format_comment_line(by: str | None, body: str, *, indent: int = 0) -> str:
+    prefix = "  " * indent
+    who = (by or "unknown").strip() or "unknown"
+    return f"{prefix}{who}: {body}"
+
+
+def _collect_discussion_comments(
+    kid_ids: list[Any],
+    timeout: int,
+    *,
+    budget: int,
+) -> str:
+    """Top-level kids plus one reply level, truncated to *budget* chars."""
+    if budget <= 0:
+        return ""
+    lines: list[str] = []
+    used = 0
+    top_seen = 0
+    for kid in kid_ids:
+        if top_seen >= MAX_TOP_COMMENTS:
+            break
+        if not isinstance(kid, int) or kid <= 0:
+            continue
+        item = _fetch_item(kid, timeout)
+        if not item or item.get("deleted") or item.get("dead"):
+            continue
+        if (item.get("type") or "").strip().lower() != "comment":
+            continue
+        body = _strip_hn_html(item.get("text") or "")
+        if not body:
+            continue
+        top_seen += 1
+        line = _format_comment_line(item.get("by"), body, indent=0)
+        if used + len(line) + 1 > budget:
+            break
+        lines.append(line)
+        used += len(line) + 1
+
+        reply_ids = item.get("kids") or []
+        reply_seen = 0
+        if not isinstance(reply_ids, list):
+            continue
+        for reply_id in reply_ids:
+            if reply_seen >= MAX_REPLY_PER_TOP:
+                break
+            if not isinstance(reply_id, int) or reply_id <= 0:
+                continue
+            reply = _fetch_item(reply_id, timeout)
+            if not reply or reply.get("deleted") or reply.get("dead"):
+                continue
+            if (reply.get("type") or "").strip().lower() != "comment":
+                continue
+            reply_body = _strip_hn_html(reply.get("text") or "")
+            if not reply_body:
+                continue
+            reply_line = _format_comment_line(reply.get("by"), reply_body, indent=1)
+            if used + len(reply_line) + 1 > budget:
+                return "\n".join(lines).strip()
+            lines.append(reply_line)
+            used += len(reply_line) + 1
+            reply_seen += 1
+    return "\n".join(lines).strip()
+
+
+def _linked_article_block(story_url: str, timeout: int) -> tuple[str, str | None]:
+    """Optional short outbound summary. Returns (block, source_suffix)."""
+    if is_hn_item_url(story_url):
+        return "", None
+    from forger.scrapers.article_scraper import scrape_article
+
+    LOGGER.info("HN discussion may append outbound URL %s", story_url)
+    followed = scrape_article(story_url, timeout=timeout)
+    if not followed.get("success"):
+        LOGGER.warning(
+            "HN outbound scrape failed for %s (%s); discussion-only",
+            story_url,
+            followed.get("error") or "unknown",
+        )
+        return "", None
+    art_title = (followed.get("title") or "").strip()
+    art_text = (followed.get("text") or "").strip()
+    if not art_text:
+        return "", None
+    header = f"Linked article: {art_title}\n{story_url}" if art_title else f"Linked article: {story_url}"
+    # Keep the linked block short so discussion stays primary.
+    body = art_text[: max(0, _LINKED_ARTICLE_BUDGET - len(header) - 2)]
+    block = f"{header}\n\n{body}".strip()
+    suffix = followed.get("source") or "article"
+    return block, str(suffix)
+
+
 def scrape_hn_item(url: str, timeout: int = DEFAULT_TIMEOUT) -> dict:
     """
-    Scrape an HN item URL via Firebase (and follow story URLs).
+    Scrape an HN item URL via Firebase.
 
-    Returns the same dict shape as ``scrape_article``. Non-HN URLs or hard
-    failures set ``success`` False so the caller can fall back or refuse.
+    Discussion (title, submitted URL, Ask/text body, comments) is primary.
+    Outbound story pages may be appended as a short ``Linked article:`` block.
+    Returns the same dict shape as ``scrape_article``, plus optional
+    ``outbound_url`` for overlap warnings on add.
     """
     try:
         assert_safe_fetch_url(url)
@@ -147,37 +245,8 @@ def scrape_hn_item(url: str, timeout: int = DEFAULT_TIMEOUT) -> dict:
 
     item_type = (item.get("type") or "").strip().lower()
     by = (item.get("by") or "").strip() or None
-
-    # Story with outbound article URL → scrape that page (same content users want).
     story_url = (item.get("url") or "").strip()
-    if item_type == "story" and story_url:
-        if is_hn_item_url(story_url):
-            return _error_result("HN story URL points at another HN item")
-        # Local import avoids circular import at module load.
-        from forger.scrapers.article_scraper import scrape_article
-
-        LOGGER.info("HN story %s follows outbound URL %s", item_id, story_url)
-        followed = scrape_article(story_url, timeout=timeout)
-        if followed.get("success"):
-            # Keep the article body; prefer HN title when the article title is weak.
-            hn_title = (item.get("title") or "").strip()
-            art_title = (followed.get("title") or "").strip()
-            # HN titles are the bookmark label users saw on the item page.
-            title = hn_title or art_title
-            return {
-                "success": True,
-                "title": title,
-                "text": followed.get("text"),
-                "author": followed.get("author") or by,
-                "source": f"hn-firebase+{followed.get('source') or 'article'}",
-                "error": None,
-            }
-        LOGGER.warning(
-            "HN outbound scrape failed for %s (%s); falling back to HN metadata",
-            story_url,
-            followed.get("error") or "unknown",
-        )
-        # Fall through to metadata-only if the outbound page is blocked.
+    outbound_url = story_url if (item_type == "story" and story_url) else None
 
     title = (item.get("title") or "").strip()
     body = _strip_hn_html(item.get("text") or "")
@@ -195,6 +264,7 @@ def scrape_hn_item(url: str, timeout: int = DEFAULT_TIMEOUT) -> dict:
         parts.append("")
         parts.append(body or "[empty comment]")
         text = "\n".join(parts).strip()[:MAX_TEXT_LENGTH]
+        source = "hn-firebase"
     elif item_type == "story":
         title = title or "HN story"
         parts = [f"Hacker News: {title}"]
@@ -205,17 +275,38 @@ def scrape_hn_item(url: str, timeout: int = DEFAULT_TIMEOUT) -> dict:
         if body:
             parts.append("")
             parts.append(body)
-        elif story_url:
-            parts.append("")
-            parts.append(
-                f"{title}. Submitted link: {story_url} "
-                "(outbound article could not be scraped)."
-            )
-        text = "\n".join(parts).strip()[:MAX_TEXT_LENGTH]
+
+        header = "\n".join(parts).strip()
+        # Reserve space for comments (+ optional linked article).
+        linked_block = ""
+        linked_suffix = None
+        if story_url and not is_hn_item_url(story_url):
+            linked_block, linked_suffix = _linked_article_block(story_url, timeout)
+
+        linked_cost = (len(linked_block) + 2) if linked_block else 0
+        comment_budget = max(0, MAX_TEXT_LENGTH - len(header) - linked_cost - 20)
+        kids = item.get("kids") or []
+        comments = ""
+        if isinstance(kids, list) and kids and comment_budget > 40:
+            comments = _collect_discussion_comments(kids, timeout, budget=comment_budget)
+
+        chunks = [header]
+        if comments:
+            chunks.append("")
+            chunks.append("Comments:")
+            chunks.append(comments)
+        if linked_block:
+            chunks.append("")
+            chunks.append(linked_block)
+        text = "\n".join(chunks).strip()[:MAX_TEXT_LENGTH]
+        source = "hn-firebase"
+        if linked_suffix:
+            source = f"hn-firebase+{linked_suffix}"
     else:
         # poll / job / unknown — use whatever text we have
         title = title or f"HN {item_type or 'item'}"
         text = body or title
+        source = "hn-firebase"
 
     if not text or len(text) <= MIN_TEXT_CHARS:
         LOGGER.warning("Insufficient HN content for item %s", item_id)
@@ -226,11 +317,14 @@ def scrape_hn_item(url: str, timeout: int = DEFAULT_TIMEOUT) -> dict:
         )
 
     LOGGER.info("Successfully scraped HN item %s: %s", item_id, title[:80])
-    return {
+    result = {
         "success": True,
         "title": title[:200],
         "text": text,
         "author": by,
-        "source": "hn-firebase",
+        "source": source,
         "error": None,
     }
+    if outbound_url:
+        result["outbound_url"] = outbound_url
+    return result

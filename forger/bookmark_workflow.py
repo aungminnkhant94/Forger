@@ -85,6 +85,36 @@ def find_similar_duplicate(
     return None, None
 
 
+def find_outbound_overlap(
+    bookmark: Bookmark,
+    exclude_ids: set[str] | None = None,
+) -> tuple[Optional[Bookmark], Optional[str]]:
+    """Warn when an HN (or other) outbound URL is already bookmarked.
+
+    Soft overlap only — does not block save. Matches the story/article URL
+    carried in ``raw_payload["outbound_url"]`` against existing bookmark URLs
+    via canonical identity.
+    """
+    outbound = (bookmark.raw_payload or {}).get("outbound_url")
+    if not outbound or not isinstance(outbound, str):
+        return None, None
+    target = _canonical_bookmark_identity(outbound.strip(), "")
+    if not target:
+        return None, None
+    skip = exclude_ids or set()
+    for b in load_bookmarks():
+        if b.id in skip or b.id == bookmark.id:
+            continue
+        if _canonical_bookmark_identity(b.url, "") == target:
+            title = (b.title or b.url or b.id)[:60]
+            msg = (
+                f"OVERLAP: outbound URL already saved as '{title}' "
+                f"({b.id}) — {outbound.strip()}"
+            )
+            return b, msg
+    return None, None
+
+
 def scrape_and_create_bookmark(url: str) -> Optional[Bookmark]:
     """Scrape URL and create bookmark, or None when the scrape is refused.
 
@@ -110,6 +140,14 @@ def scrape_and_create_bookmark(url: str) -> Optional[Bookmark]:
     # Defer tags until analysis (API analyze or agent resolve). Heuristic
     # auto-tags at scrape time invent junk ("research", "ai-tools") that
     # pollutes the bookmark while agent mode is still pending.
+    payload = {
+        "ingestion_channel": "url",
+        "capture_mode": "url_only",
+        "scraped_via": scraped_via,
+    }
+    if getattr(outcome, "outbound_url", None):
+        payload["outbound_url"] = outcome.outbound_url
+
     return Bookmark(
         id=bookmark_id,
         source=source,
@@ -120,11 +158,7 @@ def scrape_and_create_bookmark(url: str) -> Optional[Bookmark]:
         created_at=timestamp,
         bookmarked_at=timestamp,
         tags=[],
-        raw_payload={
-            "ingestion_channel": "url",
-            "capture_mode": "url_only",
-            "scraped_via": scraped_via,
-        },
+        raw_payload=payload,
     )
 
 
@@ -427,5 +461,11 @@ def process_bookmark_url(
         if len(why) > 120:
             why = why[:117] + "..."
         message = f"✓ {verb}: {bookmark.title}\n✓ Bucket: {analysis.recommendation_bucket}\n✓ Priority: {analysis.priority_score}\n✓ Why: {why}\n{where}"
-    
+
+    overlap_existing, overlap_message = find_outbound_overlap(
+        bookmark, exclude_ids={existing.id} if (existing and replace) else None
+    )
+    if overlap_message:
+        message = f"{message}\n⚠ {overlap_message}"
+
     return True, message, bookmark, analysis

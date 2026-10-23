@@ -75,10 +75,17 @@ def test_comment_includes_parent_story_title(monkeypatch):
     assert result["source"] == "hn-firebase"
 
 
-def test_story_with_url_follows_outbound_article(monkeypatch):
+def test_story_with_url_keeps_discussion_and_appends_linked_article(monkeypatch):
+    """HN item URLs keep discussion as primary; outbound is optional under it."""
     story = _json("item_1_story.json")
+    comment_a = _json("item_1_comment_a.json")
+    comment_b = _json("item_1_comment_b.json")
     monkeypatch.setattr(hacker_news, "assert_safe_fetch_url", lambda u: u)
-    monkeypatch.setattr(hacker_news.requests, "get", _firebase_router({1: story}))
+    monkeypatch.setattr(
+        hacker_news.requests,
+        "get",
+        _firebase_router({1: story, 15: comment_a, 16: comment_b}),
+    )
 
     article_body = (
         "Y Combinator is a startup accelerator based in Silicon Valley. "
@@ -101,9 +108,42 @@ def test_story_with_url_follows_outbound_article(monkeypatch):
     monkeypatch.setattr(article_scraper, "scrape_article", fake_article)
     result = scrape_hn_item("https://news.ycombinator.com/item?id=1")
     assert result["success"] is True
-    assert result["title"] == "Y Combinator"  # HN title preferred
-    assert "startup accelerator" in result["text"]
-    assert result["source"].startswith("hn-firebase+")
+    assert result["title"] == "Y Combinator"
+    text = result["text"] or ""
+    # Discussion first: HN framing + submitted URL + comments, not article-only.
+    assert "Hacker News: Y Combinator" in text
+    assert "URL: http://ycombinator.com" in text
+    assert "sama:" in text and "top-level comment" in text
+    assert "pg:" in text and "batch size" in text  # one reply level
+    # Linked article appended under discussion, does not replace it.
+    assert "Linked article:" in text
+    assert "startup accelerator" in text
+    linked_at = text.index("Linked article:")
+    assert text.index("Hacker News:") < linked_at
+    assert text.index("sama:") < linked_at
+    assert result.get("outbound_url") == "http://ycombinator.com"
+    assert result["source"].startswith("hn-firebase")
+
+
+def test_story_includes_comment_kids_without_outbound(monkeypatch):
+    story = _json("item_1_story.json")
+    comment_a = _json("item_1_comment_a.json")
+    comment_b = _json("item_1_comment_b.json")
+    # No outbound URL → Ask-style linkless story still gets comments.
+    story = {**story, "url": None}
+    monkeypatch.setattr(hacker_news, "assert_safe_fetch_url", lambda u: u)
+    monkeypatch.setattr(
+        hacker_news.requests,
+        "get",
+        _firebase_router({1: story, 15: comment_a, 16: comment_b}),
+    )
+
+    result = scrape_hn_item("https://news.ycombinator.com/item?id=1")
+    assert result["success"] is True
+    assert "sama:" in (result["text"] or "")
+    assert "Linked article:" not in (result["text"] or "")
+    assert result.get("outbound_url") in (None, "")
+    assert result["source"] == "hn-firebase"
 
 
 def test_scrape_url_hn_item_does_not_hit_html_419(monkeypatch):
