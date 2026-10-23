@@ -28,7 +28,7 @@ writeFileSync(join(outDir, 'package.json'), '{"type":"commonjs"}');
 
 const require = createRequire(join(outDir, 'index.js'));
 const { normalizeTag } = require('./tags.js');
-const { searchQueryTerms, normalizeSearchText, searchTermStem } = require('./search.js');
+const { searchQueryTerms, normalizeSearchText, searchTermStem, searchTermIn } = require('./search.js');
 const { truncateAtWordBoundary } = require('./truncate.js');
 const cases = JSON.parse(readFileSync(casesPath, 'utf8'));
 
@@ -48,3 +48,8 @@ for (const c of cases.truncate_at_word_boundary) {
   test(`truncateAtWordBoundary(${JSON.stringify(c.input)}, ${c.max_length})`, () =>
     assert.equal(truncateAtWordBoundary(c.input, c.max_length, c.ellipsis), c.expected));
 }
+for (const c of cases.search_term_in) {
+  test(`searchTermIn(${JSON.stringify(c.term)}, ${JSON.stringify(c.value)})`, () =>
+    assert.equal(searchTermIn(c.term, normalizeSearchText(c.value)), c.expected));
+}
+

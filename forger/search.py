@@ -7,10 +7,12 @@ Rules:
 - A multi-word query matches a bookmark only when EVERY word appears somewhere
   in the searched fields (any order, may be spread across fields).
 - Short hyphen groups with a 1-char piece (``C-H``) stay one phrase term.
-- A single-word query behaves exactly as before: substring match per field.
-  No new fields are searched (insights are not widened).
+- A single-word query matches **whole tokens** only (word boundaries), not
+  arbitrary substrings: ``Roche`` matches ``Roche`` / ``roche`` but not
+  ``electrochemical`` / ``ElectroChem``.
 - Light word forms: a term also matches by its stem (``bidding`` -> ``bid``
-  matches "bids"; ``agencies`` -> ``agency``). See term_stem.
+  matches "bids"; ``agencies`` -> ``agency``). Stem matches are also
+  token-bounded — see term_stem / term_in.
 """
 from __future__ import annotations
 
@@ -19,6 +21,7 @@ from typing import Iterable, Optional
 
 _SEPARATORS = re.compile(r"[-_/]+")
 _WHITESPACE = re.compile(r"\s+")
+_TOKEN = re.compile(r"[a-z0-9]+")
 
 # (field name, weight) — same fields and weights as the original cmd_search.
 FIELD_WEIGHTS = {
@@ -75,8 +78,28 @@ def term_stem(term: str) -> str:
     return term
 
 
-def _term_in(term: str, value: str) -> bool:
-    return term in value or term_stem(term) in value
+def term_in(term: str, value: str) -> bool:
+    """True if ``term`` matches a whole token in normalized ``value``.
+
+    Phrase terms (space inside, e.g. ``c h``) need consecutive tokens.
+    Otherwise the term or its stem must equal a token or that token's stem,
+    so ``bidding``↔``bids`` still works but ``roche`` does not hit
+    ``electrochemical``.
+    """
+    if not term or not value:
+        return False
+    tokens = _TOKEN.findall(value)
+    if not tokens:
+        return False
+    if " " in term:
+        parts = term.split()
+        n = len(parts)
+        for i in range(len(tokens) - n + 1):
+            if tokens[i : i + n] == parts:
+                return True
+        return False
+    stem = term_stem(term)
+    return any(tok == term or term_stem(tok) == stem for tok in tokens)
 
 
 def _fields(bookmark, analysis) -> list[tuple[str, str]]:
@@ -106,7 +129,7 @@ def score_bookmark(query: str, bookmark, analysis=None) -> tuple[int, list[str]]
     fields = _fields(bookmark, analysis)
 
     # Gate: every term must appear in at least one field.
-    if not all(any(_term_in(t, value) for _, value in fields) for t in terms):
+    if not all(any(term_in(t, value) for _, value in fields) for t in terms):
         return 0, []
 
     score = 0
@@ -115,11 +138,11 @@ def score_bookmark(query: str, bookmark, analysis=None) -> tuple[int, list[str]]
         if not value:
             continue
         weight = FIELD_WEIGHTS[name]
-        if phrase in value or (len(terms) == 1 and _term_in(terms[0], value)):
+        if term_in(phrase, value) or (len(terms) == 1 and term_in(terms[0], value)):
             score += weight
             matches.append(name)
         elif len(terms) > 1:
-            hit = sum(1 for t in terms if _term_in(t, value))
+            hit = sum(1 for t in terms if term_in(t, value))
             if hit:
                 # Partial credit, proportional to words found in this field.
                 score += max(1, weight * hit // (2 * len(terms)))

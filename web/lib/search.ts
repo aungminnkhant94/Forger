@@ -2,7 +2,9 @@
 // case-insensitive; '-', '_' and '/' act as spaces; every whitespace-separated
 // query word must appear somewhere in the fields (any order). A hyphen group with
 // a 1-char piece stays one phrase ("C-H" -> "c h") so it can't match everything.
-// A term also matches by its light stem ("bidding" -> "bid"); see searchTermStem.
+// Terms match whole tokens only (not substrings inside larger words): "roche"
+// matches "Roche" but not "electrochemical". A term also matches by its light
+// stem ("bidding" -> "bid" matches "bids"); stem matches are token-bounded too.
 
 export function normalizeSearchText(text: string | null | undefined): string {
   if (!text) return '';
@@ -40,6 +42,25 @@ export function searchTermStem(term: string): string {
   return term;
 }
 
+const TOKEN_RE = /[a-z0-9]+/g;
+
+/** Whole-token match (with light stemming). Mirrors forger.search.term_in. */
+export function searchTermIn(term: string, value: string): boolean {
+  if (!term || !value) return false;
+  const tokens = value.match(TOKEN_RE) || [];
+  if (tokens.length === 0) return false;
+  if (term.includes(' ')) {
+    const parts = term.split(' ').filter(Boolean);
+    const n = parts.length;
+    for (let i = 0; i <= tokens.length - n; i++) {
+      if (parts.every((p, j) => tokens[i + j] === p)) return true;
+    }
+    return false;
+  }
+  const stem = searchTermStem(term);
+  return tokens.some(tok => tok === term || searchTermStem(tok) === stem);
+}
+
 export function matchesSearchQuery(
   query: string,
   fields: Array<string | null | undefined>,
@@ -47,5 +68,5 @@ export function matchesSearchQuery(
   const terms = searchQueryTerms(query);
   if (terms.length === 0) return true;
   const haystack = fields.map(normalizeSearchText).filter(Boolean).join(' | ');
-  return terms.every(term => haystack.includes(term) || haystack.includes(searchTermStem(term)));
+  return terms.every(term => searchTermIn(term, haystack));
 }

@@ -87,3 +87,21 @@ def test_hyphen_query_matches_scattered_words_like_space_query():
     extra = BOOKMARKS + [bm("scatter", "Reactions of alkenes", "Some are named after chemists.")]
     q = lambda query: {b.id for _, b, _, _ in search_bookmarks(query, extra, ANALYSES)}
     assert q("named-reactions") == q("named reactions") >= {"scatter", "named", "namedtag"}
+
+
+def test_roche_does_not_match_electrochemical():
+    """Word-boundary: Roche must not hit electROCHEmical / ElectroChem."""
+    electro = [
+        bm("jacs", "JACS Au electrochemical DoE", "Design of experiments."),
+        bm("acs", "ACS electrochemical CFP", "Call for papers."),
+        bm("cec", "ChemElectroChem collection", "Special issue."),
+    ]
+    roche = bm("roche", "Roche job posting", "Join Roche in Basel, Switzerland.")
+    hit_ids = {b.id for _, b, _, _ in search_bookmarks("Roche", electro + [roche], {})}
+    assert hit_ids == {"roche"}
+
+
+def test_stem_still_matches_whole_token_word_forms():
+    b = bm("ads", "Smart Bidding", "Google Ads bids rise with target CPA.")
+    assert {x.id for _, x, _, _ in search_bookmarks("bidding", [b], {})} == {"ads"}
+    assert {x.id for _, x, _, _ in search_bookmarks("bids", [b], {})} == {"ads"}
