@@ -1,0 +1,43 @@
+{
+ "__typename": "Tweet",
+ "text": "Agents, robots, and scientists together in one chemistry lab. We're proud to back @warpsciences from the very beginning as they rebuild American medicinal chemistry. https://t.co/U9Ht7Qhttz",
+ "id_str": "2113316408205390211",
+ "entities": {
+  "urls": [
+   {
+    "display_url": "x.com/i/article/2112\u2026",
+    "expanded_url": "https://x.com/i/article/2112912520335769600",
+    "indices": [
+     166,
+     189
+    ],
+    "url": "https://t.co/U9Ht7Qhttz"
+   }
+  ],
+  "user_mentions": [
+   {
+    "id_str": "2087312024124661760",
+    "indices": [
+     82,
+     95
+    ],
+    "name": "Warp Sciences",
+    "screen_name": "warpsciences"
+   }
+  ]
+ },
+ "user": {
+  "id_str": "149029214",
+  "name": "Alok Vasudev",
+  "screen_name": "AlokVasudev",
+  "is_blue_verified": true,
+  "profile_image_shape": "Circle",
+  "verified": false,
+  "profile_image_url_https": "https://pbs.twimg.com/profile_images/801893598564188160/pnaUM6de_normal.jpg"
+ },
+ "article": {
+  "title": "Warp Sciences",
+  "preview_text": "Warp Sciences (@warpsciences) is emerging from stealth today and Standard (@standard_vc) is proud to be a significant investor in their first financing round.\nWe\u2019re big believers in intelligence and",
+  "id": "QXJ0aWNsZUVudGl0eToyMTEyOTEyNTIwMzM1NzY5NjAw"
+ }
+}

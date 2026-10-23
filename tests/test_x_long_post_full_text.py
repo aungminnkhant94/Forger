@@ -165,3 +165,211 @@ class TestPointerPost:
             out = s._enrich_pointer_post(res)
         sa.assert_not_called()
         assert out == res
+
+
+class TestOutboundPointerGate:
+    """Short/medium X prose with a clear outbound URL must follow the link
+    even when the URL is mid-sentence or only in entities (not text-endswith).
+    """
+
+    ARTICLE = {
+        "success": True,
+        "title": "Senior Scientist Process Chemistry",
+        "text": ("Job description body. " * 30).strip(),
+    }
+    NATUREISH = {
+        "success": True,
+        "title": "Nature Catalysis volume cover",
+        "text": ("Cover story abstract paragraph. " * 25).strip(),
+    }
+
+    def test_roche_like_mid_sentence_url_appends_linked_article(self):
+        """fxtwitter expands the job URL mid-sentence; text does not endswith it."""
+        s = XScraper()
+        text = (
+            "We have just published a vacancy for a Senior Scientist in Process "
+            "Chemistry & Catalysis at Roche in Basel, Switzerland - "
+            "https://www.organic-chemistry.org/jobs/offers/?q=oct-22-roche-1.pdf"
+            " - please check and share!"
+        )
+        res = {
+            "success": True,
+            "text": text,
+            "title": "We have just published a vacancy",
+            "source": "fxtwitter",
+            "outbound_urls": [
+                "https://x.com/organic_portal/status/2113251699099877390",
+                "https://www.organic-chemistry.org/jobs/offers/?q=oct-22-roche-1.pdf",
+            ],
+        }
+        with patch(
+            "forger.scrapers.x_scraper.resolve_redirect_url",
+            side_effect=lambda u: u,
+        ), patch(
+            "forger.scrapers.article_scraper.scrape_article",
+            return_value=self.ARTICLE,
+        ) as sa:
+            out = s._enrich_pointer_post(res)
+        assert sa.called
+        called_urls = [c.args[0] for c in sa.call_args_list]
+        assert any("organic-chemistry.org" in u for u in called_urls)
+        assert "Linked article: Senior Scientist Process Chemistry" in out["text"]
+        assert text[:40] in out["text"]
+        assert out["source"].endswith("+link")
+
+    def test_roche_like_multi_tco_prefers_entity_over_trailing_media(self):
+        """Syndication keeps two trailing t.co; last is often media — prefer entity."""
+        s = XScraper()
+        text = (
+            "Vacancy at Roche in Basel - https://t.co/i5ZGDN41bA - please share! "
+            "https://t.co/WMAMVLwF5M"
+        )
+        res = {
+            "success": True,
+            "text": text,
+            "title": "Vacancy at Roche",
+            "source": "syndication",
+            "outbound_urls": [
+                "https://www.organic-chemistry.org/jobs/offers/?q=oct-22-roche-1.pdf",
+                "https://t.co/i5ZGDN41bA",
+                "https://t.co/WMAMVLwF5M",
+            ],
+        }
+
+        def resolve(u):
+            if u.endswith("WMAMVLwF5M"):
+                return "https://x.com/organic_portal/status/2113251699099877390/photo/1"
+            if u.endswith("i5ZGDN41bA") or "organic-chemistry.org" in u:
+                return "https://www.organic-chemistry.org/jobs/offers/?q=oct-22-roche-1.pdf"
+            return u
+
+        with patch(
+            "forger.scrapers.x_scraper.resolve_redirect_url",
+            side_effect=resolve,
+        ), patch(
+            "forger.scrapers.article_scraper.scrape_article",
+            return_value=self.ARTICLE,
+        ) as sa:
+            out = s._enrich_pointer_post(res)
+        assert "Linked article" in out["text"]
+        assert out.get("outbound_resolved", "").startswith("https://www.organic-chemistry.org")
+
+    def test_nature_like_non_thin_pointer_appends(self):
+        """~300 char cover announcement is not thin; still follow the paper URL."""
+        s = XScraper()
+        text = (
+            "Thrilled to share that our latest research is featured on the cover of "
+            "Nature Catalysis! Being highlighted on the cover is a huge honor.\n\n"
+            "https://www.nature.com/natcatal/volumes/9/issues/10"
+        )
+        assert len(text) > 150
+        res = {
+            "success": True,
+            "text": text,
+            "title": "Thrilled to share",
+            "source": "fxtwitter",
+            "outbound_urls": ["https://www.nature.com/natcatal/volumes/9/issues/10"],
+        }
+        with patch(
+            "forger.scrapers.x_scraper.resolve_redirect_url",
+            side_effect=lambda u: u,
+        ), patch(
+            "forger.scrapers.article_scraper.scrape_article",
+            return_value=self.NATUREISH,
+        ):
+            out = s._enrich_pointer_post(res)
+        assert "Linked article: Nature Catalysis volume cover" in out["text"]
+
+    def test_entity_only_url_when_text_ends_with_hashtags(self):
+        """Paper t.co mid-body; trailing hashtags — follow entity DOI."""
+        s = XScraper()
+        text = (
+            "My most recently published research ...https://t.co/85GrHsIqCJ\n"
+            "Fe,Cr promoted Raney nickel catalysts for nitrile hydrogenation "
+            "#catalysis #OrgChem #Catalyst"
+        )
+        res = {
+            "success": True,
+            "text": text,
+            "title": "My most recently published research",
+            "source": "fxtwitter",
+            "outbound_urls": [
+                "https://x.com/TomManz3/status/2113362396710654301",
+                "https://doi.org/10.1021/acsomega.6c06602",
+            ],
+        }
+        paper = {
+            "success": True,
+            "title": "Raney nickel catalysts",
+            "text": ("Abstract of the Raney Ni paper. " * 20).strip(),
+        }
+        with patch(
+            "forger.scrapers.x_scraper.resolve_redirect_url",
+            side_effect=lambda u: u,
+        ), patch(
+            "forger.scrapers.article_scraper.scrape_article",
+            return_value=paper,
+        ) as sa:
+            out = s._enrich_pointer_post(res)
+        assert sa.called
+        assert any("doi.org" in c.args[0] for c in sa.call_args_list)
+        assert "Linked article: Raney nickel catalysts" in out["text"]
+
+    def test_koenig_style_trailing_tco_still_works(self):
+        s = XScraper()
+        text = (
+            "We merged cobalt catalysis with photochemistry. Congrats!\n"
+            "https://t.co/YgLSlmorQ1"
+        )
+        res = {
+            "success": True,
+            "text": text,
+            "title": "We merged cobalt catalysis",
+            "source": "syndication",
+            "outbound_urls": [
+                "https://doi.org/10.1002/adsc.70830",
+                "https://t.co/YgLSlmorQ1",
+            ],
+        }
+        wiley = {
+            "success": True,
+            "title": "Visible-Light Cobalt-Catalyzed Synthesis",
+            "text": ("A versatile strategy leveraging arylazo sulfones. " * 20).strip(),
+        }
+
+        def resolve(u):
+            if "YgLSlmorQ1" in u or "doi.org" in u:
+                return "https://advanced.onlinelibrary.wiley.com/doi/10.1002/adsc.70830"
+            return u
+
+        with patch(
+            "forger.scrapers.x_scraper.resolve_redirect_url",
+            side_effect=resolve,
+        ), patch(
+            "forger.scrapers.article_scraper.scrape_article",
+            return_value=wiley,
+        ):
+            out = s._enrich_pointer_post(res)
+        assert "Linked article: Visible-Light Cobalt-Catalyzed Synthesis" in out["text"]
+
+
+class TestXArticleNotBeatenByOembed:
+    """oEmbed tweet body must not short-circuit past an X Article preview/full."""
+
+    WARP = "https://x.com/AlokVasudev/status/2113316408205390211"
+
+    def test_continues_past_oembed_to_fxtwitter_full_article(self):
+        s = XScraper()
+        fake = _router({
+            "syndication": _load("syndication_warp_article_preview.json"),
+            "publish.twitter.com": _load("oembed_warp.json"),
+            "fxtwitter": _load("fxtwitter_warp_article_full.json"),
+        })
+        with patch.object(s, "_http_get_json", side_effect=fake), \
+                patch.object(s, "_enrich_pointer_post", side_effect=lambda r: r):
+            r = s._fetch_with_public_apis(self.WARP)
+        assert r["success"]
+        assert "Warp" in (r.get("title") or "") or "Warp" in (r.get("text") or "")
+        assert len(r["text"]) > 400
+        assert "fxtwitter" in (r.get("source") or "")
+        assert "x_article" in (r.get("source") or "")
