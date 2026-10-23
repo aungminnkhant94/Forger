@@ -149,3 +149,49 @@ def test_resolve_writes_analysis_tags(monkeypatch):
     assert ok, message
     assert stored["bookmark"].tags[:3] == ["catalysis", "organic-synthesis", "methods"]
     assert stored["bookmark"].agent_tags == ["catalysis", "organic-synthesis", "methods"]
+
+
+def test_hn_outbound_overlap_warns_but_still_saves(monkeypatch):
+    """HN item whose story URL is already bookmarked: warn, do not block."""
+    arxiv = Bookmark(
+        id="bookmark_arxiv1",
+        source="article",
+        url="https://arxiv.org/abs/2610.27251",
+        text="Abstract text about enclosure of the scientific commons. " * 8,
+        title="[2610.27251] AI and The Enclosure of the Scientific Commons",
+    )
+    hn = Bookmark(
+        id="bookmark_hn1",
+        source="article",
+        url="https://news.ycombinator.com/item?id=50199230",
+        text="Hacker News discussion about the paper.",
+        title="AI and the Enclosure of the Scientific Commons",
+        raw_payload={
+            "ingestion_channel": "url",
+            "capture_mode": "url_only",
+            "scraped_via": "hn-firebase",
+            "outbound_url": "https://arxiv.org/abs/2610.27251",
+        },
+    )
+    saved = {}
+
+    def capture_save(bookmarks):
+        saved["bookmarks"] = list(bookmarks)
+
+    monkeypatch.setattr(bw, "check_duplicate", lambda url: None)
+    monkeypatch.setattr(bw, "scrape_and_create_bookmark", lambda url: hn)
+    monkeypatch.setattr(bw, "find_similar_duplicate", lambda b, exclude_ids=None: (None, None))
+    monkeypatch.setattr(bw, "load_bookmarks", lambda: [arxiv])
+    monkeypatch.setattr(bw, "load_analysis_results", lambda: [])
+    monkeypatch.setattr(bw, "save_bookmarks", capture_save)
+    monkeypatch.setattr(bw, "upsert_analysis_results", lambda *a, **k: None)
+    monkeypatch.setattr(bw, "_sync_dashboard", lambda: None)
+    monkeypatch.setattr(bw, "_verify_ingestion_invariants", lambda *a, **k: ([], []))
+    monkeypatch.setattr(bw, "git_auto_push", lambda title: False)
+
+    ok, message, bookmark, analysis = bw.process_bookmark_url(hn.url, analyze=False)
+    assert ok, message
+    assert bookmark is not None
+    assert "OVERLAP" in message
+    assert "arxiv.org/abs/2610.27251" in message or arxiv.id in message or "Enclosure" in message
+    assert "bookmarks" in saved  # still saved

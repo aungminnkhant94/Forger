@@ -17,7 +17,7 @@ SUCCESS_DICT_BUDGET: dict[str, int] = {
     "forger/scrapers/_legacy_dict.py": 2,
     "forger/scrapers/article_scraper.py": 12,
     "forger/scrapers/doi_metadata.py": 2,
-    "forger/scrapers/hacker_news.py": 3,
+    "forger/scrapers/hacker_news.py": 2,
     "forger/scrapers/x_scraper.py": 9,
 }
 

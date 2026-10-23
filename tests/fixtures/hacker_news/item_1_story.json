@@ -1,12 +1,9 @@
 {
   "by": "pg",
-  "descendants": 3,
+  "descendants": 2,
   "id": 1,
   "kids": [
-    15,
-    487171,
-    234509,
-    82729
+    15
   ],
   "score": 57,
   "time": 1160418111,

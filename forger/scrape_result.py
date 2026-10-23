@@ -54,6 +54,7 @@ class Saved:
     title: str
     via: Optional[str] = None
     author: Optional[str] = None
+    outbound_url: Optional[str] = None
 
     def __post_init__(self) -> None:
         if not self.title or prose_without_urls(self.title) != self.title:
@@ -108,6 +109,8 @@ def classify(source: Source, url: str, raw: Optional[dict]) -> ScrapeOutcome:
     if not title:
         return Refused(source, url, RefuseReason.NO_TITLE)
     author = raw.get("author")
+    outbound = raw.get("outbound_url")
+    outbound_url = str(outbound).strip() if outbound else None
     return Saved(
         source=source,
         url=url,
@@ -115,6 +118,7 @@ def classify(source: Source, url: str, raw: Optional[dict]) -> ScrapeOutcome:
         title=title,
         via=raw.get("source"),
         author=str(author) if author else None,
+        outbound_url=outbound_url or None,
     )
 
 

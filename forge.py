@@ -154,6 +154,10 @@ def cmd_add(args: argparse.Namespace) -> int:
         print(f"  Tags:     {', '.join(bookmark.tags[:5])}")
         print()
         print(message)
+        if "OVERLAP:" in message:
+            print_warning(
+                "Outbound story URL overlaps an existing bookmark (saved anyway)."
+            )
 
         if getattr(args, "agent", False):
             pending_dir = DATA_DIR / "pending"
