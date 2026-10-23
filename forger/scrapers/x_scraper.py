@@ -12,7 +12,10 @@ Fetch order for status URLs:
 
 Thin link-only posts (bare t.co / X Articles): merge API ``article``
 payloads when present; otherwise resolve outbound links (url_safety) and
-scrape the destination with article_scraper. Quote tweets merge nested
+scrape the destination with article_scraper. Short/medium pointer posts
+with a clear outbound non-X URL (text or entities) append ``Linked
+article:`` when the destination scrapes cleanly — not only bare link-only
+stubs or posts that literally endswith the URL. Quote tweets merge nested
 ``quoted_tweet`` / ``quote`` text into the saved body. Titles are built
 from prose with raw t.co / URLs stripped. Still-thin results are refused
 (no empty/X Post stubs). Bookmark URL stays the original X status.
@@ -617,7 +620,18 @@ class XScraper:
             if result.get("truncated"):
                 truncated_len = max(truncated_len, outer_len)
             preview_only = result.get("article_enrichment") == "preview"
-            if not is_thin_x_result(result) and not preview_only and not result.get("truncated"):
+            # Bare status body (e.g. oEmbed) must not short-circuit past an
+            # X Article preview/full already seen — keep seeking fxtwitter.
+            abandoning_article = (
+                bool(thin_fallback and thin_fallback.get("article_enrichment"))
+                and not result.get("article_enrichment")
+            )
+            if (
+                not is_thin_x_result(result)
+                and not preview_only
+                and not result.get("truncated")
+                and not abandoning_article
+            ):
                 LOGGER.info("Fetched via %s (%s chars)", name, text_len)
                 return self._finish_public(result)
             LOGGER.info(
@@ -655,23 +669,56 @@ class XScraper:
             out.pop(key, None)
         return out
 
+    def _pointer_outbound_candidates(self, result: dict, outer: str) -> list[str]:
+        """Order outbound URLs to try for pointer enrichment.
+
+        Prefer expanded non-X destinations from entities / outbound_urls over
+        trailing t.co (often media). Skip X status self-links up front.
+        """
+        ordered: list[str] = []
+        seen: set[str] = set()
+
+        def _add(u: str | None) -> None:
+            raw = (u or "").strip()
+            if not raw or raw in seen:
+                return
+            # Defer obvious X status / X-hosted until after externals; still
+            # skip status self-links entirely (loop guard).
+            if _is_x_status_url(raw):
+                return
+            seen.add(raw)
+            ordered.append(raw)
+
+        # 1) Expanded / entity outbound first (non-t.co preferred).
+        outbound = list(result.get("outbound_urls") or [])
+        for u in outbound:
+            if not _is_x_hosted_url(u):
+                _add(u)
+        for u in outbound:
+            _add(u)
+        # 2) URLs appearing in the post body (mid-sentence or trailing).
+        for u in _urls_from_text(outer):
+            _add(u)
+        return ordered
+
     def _enrich_pointer_post(self, result: dict) -> dict:
         """When a post is mostly a pointer to an outbound article/tutorial
-        (short prose that ends on a non-X link), append the linked page's text
-        under the X text. If the link cannot be scraped, keep the X text."""
+        (short/medium prose + clear non-X URL in text or entities), append the
+        linked page under the X text. If the link cannot be scraped, keep the
+        X text. Does not require the status to *endswith* the URL (Roche-style
+        mid-sentence links and entity-only DOIs still qualify)."""
         text = (result.get("text") or "").strip()
         outer = text.split("\n\nQuoting @", 1)[0].split("\n\nQuoted post:", 1)[0].rstrip()
         if not outer or len(prose_without_urls(outer)) > _POINTER_MAX_PROSE:
             return result
-        tail_urls = _urls_from_text(outer[-300:])
-        if not tail_urls or not outer.endswith(tail_urls[-1].rstrip()):
+        candidates = self._pointer_outbound_candidates(result, outer)
+        if not candidates:
             return result
-        candidates = [tail_urls[-1]] + [u for u in (result.get("outbound_urls") or []) if u != tail_urls[-1]]
         try:
             from forger.scrapers.article_scraper import scrape_article
         except ImportError:
             return result
-        for raw in candidates[:3]:
+        for raw in candidates[:5]:
             try:
                 try:
                     resolved = resolve_redirect_url(raw)

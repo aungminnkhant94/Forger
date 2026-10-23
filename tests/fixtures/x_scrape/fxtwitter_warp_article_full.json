@@ -1,0 +1,182 @@
+{
+ "tweet": {
+  "text": "Agents, robots, and scientists together in one chemistry lab. We're proud to back @warpsciences from the very beginning as they rebuild American medicinal chemistry. https://x.com/i/article/2112912520335769600",
+  "author": {
+   "screen_name": "AlokVasudev",
+   "url": "https://x.com/AlokVasudev",
+   "id": "149029214",
+   "followers": 10783,
+   "following": 4415,
+   "likes": 11191,
+   "media_count": 180,
+   "name": "Alok Vasudev",
+   "description": "venture guy (co-founder at standard)",
+   "raw_description": {
+    "text": "venture guy (co-founder at standard)",
+    "facets": []
+   },
+   "location": "",
+   "banner_url": "https://pbs.twimg.com/profile_banners/149029214/1468973262",
+   "avatar_url": "https://pbs.twimg.com/profile_images/801893598564188160/pnaUM6de_200x200.jpg",
+   "joined": "Fri May 28 06:43:20 +0000 2010",
+   "protected": false,
+   "website": {
+    "url": "http://alokvasu.dev",
+    "display_url": "alokvasu.dev"
+   },
+   "verification": {
+    "verified": true,
+    "verified_at": null,
+    "type": "individual"
+   },
+   "avatar_color": null
+  },
+  "article": {
+   "title": "Warp Sciences",
+   "preview_text": "Warp Sciences (@warpsciences) is emerging from stealth today and Standard (@standard_vc) is proud to be a significant investor in their first financing round.\nWe\u2019re big believers in intelligence and",
+   "content": {
+    "blocks": [
+     {
+      "data": {
+       "mentions": [
+        {
+         "fromIndex": 15,
+         "text": "warpsciences",
+         "toIndex": 28
+        },
+        {
+         "fromIndex": 75,
+         "text": "standard_vc",
+         "toIndex": 87
+        }
+       ]
+      },
+      "entityRanges": [],
+      "inlineStyleRanges": [],
+      "key": "2gqtb",
+      "text": "Warp Sciences (@warpsciences) is emerging from stealth today and Standard (@standard_vc) is proud to be a significant investor in their first financing round.",
+      "type": "unstyled"
+     },
+     {
+      "data": {},
+      "entityRanges": [],
+      "inlineStyleRanges": [],
+      "key": "4j2f4",
+      "text": "We\u2019re big believers in intelligence and automation driving a new paradigm of scientific discovery \u2013 one where agents, robots, and humans work together in the laboratory.",
+      "type": "unstyled"
+     },
+     {
+      "data": {},
+      "entityRanges": [],
+      "inlineStyleRanges": [],
+      "key": "1mgj7",
+      "text": "Warp is building this kind of \u201cself-driving lab\u201d with its destination set to rebuilding America\u2019s medicinal chemistry capabilities.",
+      "type": "unstyled"
+     },
+     {
+      "data": {},
+      "entityRanges": [],
+      "inlineStyleRanges": [],
+      "key": "25g4a",
+      "text": "\u201cAI for Science\u201d has a daunting idea maze for a startup to navigate. Warp\u2019s approach resonated with us on several dimensions:",
+      "type": "unstyled"
+     },
+     {
+      "data": {
+       "mentions": [
+        {
+         "fromIndex": 163,
+         "text": "kevinweil",
+         "toIndex": 173
+        },
+        {
+         "fromIndex": 180,
+         "text": "dpatil",
+         "toIndex": 187
+        },
+        {
+         "fromIndex": 205,
+         "text": "manohar_paluri",
+         "toIndex": 220
+        }
+       ]
+      },
+      "entityRanges": [],
+      "inlineStyleRanges": [
+       {
+        "length": 44,
+        "offset": 0,
+        "style": "Bold"
+       }
+      ],
+      "key": "mr68",
+      "text": "We think a multidisciplinary team is a must. Warp\u2019s founding and early team is best-in-class on chemistry, AI, data science, product, and company building. Kevin (@kevinweil), DJ (@dpatil), Sol, and Mano (@manohar_paluri) are Silicon Valley superstars.",
+      "type": "ordered-list-item"
+     },
+     {
+      "data": {},
+      "entityRanges": [],
+      "inlineStyleRanges": [
+       {
+        "length": 62,
+        "offset": 0,
+        "style": "Bold"
+       }
+      ],
+      "key": "e6o7d",
+      "text": "We believe chemistry is a sweet spot for AI to become capable. First, chemistry has more verifiability than e.g. biology (did you synthesize the molecule - yes or no? If so, with how much yield and over how many reaction steps? What are all the precursors, intermediate products, and byproducts?). Second, chemistry has powerful general purpose analytical techniques (e.g. chromatography, mass spec, NMR, absorption) that can be incorporated/automated in-line to generate feedback data at scale. Last, chemistry balances mechanistic reasoning and \u201cfingertip feel\u201d intuition which can imbue a trained AI model with both grounded understanding and a capacity for creativity \u2013 together necessary for doing science.",
+      "type": "ordered-list-item"
+     },
+     {
+      "data": {},
+      "entityRanges": [],
+      "inlineStyleRanges": [
+       {
+        "length": 148,
+        "offset": 0,
+        "style": "Bold"
+       },
+       {
+        "length": 2,
+        "offset": 154,
+        "style": "Italic"
+       }
+      ],
+      "key": "5c8qk",
+      "text": "We\u2019re fans of vertical integration, where the autonomous lab is an internalized advantage used to achieve a superior end product and cost structure. Warp is a CRO rather than a horizontal tech dealer to pharma. Thus, Warp is incentive-aligned to innovate pragmatically where it moves the needle for its customers (and its margins) \u2013 no \u201ctech for tech\u2019s sake.\u201d",
+      "type": "ordered-list-item"
+     },
+     {
+      "data": {},
+      "entityRanges": [],
+      "inlineStyleRanges": [
+       {
+        "length": 64,
+        "offset": 0,
+        "style": "Bold"
+       },
+       {
+        "length": 6,
+        "offset": 160,
+        "style": "Italic"
+       }
+      ],
+      "key": "c6v8j",
+      "text": "Re-establishing domestic pharmaceutical supply chains is a must. We've offshored and lost the ability to make medicines in the conventional way. Drug discovery cannot go the way of solar, drones, and manufacturing. For American pharmaceutical research to maintain supremacy and for American patients to continue receiving the best medicines, America needs companies like Warp to set a standard of post-AGI excellence.",
+      "type": "ordered-list-item"
+     },
+     {
+      "data": {},
+      "entityRanges": [],
+      "inlineStyleRanges": [],
+      "key": "93h6b",
+      "text": "We're honored to be early backers of Warp and share their vision of a coming golden age for scientific progress.",
+      "type": "unstyled"
+     }
+    ]
+   }
+  },
+  "entities": null,
+  "id_str": "2113316408205390211"
+ }
+}
