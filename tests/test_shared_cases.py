@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 
 from forger.analysis_cleanup import truncate_at_word_boundary
-from forger.search import normalize, query_terms, term_stem
+from forger.search import normalize, query_terms, term_in, term_stem
 from forger.tagging import normalize_tag
 
 CASES = json.loads(
@@ -44,3 +44,11 @@ def test_truncate_at_word_boundary(case):
 @pytest.mark.parametrize("case", CASES["search_term_stem"], ids=lambda c: repr(c["input"]))
 def test_search_term_stem(case):
     assert term_stem(case["input"]) == case["expected"]
+
+
+@pytest.mark.parametrize(
+    "case", CASES["search_term_in"], ids=lambda c: f"{c['term']!r} in {c['value'][:24]!r}"
+)
+def test_search_term_in(case):
+    assert term_in(case["term"], normalize(case["value"])) is case["expected"]
+

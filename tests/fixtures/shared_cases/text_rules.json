@@ -155,8 +155,8 @@
     {
       "input": "The quick brown fox jumps over the lazy dog",
       "max_length": 20,
-      "ellipsis": "…",
-      "expected": "The quick brown…"
+      "ellipsis": "\u2026",
+      "expected": "The quick brown\u2026"
     },
     {
       "input": "Supercalifragilisticexpialidocious word",
@@ -185,8 +185,8 @@
     {
       "input": "Catalysis enables selective C-H activation in complex molecules",
       "max_length": 40,
-      "ellipsis": "…",
-      "expected": "Catalysis enables selective C-H…"
+      "ellipsis": "\u2026",
+      "expected": "Catalysis enables selective C-H\u2026"
     }
   ],
   "search_term_stem": [
@@ -233,6 +233,53 @@
     {
       "input": "called",
       "expected": "call"
+    }
+  ],
+  "search_term_in": [
+    {
+      "term": "roche",
+      "value": "Roche job posting Switzerland",
+      "expected": true
+    },
+    {
+      "term": "roche",
+      "value": "JACS Au electrochemical DoE",
+      "expected": false
+    },
+    {
+      "term": "roche",
+      "value": "ChemElectroChem collection",
+      "expected": false
+    },
+    {
+      "term": "roche",
+      "value": "ACS electrochemical CFP",
+      "expected": false
+    },
+    {
+      "term": "bidding",
+      "value": "Google Ads bids rise",
+      "expected": true
+    },
+    {
+      "term": "agencies",
+      "value": "An agency charges retainers",
+      "expected": true
+    },
+    {
+      "term": "c h",
+      "value": "C-H activation",
+      "expected": true
+    },
+    {
+      "term": "ligand",
+      "value": "ligand field basics",
+      "expected": true
+    },
+    {
+      "term": "bid",
+      "value": "outbidding the market",
+      "expected": false
     }
   ]
 }
