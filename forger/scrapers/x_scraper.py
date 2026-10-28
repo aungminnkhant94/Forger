@@ -724,6 +724,7 @@ class XScraper:
         except ImportError:
             return result
         failures: list[str] = []
+        tried: set[str] = set()  # t.co + its expanded_url resolve to one page
         for raw in candidates[:5]:
             try:
                 try:
@@ -738,6 +739,9 @@ class XScraper:
                         continue
                 if _is_x_status_url(resolved) or _is_x_hosted_url(resolved):
                     continue
+                if resolved in tried:
+                    continue
+                tried.add(resolved)
                 scraped = scrape_article(resolved)
                 if not scraped or not scraped.get("success"):
                     LOGGER.info("Pointer link scrape failed for %s: %s", resolved, (scraped or {}).get("error"))
@@ -761,7 +765,8 @@ class XScraper:
         if failures:
             # Loud, not silent: the user should know the link was not saved.
             msg = f"Linked page refused ({failures[0]}); saved post text only"
-            LOGGER.warning(msg)
+            # INFO, not WARNING: scrape_url prints the user-facing ⚠ once.
+            LOGGER.info(msg)
             out = dict(result)
             out["link_warning"] = msg
             return out
