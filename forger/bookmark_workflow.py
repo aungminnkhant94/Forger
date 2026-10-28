@@ -275,6 +275,58 @@ def resolve_pending_analysis(bookmark_id: str, analysis_dict: dict) -> Tuple[boo
     return True, f"Resolved {bookmark_id}: bucket={analysis.recommendation_bucket} priority={analysis.priority_score}", analysis
 
 
+RETAG_MARKER = "<!-- forger:retag -->"
+
+
+def write_retag_pending(pending_dir, bookmark: Bookmark, summary: str = "") -> tuple[bool, str]:
+    """Queue *bookmark* for an agent tag re-pick (``forge retag --agent``).
+
+    Writes ``<id>.content.md`` with a retag marker. Idempotent: rewriting a
+    retag file is a no-op in effect; a pending ``forge add --agent`` file
+    (no marker) is never clobbered.
+    """
+    from pathlib import Path
+    from forger.utils import pending_paths_for_bookmark_id
+
+    pending_dir = Path(pending_dir)
+    pending_dir.mkdir(parents=True, exist_ok=True)
+    _, content_path = pending_paths_for_bookmark_id(pending_dir, bookmark.id)
+    if content_path.exists() and RETAG_MARKER not in content_path.read_text(encoding="utf-8"):
+        return False, "skipped (already pending a full analysis)"
+    content_path.write_text(
+        f"{RETAG_MARKER}\n# {bookmark.title}\n\nURL: {bookmark.url}\n"
+        f"CURRENT TAGS: {', '.join(bookmark.tags or []) or '(none)'}\n"
+        f"SUMMARY: {summary or '(none)'}\n\n"
+        "RETAG ONLY: write {\"tags\": [...]} (1-5 tags this content is really about) "
+        f"to {bookmark.id}.analysis.json, then run: forge resolve {bookmark.id}\n\n"
+        f"{bookmark.text or ''}\n",
+        encoding="utf-8",
+    )
+    return True, str(content_path)
+
+
+def resolve_retag(bookmark_id: str, payload: dict) -> Tuple[bool, str]:
+    """Apply an agent's tag re-pick: agent tags replace inferred ones."""
+    tags = payload.get("tags")
+    if not isinstance(tags, list) or not agent_owned_tags(tags):
+        return False, 'retag payload needs a non-empty "tags" list'
+    with data_lock():
+        invalidate_cache()
+        bookmarks = load_bookmarks()
+        bookmark = next((b for b in bookmarks if b.id == bookmark_id), None)
+        if not bookmark:
+            return False, f"Bookmark {bookmark_id} not found"
+        before = list(bookmark.tags or [])
+        bookmark.agent_tags = agent_owned_tags(tags)
+        bookmark.tags = clean_tags(bookmark.agent_tags)
+        save_bookmarks(bookmarks)
+    try:
+        _sync_dashboard()
+    except Exception as e:
+        LOGGER.warning(f"Failed to sync dashboard after retag resolve: {e}")
+    return True, f"Retagged {bookmark_id}: {', '.join(before) or '(none)'} -> {', '.join(bookmark.tags)}"
+
+
 def _sync_dashboard() -> None:
     from forger.dashboard_sync import sync_dashboard_data
 
