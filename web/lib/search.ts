@@ -8,7 +8,7 @@
 
 export function normalizeSearchText(text: string | null | undefined): string {
   if (!text) return '';
-  return text.toLowerCase().replace(/[-_/]+/g, ' ').replace(/\s+/g, ' ').trim();
+  return text.toLowerCase().replace(/[-_/\u2010-\u2015\u2212\ufe58\ufe63\uff0d]+/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
 export function searchQueryTerms(query: string): string[] {

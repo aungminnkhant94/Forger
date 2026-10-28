@@ -34,8 +34,8 @@ def test_nature_crossref_without_abstract_is_refused(monkeypatch):
         (DOI_FIX / "nature_s41567_026_03465_3_crossref.json").read_text(encoding="utf-8")
     )
 
-    def fake_get(url, headers=None, timeout=None):
-        assert "10.1038/s41567-026-03465-3" in url
+    def fake_get(url, headers=None, timeout=None, **kw):
+        assert "10.1038/s41567-026-03465-3" in url + str(kw.get("params"))
         resp = MagicMock()
         resp.raise_for_status = MagicMock()
         resp.json.return_value = payload
@@ -62,7 +62,7 @@ def _crossref_then_challenge(monkeypatch, fixture):
         def raise_for_status(self):
             return None
 
-    def fake_get(url, headers=None, timeout=None):
+    def fake_get(url, headers=None, timeout=None, **kw):
         resp = MagicMock()
         resp.raise_for_status = MagicMock()
         resp.json.return_value = payload
@@ -117,5 +117,57 @@ def test_nature_subject_page_still_refuses_challenge(monkeypatch):
     monkeypatch.setattr(article_scraper, "assert_safe_fetch_url", lambda u: u)
     monkeypatch.setattr(article_scraper, "_fetch_url", lambda *a, **k: Resp())
     out = scrape_url("https://www.nature.com/subjects/catalysis")
+    assert not isinstance(out, Saved)
+    assert out.reason == RefuseReason.CHALLENGE
+
+
+def _crossref_no_abstract_then_europepmc(monkeypatch, epmc_results):
+    """Crossref lacks the abstract (common for Nature); Europe PMC may have it."""
+    html = (CHALLENGE / "nature_client_challenge.html").read_text(encoding="utf-8")
+    crossref = json.loads(
+        (DOI_FIX / "nature_s41567_026_03465_3_crossref.json").read_text(encoding="utf-8")
+    )
+
+    class Resp:
+        content = html.encode("utf-8")
+        encoding = "utf-8"
+        headers = {"Content-Type": "text/html"}
+        text = html
+        status_code = 200
+
+        def raise_for_status(self):
+            return None
+
+    def fake_get(url, headers=None, timeout=None, params=None):
+        resp = MagicMock()
+        resp.raise_for_status = MagicMock()
+        if url == doi_metadata.EUROPEPMC_SEARCH:
+            resp.json.return_value = {"resultList": {"result": epmc_results}}
+        else:
+            resp.json.return_value = crossref
+        return resp
+
+    monkeypatch.setattr(doi_metadata, "assert_safe_fetch_url", lambda u: u)
+    monkeypatch.setattr(article_scraper, "assert_safe_fetch_url", lambda u: u)
+    monkeypatch.setattr(doi_metadata.requests, "get", fake_get)
+    monkeypatch.setattr(article_scraper, "_fetch_url", lambda *a, **k: Resp())
+
+
+def test_nature_doi_without_crossref_abstract_saves_europepmc_abstract(monkeypatch):
+    abstract = "Here we summarize recent progress in machine learning. " * 5
+    _crossref_no_abstract_then_europepmc(
+        monkeypatch, [{"doi": "10.1038/s41567-026-03465-3", "abstractText": abstract}]
+    )
+    out = scrape_url("https://doi.org/10.1038/s41567-026-03465-3")
+    assert isinstance(out, Saved)
+    assert "Here we summarize recent progress" in out.text
+    assert "Client Challenge" not in out.text
+
+
+def test_nature_doi_with_no_abstract_anywhere_still_refused(monkeypatch):
+    _crossref_no_abstract_then_europepmc(
+        monkeypatch, [{"doi": "10.1038/other-paper", "abstractText": "Wrong paper " * 30}]
+    )
+    out = scrape_url("https://doi.org/10.1038/s41567-026-03465-3")
     assert not isinstance(out, Saved)
     assert out.reason == RefuseReason.CHALLENGE
