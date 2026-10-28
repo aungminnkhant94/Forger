@@ -211,6 +211,26 @@ def _fetch_url(url: str, headers: dict, timeout: int) -> requests.Response:
 
 
 
+# Honest bot UA. Some WAFs (e.g. mirtitles.org) 403 a Chrome UA sent from a
+# non-browser TLS client but allow a plain, self-identifying one.
+_HONEST_UA = "Mozilla/5.0 (compatible; ForgerBot/1.0; +https://github.com/aungminnkhant94/Forger)"
+
+
+def _fetch_url_with_ua_fallback(url: str, headers: dict, timeout: int) -> requests.Response:
+    """Fetch with browser-like headers; on 403 retry once with an honest UA."""
+    try:
+        return _fetch_url(url, headers, timeout)
+    except requests.exceptions.HTTPError as e:
+        status = getattr(getattr(e, "response", None), "status_code", None)
+        if status != 403:
+            raise
+        LOGGER.info("403 with browser UA for %s; retrying with ForgerBot UA", url)
+        try:
+            return _fetch_url(url, dict(headers, **{"User-Agent": _HONEST_UA}), timeout)
+        except requests.exceptions.HTTPError:
+            raise e
+
+
 def _challenge_failure(url: str, *, title=None, text=None, detail: str = "bot challenge") -> dict:
     """Uniform failure payload for anti-bot interstitials."""
     LOGGER.warning("Refusing bot-challenge / trash scrape for %s (%s)", url, detail)
@@ -358,7 +378,7 @@ def scrape_article(url: str, timeout: int = DEFAULT_TIMEOUT, *, skip_pubchem: bo
 
     try:
         LOGGER.info(f"Fetching article: {url}")
-        response = _fetch_url(url, headers, timeout)
+        response = _fetch_url_with_ua_fallback(url, headers, timeout)
         html = html_text_from_response(response)
 
         # Cloudflare advertises challenges via cf-mitigated; Nature/Fastly and

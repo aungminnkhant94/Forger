@@ -33,8 +33,10 @@ _ACS_HOSTS = frozenset(
 )
 
 # DOI path on ACS: /doi/10.1021/jacs.6c12509, /doi/abs/..., /doi/full/..., /doi/pdf/...
+# Newer ACS reader paths: /acsodf/article/doi/10.1021/acsomega.6c06602/5455982/<slug>
+# — ACS DOI suffixes never contain "/", so stop at the next path segment.
 _ACS_DOI_PATH_RE = re.compile(
-    r"^/doi/(?:(?:abs|full|pdf|pdfplus)/)?(?P<doi>10\.\d{4,9}/[^\s?#]+)",
+    r"^(?:/[a-z]+/article)?/doi/(?:(?:abs|full|pdf|pdfplus|epdf)/)?(?P<doi>10\.\d{4,9}/[^\s?#/]+)",
     re.IGNORECASE,
 )
 

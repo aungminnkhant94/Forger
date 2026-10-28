@@ -70,6 +70,11 @@ _X_HOSTS = {
 }
 
 
+def _refusal_label(error: str | None) -> str:
+    m = re.search(r"\b(4\d\d|5\d\d)\b", error or "")
+    return m.group(1) if m else (error or "failed").split(":")[0]
+
+
 class XScraperError(Exception):
     """Base exception for XScraper errors."""
     pass
@@ -718,6 +723,7 @@ class XScraper:
             from forger.scrapers.article_scraper import scrape_article
         except ImportError:
             return result
+        failures: list[str] = []
         for raw in candidates[:5]:
             try:
                 try:
@@ -735,6 +741,7 @@ class XScraper:
                 scraped = scrape_article(resolved)
                 if not scraped or not scraped.get("success"):
                     LOGGER.info("Pointer link scrape failed for %s: %s", resolved, (scraped or {}).get("error"))
+                    failures.append(f"{_refusal_label((scraped or {}).get('error'))}: {resolved}")
                     continue
                 body = (scraped.get("text") or "").strip()
                 if is_link_only_text(body) or len(body) < 200:
@@ -750,6 +757,14 @@ class XScraper:
                 return out
             except Exception as e:
                 LOGGER.warning("Pointer link error for %s: %s", raw, e)
+                failures.append(f"error ({e}): {raw}")
+        if failures:
+            # Loud, not silent: the user should know the link was not saved.
+            msg = f"Linked page refused ({failures[0]}); saved post text only"
+            LOGGER.warning(msg)
+            out = dict(result)
+            out["link_warning"] = msg
+            return out
         return result
 
     def _http_get_json(self, api_url: str, user_agent: Optional[str] = None) -> Optional[dict]:

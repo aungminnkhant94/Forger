@@ -130,6 +130,12 @@ def scrape_url(url: str) -> ScrapeOutcome:
             from forger.scrapers import x_scraper
 
             raw = x_scraper.fetch_x_content_sync(url)
+            if isinstance(raw, dict) and raw.get("link_warning"):
+                # Surface on the CLI (stderr), not just the log: the user
+                # must know the followed link was not saved.
+                import sys
+
+                print(f"⚠ {raw['link_warning']}", file=sys.stderr)
             outcome = classify(source, url, raw)
         else:
             # P5: PubChem adapter returns ScrapeOutcome directly (no success dict).
