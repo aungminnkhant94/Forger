@@ -1,0 +1,143 @@
+{
+ "status": "ok",
+ "message-type": "work",
+ "message": {
+  "DOI": "10.1021/acsomega.6c06602",
+  "title": [
+   "A Study of Factors\nInfluencing the Selectivity and\nBatch Reaction Kinetics of Raney Nickel-Catalyzed Nitrile Hydrogenation"
+  ],
+  "container-title": [
+   "ACS Omega"
+  ],
+  "publisher": "American Chemical Society (ACS)",
+  "author": [
+   {
+    "ORCID": "https://orcid.org/0000-0002-4033-9864",
+    "authenticated-orcid": true,
+    "given": "Thomas A.",
+    "family": "Manz",
+    "sequence": "first",
+    "affiliation": [
+     {
+      "name": "Purdue University , , 480 Stadium Mall Drive , , ,",
+      "place": [
+       "West Lafayette, Indiana, United States, 47907"
+      ]
+     }
+    ],
+    "role": [
+     {
+      "vocabulary": "crossref",
+      "role": "author"
+     }
+    ]
+   },
+   {
+    "given": "Seqwana Thomas",
+    "family": "Pryor",
+    "sequence": "additional",
+    "affiliation": [
+     {
+      "name": "Purdue University , , 480 Stadium Mall Drive , , ,",
+      "place": [
+       "West Lafayette, Indiana, United States, 47907"
+      ]
+     },
+     {
+      "name": "DuPont , 200 Powder Mill Road , , ,",
+      "place": [
+       "Wilmington, Delaware, United States, 19803"
+      ]
+     }
+    ],
+    "role": [
+     {
+      "vocabulary": "crossref",
+      "role": "author"
+     }
+    ]
+   },
+   {
+    "given": "Zhufang",
+    "family": "Liu",
+    "sequence": "additional",
+    "affiliation": [
+     {
+      "name": "Purdue University , , 480 Stadium Mall Drive , , ,",
+      "place": [
+       "West Lafayette, Indiana, United States, 47907"
+      ]
+     }
+    ],
+    "role": [
+     {
+      "vocabulary": "crossref",
+      "role": "author"
+     }
+    ]
+   },
+   {
+    "ORCID": "https://orcid.org/0000-0001-8570-4717",
+    "authenticated-orcid": true,
+    "given": "Sourav K.",
+    "family": "Sengupta",
+    "sequence": "additional",
+    "affiliation": [
+     {
+      "name": "DuPont , 200 Powder Mill Road , , ,",
+      "place": [
+       "Wilmington, Delaware, United States, 19803"
+      ]
+     }
+    ],
+    "role": [
+     {
+      "vocabulary": "crossref",
+      "role": "author"
+     }
+    ]
+   },
+   {
+    "given": "Theodore A.",
+    "family": "Koch",
+    "sequence": "additional",
+    "affiliation": [
+     {
+      "name": "DuPont , 200 Powder Mill Road , , ,",
+      "place": [
+       "Wilmington, Delaware, United States, 19803"
+      ]
+     }
+    ],
+    "role": [
+     {
+      "vocabulary": "crossref",
+      "role": "author"
+     }
+    ]
+   },
+   {
+    "given": "William Nicholas",
+    "family": "Delgass",
+    "sequence": "additional",
+    "affiliation": [
+     {
+      "name": "Purdue University , , 480 Stadium Mall Drive , , ,",
+      "place": [
+       "West Lafayette, Indiana, United States, 47907"
+      ]
+     }
+    ],
+    "role": [
+     {
+      "vocabulary": "crossref",
+      "role": "author"
+     }
+    ]
+   }
+  ],
+  "abstract": "<jats:title>Abstract</jats:title>\n                  <jats:p>In this work, an extensive study was carried out to quantify the effects of various reaction conditions on the rate and selectivity of liquid-phase butyronitrile hydrogenation. In this reaction, butylamine is the desired product, and dibutylamine is produced as an unwanted by-product. Liquid-phase catalytic butyronitrile hydrogenation reactions were carried out in batch reactors at hydrogen pressures from 1 to 15 atm and at temperatures from 20 to 75 °C. Methanol was used as a solvent. The stirring speed was set sufficiently high to avoid external mass transfer limitations. Experiments were performed using several Raney nickel catalysts: an unpromoted catalyst, Fe-promoted catalysts, Cr-promoted catalysts, and a Fe and Cr doubly-promoted catalyst. Fe and/or Cr promotion increases the reaction rate while having little impact on the selectivity to primary amine. NaOH, NaCl, and butylamine were added separately to the reaction mixture, and the resulting changes in selectivity and reaction rate were measured to investigate the reaction mechanism. Water was also sometimes added to the reaction mixture (e.g., 50 mL methanol plus 10 mL water for the 1 atm batch reactions). An effective activation energy of ∼45 kJ/mol was computed for the unpromoted catalyst. Consistent with prior reports, NaOH addition improved the selectivity to butylamine by suppressing the condensation pathway. It was observed that adding NaCl to the reaction mixture improved the selectivity to primary amine. Adsorption experiments showed that butylamine adsorbed on two different site groups. One site group was blocked by added [OH]−, and the other site group was blocked by adsorbed carbon monoxide (CO). We propose and discuss a kinetic model to explain the observed reactivity and selectivity trends.</jats:p>",
+  "URL": "https://doi.org/10.1021/acsomega.6c06602",
+  "type": "journal-article"
+ }
+}
