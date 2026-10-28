@@ -87,7 +87,7 @@ def _html(monkeypatch, *parts: str, content_type: str = "text/html"):
 
 
 def _json_get(module, routes: dict[str, str]):
-    def fake_get(url, headers=None, timeout=None):
+    def fake_get(url, headers=None, timeout=None, params=None):
         for needle, fixture in routes.items():
             if needle in url:
                 resp = MagicMock()
