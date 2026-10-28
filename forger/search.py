@@ -2,7 +2,7 @@
 
 Rules:
 - Case-insensitive.
-- Hyphens, underscores and slashes are treated as spaces, in both query and
+- Hyphens (and en/em dash, minus, non-breaking hyphen etc.), underscores and slashes are treated as spaces, in both query and
   fields, so ``named-reactions`` and ``named reactions`` are equivalent.
 - A multi-word query matches a bookmark only when EVERY word appears somewhere
   in the searched fields (any order, may be spread across fields).
@@ -19,7 +19,10 @@ from __future__ import annotations
 import re
 from typing import Iterable, Optional
 
-_SEPARATORS = re.compile(r"[-_/]+")
+# ASCII hyphen plus Unicode dash variants (hyphen, non-breaking hyphen,
+# figure/en/em dash, horizontal bar, minus sign, small/fullwidth hyphen-minus)
+# so "C–H" (en dash, common in chemistry titles) searches like "C-H".
+_SEPARATORS = re.compile("[-_/\u2010-\u2015\u2212\ufe58\ufe63\uff0d]+")
 _WHITESPACE = re.compile(r"\s+")
 _TOKEN = re.compile(r"[a-z0-9]+")
 

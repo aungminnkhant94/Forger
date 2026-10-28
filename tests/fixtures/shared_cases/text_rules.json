@@ -103,6 +103,13 @@
     {
       "input": "",
       "expected": []
+    },
+    {
+      "input": "C\u2013H activation",
+      "expected": [
+        "c h",
+        "activation"
+      ]
     }
   ],
   "search_normalize": [
@@ -137,6 +144,10 @@
     {
       "input": "",
       "expected": ""
+    },
+    {
+      "input": "Late\u2011stage C\u2013H \u2014 x\u2212y",
+      "expected": "late stage c h x y"
     }
   ],
   "truncate_at_word_boundary": [

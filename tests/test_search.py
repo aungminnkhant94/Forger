@@ -105,3 +105,23 @@ def test_stem_still_matches_whole_token_word_forms():
     b = bm("ads", "Smart Bidding", "Google Ads bids rise with target CPA.")
     assert {x.id for _, x, _, _ in search_bookmarks("bidding", [b], {})} == {"ads"}
     assert {x.id for _, x, _, _ in search_bookmarks("bids", [b], {})} == {"ads"}
+
+
+def test_en_dash_and_other_dashes_search_like_hyphen():
+    from forger.search import normalize, query_terms
+    for dash in ["\u2010", "\u2011", "\u2012", "\u2013", "\u2014", "\u2212", "\uff0d"]:
+        assert query_terms(f"C{dash}H activation") == query_terms("C-H activation")
+        assert normalize(f"Late-stage C{dash}H functionalization") == normalize(
+            "Late-stage C-H functionalization"
+        )
+
+
+def test_en_dash_query_finds_hyphen_and_en_dash_bookmarks():
+    books = [
+        bm("hy", title="Pd-catalysed C-H activation"),
+        bm("en", title="Directed C\u2013H activation of arenes"),
+        bm("no", title="Electrochemical activation of CO2"),
+    ]
+    ids = lambda q: {b.id for _, b, _, _ in search_bookmarks(q, books, {})}
+    assert ids("C\u2013H activation") == {"hy", "en"}
+    assert ids("C-H activation") == {"hy", "en"}

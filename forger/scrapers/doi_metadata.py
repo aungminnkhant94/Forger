@@ -20,6 +20,7 @@ from forger.url_safety import UnsafeURLError, assert_safe_fetch_url
 LOGGER = logging.getLogger(__name__)
 
 CROSSREF_WORKS = "https://api.crossref.org/works"
+EUROPEPMC_SEARCH = "https://www.ebi.ac.uk/europepmc/webservices/rest/search"
 DEFAULT_TIMEOUT = 15
 MAX_TEXT_LENGTH = 5000
 MIN_TEXT_CHARS = 200
@@ -233,6 +234,32 @@ def _fetch_crossref(doi: str, timeout: int) -> dict[str, Any] | None:
         return None
 
 
+def _fetch_europepmc_abstract(doi: str, timeout: int) -> str:
+    """Abstract for *doi* from Europe PMC, or "" when it has none.
+
+    Crossref often lacks abstracts for Nature papers, and nature.com serves a
+    Client Challenge to non-browser TLS clients, so this is the honest
+    fallback before refusing.
+    """
+    try:
+        assert_safe_fetch_url(EUROPEPMC_SEARCH)
+        response = requests.get(
+            EUROPEPMC_SEARCH,
+            params={"query": f'DOI:"{doi}"', "resultType": "core", "format": "json"},
+            headers={"User-Agent": "Forger/1.0 (https://github.com/aungminnkhant94/Forger)"},
+            timeout=timeout,
+        )
+        response.raise_for_status()
+        results = (response.json().get("resultList") or {}).get("result") or []
+    except (UnsafeURLError, RequestException, ValueError, AttributeError) as e:
+        LOGGER.warning("Europe PMC request failed for %s: %s", doi, e)
+        return ""
+    for item in results:
+        if str(item.get("doi") or "").lower() == doi.lower():
+            return _strip_jats_abstract(item.get("abstractText") or "")
+    return ""
+
+
 def scrape_doi_metadata(url: str, timeout: int = DEFAULT_TIMEOUT) -> dict:
     """
     Scrape title/abstract for a DOI-bearing URL via Crossref.
@@ -269,6 +296,10 @@ def scrape_doi_metadata(url: str, timeout: int = DEFAULT_TIMEOUT) -> dict:
     resolved_doi = (message.get("DOI") or doi).strip()
 
     # Nature: title+journal+DOI alone is not content. Require a real abstract.
+    if resolved_doi.lower().startswith("10.1038/") and not abstract:
+        abstract = _fetch_europepmc_abstract(resolved_doi, timeout)
+        if abstract:
+            LOGGER.info("Using Europe PMC abstract for Nature DOI %s", resolved_doi)
     if resolved_doi.lower().startswith("10.1038/") and not abstract:
         LOGGER.warning("Crossref has no abstract for Nature DOI %s; refusing", doi)
         return _error_result("Crossref has no abstract for Nature DOI", title=title)
