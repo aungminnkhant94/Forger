@@ -107,6 +107,16 @@ just report the result.
 - Answer from the results; cite the bucket and reason so they learn what the
   forge thinks of their stream.
 
+## Cleaning up wrong tags (no API key)
+
+1. `python forge retag --agent --tag <tag>` (or `--all`) — dry run, lists bookmarks.
+2. Add `--apply` to queue them as `data/pending/<id>.content.md` (title, URL,
+   current tags, summary, content).
+3. For each, read it and write `data/pending/<id>.analysis.json` as
+   `{"tags": ["...", "..."]}` — 1–5 tags the content is really about. Drop a
+   tag that only matches a word (e.g. `coding` on a physics paper).
+4. `python forge resolve <id>` — your tags replace the inferred ones.
+
 ## Troubleshooting
 
 See `references/troubleshooting.md`. Common cases: rare X public-API misses may use cookies

@@ -380,7 +380,12 @@ def cmd_resolve(args: argparse.Namespace) -> int:
 
     # Use the validated id (stripped), never the raw argv for path joins again.
     bookmark_id = analysis_path.name.removesuffix(".analysis.json")
-    success, message, analysis = resolve_pending_analysis(bookmark_id, payload)
+    from forger.bookmark_workflow import RETAG_MARKER, resolve_retag
+    is_retag = content_path.exists() and RETAG_MARKER in content_path.read_text(encoding="utf-8")
+    if is_retag:
+        success, message = resolve_retag(bookmark_id, payload)
+    else:
+        success, message, analysis = resolve_pending_analysis(bookmark_id, payload)
     if not success:
         print_error(message)
         return 1
@@ -614,6 +619,8 @@ def cmd_retag(args: argparse.Namespace) -> int:
     from forger.storage import data_lock, invalidate_cache, save_bookmarks
     from forger.tagging import retag
 
+    if getattr(args, "agent", False):
+        return _cmd_retag_agent(args)
     print_header("Retag Bookmarks" + ("" if args.apply else " (dry run)"))
     with data_lock():
         invalidate_cache()
@@ -640,6 +647,36 @@ def cmd_retag(args: argparse.Namespace) -> int:
             print_warning(f"Dashboard sync failed: {e}")
     elif changed:
         print_info("Run again with --apply to write these changes.")
+    return 0
+
+
+def _cmd_retag_agent(args: argparse.Namespace) -> int:
+    """Queue bookmarks so the calling agent re-picks their tags (no API key)."""
+    from forger.bookmark_workflow import write_retag_pending
+
+    if not args.all and not args.tag:
+        print_error("retag --agent needs a scope: --tag TAG or --all")
+        return 1
+    print_header("Retag via Agent" + ("" if args.apply else " (dry run)"))
+    want = (args.tag or "").strip().lower().lstrip("#")
+    summaries = {a.bookmark_id: a.summary for a in load_analysis_results()}
+    scope = [b for b in load_bookmarks() if args.all or want in (b.tags or [])]
+    pending_dir = DATA_DIR / "pending"
+    queued = 0
+    for b in scope:
+        print(f"  {b.id}  {(b.title or '')[:50]}")
+        print(f"    current: {', '.join(b.tags or []) or '(none)'}")
+        if args.apply:
+            ok, msg = write_retag_pending(pending_dir, b, summaries.get(b.id) or "")
+            queued += ok
+            if not ok:
+                print(f"    {msg}")
+    if args.apply:
+        print(f"\n{queued} of {len(scope)} bookmarks queued in {pending_dir}.")
+        print_info('For each: write {"tags": [...]} to <id>.analysis.json, then: forge resolve <id>')
+    else:
+        print(f"\n{len(scope)} bookmarks would be queued for an agent tag re-pick.")
+        print_info("Run again with --apply to queue them.")
     return 0
 
 
@@ -952,6 +989,10 @@ For more help on a command:
 
     retag_parser = subparsers.add_parser("retag", help="Remove tags invented by old substring matching (dry run unless --apply)")
     retag_parser.add_argument("--apply", action="store_true", help="Write the changes (default: show them only)")
+    retag_parser.add_argument("--agent", action="store_true", help="Queue bookmarks in pending so the calling agent re-picks tags (then `forge resolve <id>`)")
+    retag_scope = retag_parser.add_mutually_exclusive_group()
+    retag_scope.add_argument("--tag", help="With --agent: only bookmarks that currently have this tag")
+    retag_scope.add_argument("--all", action="store_true", help="With --agent: every bookmark")
     retag_parser.set_defaults(func=cmd_retag)
     
     # sync

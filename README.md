@@ -91,6 +91,7 @@ forge add <url> --agent  agent mode: no API key — saves content for YOUR agent
 forge add <url> --note ".."  pass the user's own words with the link — strongest analysis signal
 forge add <url|id> --replace  re-scrape and overwrite an existing bookmark
 forge resolve <id>       ingest the agent-written analysis (completes agent mode)
+forge retag --agent --tag coding  dry run; --apply queues those bookmarks so your agent re-picks tags
 forge search <q>         full-text search across everything
 forge stats              counts, bucket distribution, priorities
 forge digest             weekly digest (md/html)
@@ -102,6 +103,8 @@ forge health             checks
 ```
 
 **Agent mode** is the zero-key path: `forge add --agent` stores the scraped content under `data/pending/`, the agent reads it, writes its own analysis JSON (same three questions), and `forge resolve` ingests it. This is how the skill runs Forger with no LLM API key at all — the agent you already pay for does the scoring.
+
+`forge retag --agent` (scope with `--tag <tag>` or `--all`; dry run unless `--apply`) re-queues existing bookmarks the same way: the agent writes `{"tags": [...]}` to `data/pending/<id>.analysis.json` and `forge resolve <id>` makes those tags replace the inferred ones. Safe to re-run.
 
 Minimal analysis JSON (`data/pending/<id>.analysis.json`):
 
