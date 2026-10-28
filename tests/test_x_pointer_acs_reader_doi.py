@@ -110,3 +110,16 @@ def test_pointer_refusal_sets_clear_warning():
         out = XScraper()._enrich_pointer_post(result)
     assert out["text"] == result["text"]
     assert out["link_warning"] == f"Linked page refused (403: {url}); saved post text only"
+
+
+def test_same_destination_scraped_once():
+    """t.co and its expanded_url resolve to one page: fetch it once, not twice."""
+    url = "https://chemistry-europe.onlinelibrary.wiley.com/doi/toc/x"
+    result = {"success": True, "source": "syndication",
+              "text": "Explore the collection:\nhttps://t.co/TidTef1C6e",
+              "outbound_urls": [url]}
+    with patch("forger.scrapers.x_scraper.resolve_redirect_url", return_value=url), \
+            patch("forger.scrapers.article_scraper.scrape_article",
+                  return_value={"success": False, "error": "HTTP error: 403"}) as sa:
+        XScraper()._enrich_pointer_post(result)
+    assert sa.call_count == 1
