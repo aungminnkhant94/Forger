@@ -1,5 +1,12 @@
 # AGENTS.md
 
+**A pasted URL means: finish it.** If the user's message is or contains a URL,
+run the whole flow without stopping or asking: `python3 forge add <url> --agent`,
+read `data/pending/<id>.content.md`, write `data/pending/<id>.analysis.json`
+(shape in `skills/forger/SKILL.md`), run `python3 forge resolve <id>`, then
+reply with the finished bookmark (title, bucket, reason). Stopping after `add`
+leaves the bookmark pending — that is a failure.
+
 Forger turns a pasted URL into a scored bookmark. Python package in `forger/`,
 CLI in `forge.py`, optional Next.js dashboard in `web/`. The owner reviews
 results, not code, so the code and its checks carry the rules below.
