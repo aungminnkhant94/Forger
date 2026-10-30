@@ -172,13 +172,16 @@ def cmd_add(args: argparse.Namespace) -> int:
                 f"# {bookmark.title}\n\nURL: {bookmark.url}\n{note_block}\n{bookmark.text}\n",
                 encoding="utf-8",
             )
+            analysis_path = pending_dir / f"{bookmark.id}.analysis.json"
             print()
-            print_info(f"Agent mode: content saved to {content_path}")
-            print_info(
-                "Write your analysis JSON to "
-                f"{pending_dir / (bookmark.id + '.analysis.json')} then run: "
-                f"python forge resolve {bookmark.id}"
-            )
+            print(color("=" * 64, Colors.YELLOW))
+            print(color(f"NOT DONE YET: bookmark {bookmark.id} is pending. Finish it now:", Colors.YELLOW))
+            print(f"  1. Read    {content_path}")
+            print(f"  2. Write   {analysis_path}")
+            print("             (analysis JSON: see skills/forger/SKILL.md)")
+            print(f"  3. Run     python3 forge resolve {bookmark.id}")
+            print("  4. Report  title, bucket, one-line reason to the user")
+            print(color("=" * 64, Colors.YELLOW))
     else:
         print_error(message)
         return 1
@@ -558,6 +561,7 @@ def run_health_check() -> int:
 # ============================================================================
 def cmd_search(args: argparse.Namespace) -> int:
     """Search bookmarks."""
+    from forger.models import is_pending_analysis
     bookmarks = load_bookmarks()
     analyses = load_analysis_results()
     analysis_map = {a.bookmark_id: a for a in analyses}
@@ -591,7 +595,11 @@ def cmd_search(args: argparse.Namespace) -> int:
         if len(title) > 60:
             title = title[:57] + "..."
         
-        bucket = a.recommendation_bucket if a else "unknown"
+        bucket = (
+            a.recommendation_bucket
+            if a and not is_pending_analysis(a)
+            else "pending - run forge resolve"
+        )
         priority = a.priority_score if a else 0
         
         bucket_colors = {

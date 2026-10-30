@@ -5,6 +5,9 @@ description: Turn URLs the user pastes into a scored, searchable personal knowle
 
 # Forger
 
+A pasted URL means run add → analyze → resolve to the end; see the rule at
+the top of `AGENTS.md`.
+
 Forger is a personal bookmark engine: URL → scrape → score against the
 user's `profile.md` → bucket (`test_this_week` / `build_later` / `archive` /
 `ignore`) → local storage → optional web dashboard. You are the analyst: in
