@@ -34,6 +34,22 @@ Answer these honestly; everything else derives from them:
 Default when torn between two buckets: **the more urgent one.** Action beats
 reference.
 
+## Hard rule: do NOT park every on-profile paper in archive
+
+Ban **"all science = archive"** (and the twin habit of filing every on-profile
+paper as reference-only). On-profile is not enough reason to archive — ask the
+three questions. `forge resolve` derives worth from the booleans (~8 / ~6.5 / ~4):
+
+| Situation (biomed example) | Booleans / bucket | Worth |
+|---|---|---|
+| Protocol or assay the user can run **this week** (e.g. a PCR / ELISA protocol that matches their current wet-lab project and they can try Monday) | `actionable_this_week` → `test_this_week` | ~8 |
+| Method that **unblocks current work** but is not this-week runnable (e.g. a sequencing library-prep method that removes a blocker on their pipeline) | `reduces_friction` → `build_later` | ~6.5 |
+| Background landmark / review context only (classic paper they may cite later, no near-term action) | `reference_material` → `archive` | ~4 |
+
+If two papers both feel like `archive`, pick the more urgent for **at least
+one** — promote it to `build_later` (or `test_this_week` when it is runnable
+this week). Action beats reference; current work beats landmarks.
+
 ## Profile rules
 
 - If the profile names always-relevant topics and this bookmark is one, bump UP.
@@ -63,9 +79,12 @@ reference.
 ## Scoring derivation (what happens after you write the JSON)
 
 `forge resolve` converts your three booleans into 0-10 scores automatically:
-relevance 8/6/4/2, priority from worth − 0.3×effort, etc. You control the
+relevance 8/6/4/2, worth ~8 (actionable) / ~6.5 (reduces friction) / ~4
+(reference) / ~1.5 (ignore), priority from worth − 0.3×effort. You control the
 booleans and the bucket; the numbers follow. If the derived priority looks
 wrong for a specific case, trust your bucket — the bucket is the product.
+Do not force archive just to "look conservative" on science papers — that
+starves worth at 4 when the paper deserved 8 or 6.5.
 
 ## JSON shape (strict)
 

@@ -45,6 +45,9 @@ installed it). All commands below assume you `cd` there first.
    or any OpenAI-compatible API.
 5. **Verify**: `python forge health` then run the first bookmark through agent
    mode (next section). That completed bookmark IS the setup check.
+   Use a **neutral third-party URL** (e.g. a short Wikipedia or PubMed page).
+   **Never** save `https://github.com/aungminnkhant94/Forger` (or this repo's
+   URL / README) as the setup-check bookmark.
 6. **Optional dashboard**: `cd web && npm install && npm run dev` (needs Node).
 
 ## When the user pastes a URL (the main flow)
@@ -89,6 +92,18 @@ No key required — you are the analyst:
    reduces friction on something they're building. `archive` = worth finding
    again later. `ignore` = none of these. When torn, choose the MORE urgent.
    Judge against THEIR profile, never a generic tech audience. Be strict.
+   **Hard rule — do NOT park every on-profile paper in `archive`.**
+   Ban "all science = archive". Worth follows the booleans (~8 / ~6.5 / ~4):
+   - Protocol or assay the user can run **this week** → `actionable_this_week`
+     / `test_this_week` (worth ~8). Example: a PCR protocol matching their
+     current wet-lab project that they can try Monday.
+   - Method or tool that **unblocks current work** but is not this-week
+     runnable → `reduces_friction` / `build_later` (worth ~6.5). Example: a
+     sequencing library-prep method that removes a blocker on their pipeline.
+   - Background landmarks / review context only → `archive` (worth ~4).
+   If two papers both feel like archive, promote the more urgent one to at
+   least `build_later` (or `test_this_week` when it is runnable this week).
+   Full biomed examples: `references/analysis.md`.
    **`relates_to` is required.** Read `profile.md` and write 2–4 sentences (≥40
    characters) that name their goals/projects. Forbidden: `None`, `N/A`,
    `null`, `-`, or leaving it blank — `forge resolve` will reject those.
