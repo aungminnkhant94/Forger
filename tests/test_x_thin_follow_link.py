@@ -11,6 +11,7 @@ from forger.scrape_quality import is_link_only_text, is_usable_scrape_text
 from forger.scrapers.x_scraper import (
     XScraper,
     _text_from_x_article,
+    _urls_from_text,
     is_thin_x_result,
 )
 from forger.url_safety import UnsafeURLError, resolve_redirect_url
@@ -228,3 +229,83 @@ class TestLiveThinEnrichment:
         assert result["title"] != "X Post"
         assert len((result.get("text") or "").strip()) > 50
         assert is_usable_scrape_text(result["text"], source="x")
+
+
+class TestDlvrItZwspEnrich:
+    """Bare dlvr.it with ZWSP + t.co self-loop → enrich via Cell PII scrape."""
+
+    def test_urls_from_text_strips_zwsp_and_allows_bare_shortener(self):
+        text = "New paper dlvr.​it/AbCdEf https://t.co/abcdefghij"
+        urls = _urls_from_text(text)
+        assert "https://dlvr.it/AbCdEf" in urls
+        assert "https://t.co/abcdefghij" in urls
+
+    def test_bare_arbitrary_host_not_followed(self):
+        assert _urls_from_text("see evil.example/nope now") == []
+        assert _urls_from_text("see example.com/x") == []
+
+    def test_dlvr_zwsp_tco_loop_enriches_via_cell_pii(self):
+        scraper = XScraper()
+        # Thin link-only stub (~short); ZWSP splits dlvr.it until stripped.
+        body = "dlvr.​it/AbCdEf https://t.co/abcdefghij"
+        assert is_thin_x_result(
+            {
+                "success": True,
+                "text": body,
+                "title": "X Post",
+                "outbound_urls": ["https://t.co/abcdefghij"],
+            }
+        )
+        thin = {
+            "success": True,
+            "text": body,
+            "author": "someone",
+            "title": "X Post",
+            "error": None,
+            "source": "syndication",
+            "outbound_urls": ["https://t.co/abcdefghij"],
+        }
+        enriched_body = (
+            "Journal: Cell\n"
+            "Publisher: Elsevier BV\n"
+            "DOI: 10.1016/j.cell.2025.02.012\n"
+            "Authors: Loic Binan et al.\n\n"
+            + ("Simultaneous CRISPR screening and spatial transcriptomics. " * 8)
+        )
+        scraped = {
+            "success": True,
+            "title": (
+                "Simultaneous CRISPR screening and spatial transcriptomics "
+                "reveal intracellular circuits (Cell)"
+            ),
+            "text": enriched_body,
+            "author": "Loic Binan",
+            "source": "crossref-doi-metadata",
+            "error": None,
+        }
+
+        def fake_resolve(url: str) -> str:
+            if "t.co" in url:
+                return "https://x.com/someone/status/1234567890123456789"
+            if "dlvr.it" in url:
+                return (
+                    "https://www.cell.com/cell/fulltext/S0092-8674(25)00197-7"
+                )
+            return url
+
+        with patch(
+            "forger.scrapers.x_scraper.resolve_redirect_url",
+            side_effect=fake_resolve,
+        ), patch(
+            "forger.scrapers.article_scraper.scrape_article",
+            return_value=scraped,
+        ) as scrape:
+            out = scraper._enrich_thin_via_outbound_links(thin)
+
+        scrape.assert_called()
+        called_url = scrape.call_args[0][0]
+        assert "cell.com" in called_url or "S0092-8674" in called_url
+        assert out["success"] is True
+        assert len(out["text"]) > 143
+        assert "10.1016/j.cell.2025.02.012" in out["text"]
+        assert not is_thin_x_result(out)
