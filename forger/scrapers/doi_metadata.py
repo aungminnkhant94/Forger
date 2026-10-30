@@ -186,11 +186,15 @@ def _normalize_doi(doi: str) -> str:
     # ACS sometimes appends .pdf or similar in path segments we already stripped;
     # trim trailing punctuation from inline matches.
     doi = doi.rstrip(".,;)")
-    # bioRxiv/medRxiv HTML/PDF suffixes and version tags (…002386v1.full.pdf).
-    doi = re.sub(r"\.full\.pdf$", "", doi, flags=re.IGNORECASE)
-    doi = re.sub(r"\.pdf$", "", doi, flags=re.IGNORECASE)
-    doi = re.sub(r"\.full$", "", doi, flags=re.IGNORECASE)
-    doi = re.sub(r"v\d+$", "", doi, flags=re.IGNORECASE)
+    # bioRxiv/medRxiv (10.1101/) URLs carry HTML/PDF suffixes and version tags
+    # (…002386v1.full.pdf) that are not part of the DOI. Other registrants
+    # (e.g. chemRxiv 10.26434/…/v1) include versions in the real DOI, so scope it.
+    if doi.lower().startswith("10.1101/"):
+        doi = re.sub(r"\.full\.pdf$", "", doi, flags=re.IGNORECASE)
+        doi = re.sub(r"\.pdf$", "", doi, flags=re.IGNORECASE)
+        doi = re.sub(r"\.full$", "", doi, flags=re.IGNORECASE)
+        doi = re.sub(r"v\d+$", "", doi, flags=re.IGNORECASE)
+    doi = doi.rstrip("/")
     return doi
 
 
