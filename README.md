@@ -62,11 +62,11 @@ cp .env.example .env                                  # only for API-mode scorin
 
 ```bash
 python forge health          # should end with "Health Check Passed"
-python forge add https://github.com/aungminnkhant94/Forger --agent    # saves a bookmark; content lands in data/pending/
+python forge add https://en.wikipedia.org/wiki/Bookmark_(digital) --agent    # saves a bookmark; content lands in data/pending/
 python forge stats           # should show 1 bookmark
 ```
 
-Use a page with real content. Near-empty pages such as `https://example.com` are refused on purpose (`SCRAPE_FAILED`, nothing saved).
+Use a page with real content (any third-party page works — Wikipedia, PubMed, a blog). Do **not** use this repo's own GitHub URL or README as the setup-check bookmark. Near-empty pages such as `https://example.com` are refused on purpose (`SCRAPE_FAILED`, nothing saved).
 
 With an API key in `.env`, use `python forge add <url>` (the API scores it). Without a key, `forge add` without `--agent` still saves but the analysis degrades to a fallback stub — prefer `--agent` or configure a key.
 

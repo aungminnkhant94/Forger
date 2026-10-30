@@ -60,6 +60,14 @@ LLM_MODEL=glm-4.7
 With a key configured, `python forge add <url>` scores automatically via the
 API. Without one, always use `--agent` and score it yourself.
 
+## Setup-check bookmark (first verify)
+
+For the first verify bookmark, use a **neutral third-party URL** with real
+content (e.g. `https://en.wikipedia.org/wiki/Bookmark_(digital)` or a short
+PubMed page). **Never** save `https://github.com/aungminnkhant94/Forger`
+(or this repository's own URL / README) as the setup-check bookmark — the
+check must prove scrape → score works on an ordinary page, not on Forger itself.
+
 ## X/Twitter links
 
 Public status URLs are scraped **without X cookies** via Twitter syndication /
