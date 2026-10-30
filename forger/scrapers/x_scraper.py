@@ -31,6 +31,7 @@ import json
 import logging
 import math
 import re
+import unicodedata
 import shutil
 import subprocess
 import urllib.error
@@ -59,6 +60,12 @@ _DEFAULT_UA = (
 _HTTP_TIMEOUT = 15
 _MAX_ENRICH_TEXT = 5000
 _URL_IN_TEXT_RE = re.compile(r"https?://\S+", re.IGNORECASE)
+# Bare shorteners only — do not follow arbitrary hostnames without a scheme.
+_BARE_SHORTENER_HOSTS = frozenset({"dlvr.it", "bit.ly"})
+_BARE_SHORTENER_RE = re.compile(
+    r"(?<![\w./-])(?:https?://)?(?:www\.)?(?P<host>dlvr\.it|bit\.ly)/(?P<path>[A-Za-z0-9_-]+)",
+    re.IGNORECASE,
+)
 _X_HOSTS = {
     "x.com",
     "www.x.com",
@@ -189,10 +196,34 @@ def _extract_entity_urls(payload: dict | None) -> list[str]:
     return found
 
 
+def _strip_format_chars(text: str) -> str:
+    """Remove Unicode Cf (ZWSP etc.) that split hosts like ``dlvr.\u200bit``."""
+    return "".join(ch for ch in text if unicodedata.category(ch) != "Cf")
+
+
 def _urls_from_text(text: str | None) -> list[str]:
     if not text:
         return []
-    return list(dict.fromkeys(_URL_IN_TEXT_RE.findall(text)))
+    cleaned = _strip_format_chars(text)
+    found: list[str] = []
+    seen: set[str] = set()
+
+    def _add(u: str) -> None:
+        raw = (u or "").strip().rstrip(").,;]'\"")
+        if not raw or raw in seen:
+            return
+        seen.add(raw)
+        found.append(raw)
+
+    for u in _URL_IN_TEXT_RE.findall(cleaned):
+        _add(u)
+    for match in _BARE_SHORTENER_RE.finditer(cleaned):
+        host = (match.group("host") or "").lower()
+        path = match.group("path") or ""
+        if host not in _BARE_SHORTENER_HOSTS or not path:
+            continue
+        _add(f"https://{host}/{path}")
+    return found
 
 
 def _text_from_x_article(
@@ -446,13 +477,24 @@ class XScraper:
         if not candidates:
             return result
 
+        # Prefer non-X destinations first so a t.co self-loop does not block
+        # a bare shortener (dlvr.it / bit.ly) that points at the real article.
+        preferred: list[str] = []
+        deferred: list[str] = []
+        for u in candidates:
+            if _is_x_hosted_url(u) or _is_x_status_url(u):
+                deferred.append(u)
+            else:
+                preferred.append(u)
+        candidates = preferred + deferred
+
         try:
             from forger.scrapers.article_scraper import scrape_article
         except ImportError:
             LOGGER.warning("article_scraper unavailable for X link enrich")
             return result
 
-        for raw in candidates[:3]:
+        for raw in candidates[:5]:
             try:
                 try:
                     resolved = resolve_redirect_url(raw)  # redirect-friendly UA (Chrome UA breaks t.co)

@@ -266,3 +266,31 @@ class TestArticleScraperAcsHook:
 
         assert result["success"] is False
         assert "HTTP error" in (result["error"] or "")
+
+
+class TestBiorxivVersionedDoi:
+    """bioRxiv/medRxiv version + .full/.pdf suffixes must strip in _normalize_doi."""
+
+    @pytest.mark.parametrize(
+        "url,doi",
+        [
+            (
+                "https://www.biorxiv.org/content/10.1101/2020.03.22.002386v1",
+                "10.1101/2020.03.22.002386",
+            ),
+            (
+                "https://www.biorxiv.org/content/10.1101/2020.03.22.002386v1.full",
+                "10.1101/2020.03.22.002386",
+            ),
+            (
+                "https://www.biorxiv.org/content/10.1101/2020.03.22.002386v2.full.pdf",
+                "10.1101/2020.03.22.002386",
+            ),
+            (
+                "https://www.medrxiv.org/content/10.1101/2020.03.22.002386v1.full.pdf",
+                "10.1101/2020.03.22.002386",
+            ),
+        ],
+    )
+    def test_extract_doi_from_url_strips_version_suffixes(self, url, doi):
+        assert extract_doi_from_url(url) == doi

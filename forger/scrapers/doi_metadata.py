@@ -1,7 +1,10 @@
 """Fetch DOI paper metadata via Crossref when publisher HTML is blocked.
 
 ACS/JACS pages (pubs.acs.org) often return HTTP 403 to plain scrapers;
-Nature article HTML is often a Client Challenge interstitial.
+Nature article HTML is often a Client Challenge interstitial;
+Cell/ScienceDirect PII URLs lack a DOI in the path but Crossref maps
+``alternative-id`` to the DOI. bioRxiv/medRxiv versioned paths
+(``…002386v1``, ``…v1.full.pdf``) need suffix stripping before lookup.
 Crossref still exposes title, abstract, authors, and journal for the DOI,
 which is enough to bookmark without a paywalled PDF.
 """
@@ -55,6 +58,22 @@ _NATURE_ARTICLE_PATH_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Cell / ScienceDirect PII landing pages (Elsevier).
+_ELSEVIER_PII_HOSTS = frozenset(
+    {
+        "cell.com",
+        "www.cell.com",
+        "sciencedirect.com",
+        "www.sciencedirect.com",
+    }
+)
+
+# /fulltext/S0092-8674(25)00197-7 or /pii/S0092867425001977
+_ELSEVIER_PII_PATH_RE = re.compile(
+    r"/(?:fulltext|pii)/(?P<pii>S[0-9A-Za-z()\-–]+)/?",
+    re.IGNORECASE,
+)
+
 # Generic doi.org / dx.doi.org
 _DOI_ORG_PATH_RE = re.compile(
     r"^/(?P<doi>10\.\d{4,9}/[^\s?#]+)",
@@ -93,6 +112,38 @@ def is_nature_article_url(url: str) -> bool:
     if host not in _NATURE_HOSTS:
         return False
     return bool(_NATURE_ARTICLE_PATH_RE.match(parts.path or ""))
+
+
+def is_elsevier_pii_url(url: str) -> bool:
+    """True when *url* is a Cell/ScienceDirect PII article path."""
+    try:
+        parts = urlsplit((url or "").strip())
+    except ValueError:
+        return False
+    host = (parts.hostname or "").lower().rstrip(".")
+    if host not in _ELSEVIER_PII_HOSTS:
+        return False
+    return bool(_ELSEVIER_PII_PATH_RE.search(parts.path or ""))
+
+
+def extract_pii_from_url(url: str) -> str | None:
+    """Pull an Elsevier PII from cell.com / sciencedirect.com paths."""
+    raw = (url or "").strip()
+    if not raw:
+        return None
+    try:
+        parts = urlsplit(raw)
+    except ValueError:
+        return None
+    host = (parts.hostname or "").lower().rstrip(".")
+    if host not in _ELSEVIER_PII_HOSTS:
+        return None
+    path = unquote(parts.path or "")
+    match = _ELSEVIER_PII_PATH_RE.search(path)
+    if not match:
+        return None
+    pii = (match.group("pii") or "").strip().rstrip("/")
+    return pii or None
 
 
 def extract_doi_from_url(url: str) -> str | None:
@@ -135,7 +186,17 @@ def _normalize_doi(doi: str) -> str:
     # ACS sometimes appends .pdf or similar in path segments we already stripped;
     # trim trailing punctuation from inline matches.
     doi = doi.rstrip(".,;)")
+    # bioRxiv/medRxiv HTML/PDF suffixes and version tags (…002386v1.full.pdf).
+    doi = re.sub(r"\.full\.pdf$", "", doi, flags=re.IGNORECASE)
+    doi = re.sub(r"\.pdf$", "", doi, flags=re.IGNORECASE)
+    doi = re.sub(r"\.full$", "", doi, flags=re.IGNORECASE)
+    doi = re.sub(r"v\d+$", "", doi, flags=re.IGNORECASE)
     return doi
+
+
+def _normalize_pii(pii: str) -> str:
+    """Crossref alternative-id is the PII with non-alphanumerics stripped."""
+    return re.sub(r"[^0-9A-Za-z]", "", pii or "")
 
 
 def _error_result(error: str, *, title: str | None = None, text: str | None = None) -> dict:
@@ -234,6 +295,50 @@ def _fetch_crossref(doi: str, timeout: int) -> dict[str, Any] | None:
         return None
 
 
+def _fetch_crossref_by_alternative_id(pii: str, timeout: int) -> dict[str, Any] | None:
+    """Resolve Elsevier PII → Crossref work via filter=alternative-id (exact match)."""
+    key = _normalize_pii(pii)
+    if not key:
+        return None
+    try:
+        assert_safe_fetch_url(CROSSREF_WORKS)
+    except UnsafeURLError as e:
+        LOGGER.error("Refusing unsafe Crossref URL %s: %s", CROSSREF_WORKS, e)
+        return None
+
+    headers = {
+        "User-Agent": (
+            "Forger/1.0 (https://github.com/aungminnkhant94/Forger; "
+            "mailto:forger@users.noreply.github.com)"
+        ),
+        "Accept": "application/json",
+    }
+    params = {"filter": f"alternative-id:{key}", "rows": 5}
+    try:
+        response = requests.get(
+            CROSSREF_WORKS, headers=headers, params=params, timeout=timeout
+        )
+        response.raise_for_status()
+        payload = response.json()
+        message = payload.get("message") if isinstance(payload, dict) else None
+        items = (message or {}).get("items") if isinstance(message, dict) else None
+        if not isinstance(items, list):
+            return None
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            alts = item.get("alternative-id") or []
+            if not isinstance(alts, list):
+                continue
+            # Exact alternative-id match only (Crossref stores stripped PII).
+            if any(str(a) == key for a in alts):
+                return item
+        return None
+    except (Timeout, ConnectionError, HTTPError, RequestException, ValueError) as e:
+        LOGGER.warning("Crossref alternative-id lookup failed for %s: %s", key, e)
+        return None
+
+
 def _fetch_europepmc_abstract(doi: str, timeout: int) -> str:
     """Abstract for *doi* from Europe PMC, or "" when it has none.
 
@@ -274,12 +379,24 @@ def scrape_doi_metadata(url: str, timeout: int = DEFAULT_TIMEOUT) -> dict:
         return _error_result(f"Unsafe URL blocked: {e}")
 
     doi = extract_doi_from_url(url)
-    if not doi:
-        return _error_result("No DOI found in URL")
+    message: dict[str, Any] | None = None
+    if doi:
+        LOGGER.info("Fetching DOI metadata via Crossref: %s (%s)", doi, url)
+        message = _fetch_crossref(doi, timeout)
+    else:
+        pii = extract_pii_from_url(url)
+        if not pii:
+            return _error_result("No DOI found in URL")
+        LOGGER.info("Resolving Elsevier PII via Crossref alternative-id: %s (%s)", pii, url)
+        message = _fetch_crossref_by_alternative_id(pii, timeout)
+        if message:
+            doi = (message.get("DOI") or "").strip() or None
 
-    LOGGER.info("Fetching DOI metadata via Crossref: %s (%s)", doi, url)
-    message = _fetch_crossref(doi, timeout)
     if not message:
+        return _error_result("Crossref metadata lookup failed")
+    if not doi:
+        doi = (message.get("DOI") or "").strip()
+    if not doi:
         return _error_result("Crossref metadata lookup failed")
 
     titles = message.get("title") or []

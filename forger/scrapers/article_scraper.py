@@ -26,7 +26,9 @@ from forger.scrape_quality import (
 )
 from forger.scrapers.doi_metadata import (
     extract_doi_from_url,
+    extract_pii_from_url,
     is_acs_doi_url,
+    is_elsevier_pii_url,
     is_nature_article_url,
     scrape_doi_metadata,
 )
@@ -244,6 +246,11 @@ def _challenge_failure(url: str, *, title=None, text=None, detail: str = "bot ch
     }
 
 
+def _can_try_doi_metadata(url: str) -> bool:
+    """True when URL carries a DOI or Elsevier PII that Crossref can resolve."""
+    return bool(extract_doi_from_url(url) or extract_pii_from_url(url))
+
+
 def _challenge_or_doi_recovery(
     url: str,
     *,
@@ -252,8 +259,8 @@ def _challenge_or_doi_recovery(
     detail: str = "bot challenge",
     timeout: int = DEFAULT_TIMEOUT,
 ) -> dict:
-    """Refuse challenge HTML, but try Crossref when the URL carries a DOI."""
-    if extract_doi_from_url(url):
+    """Refuse challenge HTML, but try Crossref when the URL carries a DOI/PII."""
+    if _can_try_doi_metadata(url):
         doi_meta = scrape_doi_metadata(url, timeout=timeout)
         if doi_meta.get("success"):
             LOGGER.info("Recovered from challenge via DOI metadata for %s", url)
@@ -365,8 +372,8 @@ def scrape_article(url: str, timeout: int = DEFAULT_TIMEOUT, *, skip_pubchem: bo
             pubchem.detail or pubchem.reason.value,
         )
 
-    # ACS/JACS 403 and Nature Client Challenge: prefer Crossref metadata first.
-    if is_acs_doi_url(url) or is_nature_article_url(url):
+    # ACS/JACS 403, Nature Client Challenge, Cell/SD PII: prefer Crossref first.
+    if is_acs_doi_url(url) or is_nature_article_url(url) or is_elsevier_pii_url(url):
         doi_meta = scrape_doi_metadata(url, timeout=timeout)
         if doi_meta.get("success"):
             return doi_meta
@@ -497,7 +504,7 @@ def scrape_article(url: str, timeout: int = DEFAULT_TIMEOUT, *, skip_pubchem: bo
             }
         else:
             LOGGER.warning(f"Insufficient content extracted from {url}")
-            if extract_doi_from_url(url):
+            if _can_try_doi_metadata(url):
                 doi_meta = scrape_doi_metadata(url, timeout=timeout)
                 if doi_meta.get("success"):
                     LOGGER.info(
@@ -536,8 +543,8 @@ def scrape_article(url: str, timeout: int = DEFAULT_TIMEOUT, *, skip_pubchem: bo
         }
     except HTTPError as e:
         LOGGER.error(f"HTTP error for {url}: {e}")
-        # Publisher 403/paywall: if the URL carries a DOI, try Crossref title+abstract.
-        if extract_doi_from_url(url):
+        # Publisher 403/paywall: DOI or Elsevier PII → Crossref title+abstract.
+        if _can_try_doi_metadata(url):
             doi_meta = scrape_doi_metadata(url, timeout=timeout)
             if doi_meta.get("success"):
                 LOGGER.info(
