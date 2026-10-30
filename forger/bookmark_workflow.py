@@ -173,6 +173,9 @@ def _build_analysis_result(bookmark: Bookmark, analysis_dict: dict) -> AnalysisR
     final_bucket = analysis_dict.get("recommendation_bucket", "archive")
     opt = ingest_optional_analysis_text(analysis_dict)
 
+    # Prefer cleaned bookmark.tags when resolve/API already applied them;
+    # otherwise normalize from the payload (same shape as _result_from_llm).
+    resolved_tags = list(bookmark.tags) if bookmark.tags else agent_owned_tags(analysis_dict.get("tags"))
     result = AnalysisResult(
         bookmark_id=bookmark.id,
         summary=analysis_dict.get("summary", ""),
@@ -190,6 +193,7 @@ def _build_analysis_result(bookmark: Bookmark, analysis_dict: dict) -> AnalysisR
         next_action=opt["next_action"],
         title=opt["title"] or bookmark.title,
         relates_to=opt["relates_to"],
+        tags=resolved_tags,
         actionable_this_week=_bool_if_provided(analysis_dict, "actionable_this_week"),
         reduces_friction=_bool_if_provided(analysis_dict, "reduces_friction"),
         reference_material=_bool_if_provided(analysis_dict, "reference_material"),
@@ -255,12 +259,22 @@ def resolve_pending_analysis(bookmark_id: str, analysis_dict: dict) -> Tuple[boo
     derive_legacy_scores(analysis_dict)
     analysis_dict.setdefault("analysis_source", "agent")
 
+    # Apply tags before building AnalysisResult so analysis.tags matches the
+    # bookmark SoT. Empty/omitted payload tags must not wipe prior agent_tags.
+    incoming_tags = agent_owned_tags(analysis_dict.get("tags"))
+    if incoming_tags:
+        bookmark.agent_tags = incoming_tags
+    elif bookmark.agent_tags:
+        incoming_tags = list(bookmark.agent_tags)
+    else:
+        bookmark.agent_tags = []
+    bookmark.tags = clean_tags(
+        incoming_tags, bookmark.title, bookmark.text, bookmark.url, bookmark.note
+    )
+
     analysis = _build_analysis_result(bookmark, analysis_dict)
     analysis.recommendation_bucket = refine_bucket(bookmark, analysis)
     analysis = clean_analysis_text(bookmark, analysis)
-
-    bookmark.agent_tags = agent_owned_tags(analysis_dict.get("tags"))
-    bookmark.tags = clean_tags(bookmark.agent_tags, bookmark.title, bookmark.text, bookmark.url, bookmark.note)
     # Re-read and write under the data lock (see process_bookmark_url).
     with data_lock():
         invalidate_cache()
