@@ -103,6 +103,11 @@ No key required — you are the analyst:
    - Background landmarks / review context only → `archive` (worth ~4).
    If two papers both feel like archive, promote the more urgent one to at
    least `build_later` (or `test_this_week` when it is runnable this week).
+   **Batch spread — do not clump worth.** In a batch of on-profile papers,
+   spread buckets/worth. Two distinct papers must not share the exact same
+   `worth_score` unless they truly share the same boolean outcomes. Prefer
+   distinct `actionable_this_week` / `reduces_friction` / `reference_material`
+   choices so worth lands on different derived values (~8 / ~6.5 / ~4 / ~1.5).
    Full biomed examples: `references/analysis.md`.
    **`relates_to` is required.** Read `profile.md` and write 2–4 sentences (≥40
    characters) that name their goals/projects. Forbidden: `None`, `N/A`,

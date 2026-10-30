@@ -62,11 +62,32 @@ cp .env.example .env                                  # only for API-mode scorin
 
 ```bash
 python forge health          # should end with "Health Check Passed"
-python forge add https://en.wikipedia.org/wiki/Bookmark_(digital) --agent    # saves a bookmark; content lands in data/pending/
+python forge add https://en.wikipedia.org/wiki/Bookmark_(digital) --agent    # proves scrape; note the printed bookmark id
 python forge stats           # should show 1 bookmark
 ```
 
-Use a page with real content (any third-party page works — Wikipedia, PubMed, a blog). Do **not** use this repo's own GitHub URL or README as the setup-check bookmark. Near-empty pages such as `https://example.com` are refused on purpose (`SCRAPE_FAILED`, nothing saved).
+Then **delete the setup-check bookmark** so the library stays empty of test junk.
+There is no `forge delete` yet — drop it with the storage helpers (use the id
+`forge add` printed):
+
+```bash
+python -c "
+from config.settings import DATA_DIR
+from forger.storage import (
+    data_lock, invalidate_cache, load_bookmarks, save_bookmarks,
+    load_analysis_results, save_analysis_results,
+)
+BID = 'bookmark_REPLACE_ME'  # id from forge add
+with data_lock():
+    invalidate_cache()
+    save_bookmarks([b for b in load_bookmarks() if b.id != BID])
+    save_analysis_results([a for a in load_analysis_results() if a.bookmark_id != BID])
+for p in (DATA_DIR / 'pending').glob(BID + '.*'):
+    p.unlink(missing_ok=True)
+"
+```
+
+Use a page with real content (any third-party page works — Wikipedia, PubMed, a blog). Do **not** use this repo's own GitHub URL or README as the setup-check bookmark. Near-empty pages such as `https://example.com` are refused on purpose (`SCRAPE_FAILED`, nothing saved). **Do not keep** the setup-check bookmark after verify.
 
 With an API key in `.env`, use `python forge add <url>` (the API scores it). Without a key, `forge add` without `--agent` still saves but the analysis degrades to a fallback stub — prefer `--agent` or configure a key.
 

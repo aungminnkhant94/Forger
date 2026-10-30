@@ -50,6 +50,13 @@ If two papers both feel like `archive`, pick the more urgent for **at least
 one** — promote it to `build_later` (or `test_this_week` when it is runnable
 this week). Action beats reference; current work beats landmarks.
 
+**Batch spread — do not clump worth.** In a batch of on-profile papers, spread
+buckets/worth. Two distinct papers must not share the exact same
+`worth_score` unless they truly share the same boolean outcomes. Prefer
+distinct actionable / reduces_friction / reference choices so worth lands on
+different derived values (~8 / ~6.5 / ~4 / ~1.5). Filing nine papers as
+`archive@4.0` is the failure mode this rule bans.
+
 ## Profile rules
 
 - If the profile names always-relevant topics and this bookmark is one, bump UP.
