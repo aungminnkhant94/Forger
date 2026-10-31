@@ -10,6 +10,16 @@ ANTI_ARCHIVE_MARKERS = (
     "all science = archive",
     "do NOT park every on-profile paper",
 )
+SETUP_DELETE_MARKERS = (
+    "Delete the setup-check bookmark",
+    "do not leave",
+    "save_bookmarks",
+)
+SCORE_SPREAD_MARKERS = (
+    "exact same",
+    "worth_score",
+    "Batch spread",
+)
 
 
 def _read(rel: str) -> str:
@@ -27,6 +37,19 @@ def test_readme_and_skill_avoid_forger_self_add_url():
     assert "en.wikipedia.org" in readme or "pubmed" in readme.lower()
 
 
+def test_setup_docs_require_delete_after_verify():
+    """Setup verify must prove scrape, then delete the check bookmark."""
+    readme = _read("README.md")
+    setup = _read("skills/forger/references/setup.md")
+    for text in (readme, setup):
+        assert any(m.lower() in text.lower() for m in SETUP_DELETE_MARKERS), text[:240]
+    assert "Delete the setup-check bookmark" in readme or "delete the setup-check bookmark" in readme.lower()
+    assert "Delete the setup-check bookmark" in setup
+    assert "save_bookmarks" in readme and "data_lock" in readme
+    assert "forge delete" in readme.lower()  # documents that it does not exist yet
+    assert "do not keep" in readme.lower() or "do not leave" in setup.lower()
+
+
 def test_analysis_and_skill_mention_anti_all_archive_rule():
     analysis = _read("skills/forger/references/analysis.md")
     skill = _read("skills/forger/SKILL.md")
@@ -36,3 +59,12 @@ def test_analysis_and_skill_mention_anti_all_archive_rule():
     assert "build_later" in analysis
     assert "6.5" in analysis or "~6.5" in analysis
     assert "PCR" in analysis or "assay" in analysis.lower() or "biomed" in analysis.lower()
+
+
+def test_analysis_and_skill_require_worth_score_spread():
+    analysis = _read("skills/forger/references/analysis.md")
+    skill = _read("skills/forger/SKILL.md")
+    for text in (analysis, skill):
+        for marker in SCORE_SPREAD_MARKERS:
+            assert marker in text, f"missing {marker!r} in docs"
+        assert "~1.5" in text or "~8 / ~6.5 / ~4 / ~1.5" in text

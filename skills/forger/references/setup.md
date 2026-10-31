@@ -68,6 +68,13 @@ PubMed page). **Never** save `https://github.com/aungminnkhant94/Forger`
 (or this repository's own URL / README) as the setup-check bookmark — the
 check must prove scrape → score works on an ordinary page, not on Forger itself.
 
+**Delete the setup-check bookmark after verify.** Do not leave Wikipedia /
+PubMed test junk in the user's library. There is no `forge delete` yet —
+filter the printed bookmark id out via `save_bookmarks` /
+`save_analysis_results` under `data_lock` (see README "Verify the install"),
+and remove any matching `data/pending/<id>.*` files. Keeping the check
+bookmark is a setup bug.
+
 ## X/Twitter links
 
 Public status URLs are scraped **without X cookies** via Twitter syndication /

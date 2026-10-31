@@ -149,6 +149,54 @@ def test_resolve_writes_analysis_tags(monkeypatch):
     assert ok, message
     assert stored["bookmark"].tags[:3] == ["catalysis", "organic-synthesis", "methods"]
     assert stored["bookmark"].agent_tags == ["catalysis", "organic-synthesis", "methods"]
+    # AnalysisResult must carry the same tags (dashboard / analysis_results readers).
+    assert analysis.tags[:3] == ["catalysis", "organic-synthesis", "methods"]
+    assert analysis.tags == stored["bookmark"].tags
+
+
+def test_resolve_without_tags_preserves_prior_agent_tags(monkeypatch):
+    """Re-resolve with omitted/empty tags must not wipe bookmark.agent_tags."""
+    stored = {}
+    pending = _make_bookmark()
+    pending.agent_tags = ["catalysis", "organic-synthesis", "methods"]
+    pending.tags = ["catalysis", "organic-synthesis", "methods"]
+
+    def capture_save(bookmarks):
+        stored["bookmark"] = list(bookmarks)[0]
+
+    def capture_upsert(existing, incoming):
+        stored["analysis"] = list(incoming)[0]
+        return list(incoming)
+
+    monkeypatch.setattr(bw, "load_bookmarks", lambda: [pending])
+    monkeypatch.setattr(bw, "load_analysis_results", lambda: [])
+    monkeypatch.setattr(bw, "save_bookmarks", capture_save)
+    monkeypatch.setattr(bw, "merge_bookmarks", lambda existing, incoming: list(incoming))
+    monkeypatch.setattr(bw, "upsert_analysis_results", capture_upsert)
+    monkeypatch.setattr(bw, "_sync_dashboard", lambda: None)
+    monkeypatch.setattr(bw, "refine_bucket", lambda bookmark, analysis: analysis.recommendation_bucket)
+    monkeypatch.setattr(bw, "clean_analysis_text", lambda bookmark, analysis: analysis)
+
+    relates = (
+        "Connects to the PhD catalysis project because ester routes "
+        "show up in the current substrate screen. Worth keeping as "
+        "reference when planning the next wet-lab batch."
+    )
+    base = {
+        "summary": "A methods note on ester synthesis for lab use this week.",
+        "recommendation_bucket": "archive",
+        "relates_to": relates,
+        "actionable_this_week": False,
+        "reduces_friction": False,
+        "reference_material": True,
+    }
+    for payload in (dict(base), {**base, "tags": []}):
+        ok, message, analysis = bw.resolve_pending_analysis(pending.id, payload)
+        assert ok, message
+        assert stored["bookmark"].agent_tags == ["catalysis", "organic-synthesis", "methods"]
+        assert stored["bookmark"].tags[:3] == ["catalysis", "organic-synthesis", "methods"]
+        assert analysis.tags[:3] == ["catalysis", "organic-synthesis", "methods"]
+        assert stored["analysis"].tags == analysis.tags
 
 
 def test_hn_outbound_overlap_warns_but_still_saves(monkeypatch):
